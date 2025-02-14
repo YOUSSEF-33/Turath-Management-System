@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* Add this to your CSS file or use a CSS-in-JS solution */
+@media (max-width: 768px) {
+  .fixed {
+    position: fixed;
+    z-index: 1000;
+  }
+}
