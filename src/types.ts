@@ -12,6 +12,11 @@ export interface Unit {
   type: 'villa' | 'duplex' | 'apartment';
   number: string;
   area: number;
+  price: number; // Added price field
   status: 'available' | 'occupied' | 'maintenance';
+  code: string; // Added code field
+  description: string; // Added description field
+  images: string[]; // Added images field (array of image URLs)
+  engineeringPlan: string; // Added engineeringPlan field (URL of the plan image)
   assignedEmployees: number[];
 }

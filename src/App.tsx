@@ -12,6 +12,7 @@ import ViewEmployee from './pages/employees/ViewEmployee';
 import CreateUnit from './pages/units/CreateUnit';
 import EditUnit from './pages/units/EditUnit';
 import ViewUnit from './pages/units/ViewUnit';
+import LoginPage from './pages/login/Login';
 
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);

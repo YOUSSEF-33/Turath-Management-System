@@ -1,6 +1,4 @@
-import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import Navbar from '../../components/Navbar';
 import { employees, units } from '../../data';
 
 const ViewEmployee = () => {
@@ -16,7 +14,6 @@ const ViewEmployee = () => {
 
   return (
     <div>
-      <Navbar title="تفاصيل الموظف" />
       <div className="p-6">
         <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-6">
           <div className="space-y-4">
