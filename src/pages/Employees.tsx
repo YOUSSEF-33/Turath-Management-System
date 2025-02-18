@@ -31,7 +31,6 @@ const Employees = () => {
 
   return (
     <div>
-      <Navbar title="الموظفون" />
       <div className="p-6">
         <div className="mb-6 flex justify-between items-center">
           <button

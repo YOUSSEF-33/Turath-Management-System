@@ -70,7 +70,6 @@ const Units = () => {
 
   return (
     <div>
-      <Navbar title="الوحدات" />
       <div className="p-6">
         <div className="mb-6 flex justify-between items-center">
           <button
