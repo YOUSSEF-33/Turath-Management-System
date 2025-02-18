@@ -1,8 +1,6 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { employees, units } from '../data';
-import Navbar from '../components/Navbar';
 import { Eye, Edit, Trash, Plus } from 'lucide-react';
 
 const Employees = () => {

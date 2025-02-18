@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Search, UserCircle, X, Menu } from 'lucide-react';
 
 interface NavbarProps {
@@ -69,7 +69,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
 
             {/* Profile */}
             <div className="flex items-center">
-              <span className="hidden sm:block ml-2 text-gray-700">أحمد محمد</span>
+              <span className="hidden sm:block ml-2 text-gray-700"></span>
               <UserCircle className="h-8 w-8 text-gray-700" />
             </div>
           </div>

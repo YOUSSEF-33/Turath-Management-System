@@ -1,6 +1,4 @@
-import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import Navbar from '../../components/Navbar';
 import { units, employees } from '../../data';
 
 const ViewUnit = () => {
@@ -42,7 +40,6 @@ const ViewUnit = () => {
 
   return (
     <div>
-      <Navbar title="تفاصيل الوحدة" />
       <div className="p-6">
         <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-6">
           <div className="space-y-4">
@@ -62,9 +59,35 @@ const ViewUnit = () => {
                   <p className="text-base text-gray-900">{unit.area} م²</p>
                 </div>
                 <div>
+                  <p className="text-sm text-gray-500">السعر</p>
+                  <p className="text-base text-gray-900">{unit.price} ريال</p>
+                </div>
+                <div>
                   <p className="text-sm text-gray-500">الحالة</p>
                   <p className="text-base text-gray-900">{getStatusText(unit.status)}</p>
                 </div>
+                <div>
+                  <p className="text-sm text-gray-500">كود الوحدة</p>
+                  <p className="text-base text-gray-900">{unit.code}</p>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">الوصف</h3>
+              <p className="mt-3 text-base text-gray-900">{unit.description}</p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">صور الوحدة</h3>
+              <div className="mt-3 grid grid-cols-2 gap-4">
+                {unit.images.map((image, index) => (
+                  <img key={index} src={image} alt={`Unit Image ${index + 1}`} className="rounded-lg" />
+                ))}
+              </div>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">الرسم الهندسي</h3>
+              <div className="mt-3">
+                <img src={unit.engineeringPlan} alt="Engineering Plan" className="rounded-lg" />
               </div>
             </div>
             <div className="pt-4">

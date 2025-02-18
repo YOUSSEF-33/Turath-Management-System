@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import Navbar from '../../components/Navbar';
 import { employees } from '../../data';
 
 const EditEmployee = () => {
@@ -22,7 +21,6 @@ const EditEmployee = () => {
 
   return (
     <div>
-      <Navbar title="تعديل بيانات الموظف" />
       <div className="p-6">
         <form onSubmit={handleSubmit} className="max-w-2xl mx-auto bg-white rounded-lg shadow p-6">
           <div className="space-y-4">
