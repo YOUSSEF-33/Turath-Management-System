@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { employees } from '../../data';
@@ -6,66 +6,113 @@ import { employees } from '../../data';
 const EditEmployee = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const employee = employees.find(emp => emp.id === Number(id));
+  const employeeData = employees.find(emp => emp.id === Number(id));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [employee, setEmployee] = useState({
+    name: '',
+    position: '',
+    phone: '',
+    email: '',
+  });
+
+  useEffect(() => {
+    if (employeeData) {
+      setEmployee(employeeData);
+    }
+  }, [employeeData]);
+
+  const handleChange = (e:any) => {
+    setEmployee({ ...employee, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = (e:any) => {
     e.preventDefault();
-    // Add employee update logic here
     toast.success('تم تحديث بيانات الموظف بنجاح');
     navigate('/employees');
   };
 
-  if (!employee) {
-    return <div>لم يتم العثور على الموظف</div>;
+  if (!employeeData) {
+    return <div className="text-center text-red-500 font-bold">لم يتم العثور على الموظف</div>;
   }
 
   return (
-    <div>
-      <div className="p-6">
-        <form onSubmit={handleSubmit} className="max-w-2xl mx-auto bg-white rounded-lg shadow p-6">
-          <div className="space-y-4">
+    <div className="bg-gray-100 min-h-screen">
+      {/* Page Header */}
+      <div className="bg-gray-100  shadow-sm sticky top-0 z-10">
+        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">تعديل بيانات الموظف</h1>
+          <button
+            onClick={() => navigate('/employees')}
+            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+          >
+            عودة
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="container mx-auto px-6 py-8">
+        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Employee Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">الاسم</label>
               <input
                 type="text"
-                defaultValue={employee.name}
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                name="name"
+                value={employee.name}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
+
+            {/* Employee Position */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">المنصب</label>
               <input
                 type="text"
-                defaultValue={employee.position}
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                name="position"
+                value={employee.position}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
+
+            {/* Employee Phone */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">رقم الهاتف</label>
               <input
                 type="tel"
-                defaultValue={employee.phone}
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                name="phone"
+                value={employee.phone}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
+
+            {/* Employee Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني</label>
               <input
                 type="email"
-                defaultValue={employee.email}
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                name="email"
+                value={employee.email}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
           </div>
-          <div className="mt-6 flex justify-end space-x-3">
+
+          {/* Form Actions */}
+          <div className="mt-8 flex justify-end space-x-3">
             <button
               type="button"
               onClick={() => navigate('/employees')}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 ml-3"
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
             >
               إلغاء
             </button>
