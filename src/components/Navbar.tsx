@@ -11,7 +11,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   return (
-    <div className="bg-white shadow-sm fixed w-full top-0 z-20 md:relative">
+    <div className="bg-gray-50 shadow-sm fixed w-full top-0 z-20 md:relative">
       <div className="px-4 md:px-6 py-4">
         {/* Mobile Search Overlay */}
         {isSearchOpen && (
