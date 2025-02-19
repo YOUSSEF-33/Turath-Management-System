@@ -18,7 +18,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     <>
       {/* Sidebar/Mobile Menu */}
       <aside
-        className={`fixed md:sticky top-0 right-0 h-screen w-64 bg-gray-900 text-white transform transition-transform duration-300 ease-in-out z-30 ${
+        className={`fixed md:sticky top-0 right-0 h-screen w-64 bg-gray-50 text-gray-800 transform transition-transform duration-300 ease-in-out z-30 ${
           isOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"
         }`}
       >
@@ -33,7 +33,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   onClick={onClose}
                   className={({ isActive }) =>
                     `flex items-center p-3 rounded-lg transition-colors ${
-                      isActive ? "bg-gray-800" : "hover:bg-gray-800"
+                      isActive ? "bg-blue-500 text-white" : "hover:bg-blue-100 text-gray-800"
                     }`
                   }
                 >
