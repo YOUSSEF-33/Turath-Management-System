@@ -6,6 +6,8 @@ const ViewUnit = () => {
   const { id } = useParams();
   const unit = units.find(u => u.id === Number(id));
 
+
+
   if (!unit) {
     return <div className="p-6 text-center text-red-500">لم يتم العثور على الوحدة</div>;
   }
@@ -39,9 +41,9 @@ const ViewUnit = () => {
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className="bg-gray-100 min-h-screen">
       {/* Page Header */}
-      <div className="bg-white shadow-sm sticky top-0 z-10">
+      <div className="bg-gray-100 shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">الوحدة {unit.number}</h1>
           <button
@@ -75,7 +77,7 @@ const ViewUnit = () => {
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-500">السعر</p>
-                  <p className="text-lg font-medium text-gray-900">{unit.price} ريال</p>
+                  <p className="text-lg font-medium text-gray-900">{unit.price} جنيه</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-500">الحالة</p>
@@ -101,7 +103,7 @@ const ViewUnit = () => {
                 {unit.images.map((image, index) => (
                   <img
                     key={index}
-                    src={image}
+                    src={`/images/${image}`}
                     alt={`Unit Image ${index + 1}`}
                     className="rounded-lg shadow-md w-full h-48 object-cover"
                   />
@@ -111,35 +113,40 @@ const ViewUnit = () => {
 
             {/* Engineering Plan */}
             <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">الرسم الهندسي</h3>
-              <img
-                src={unit.engineeringPlan}
-                alt="Engineering Plan"
-                className="rounded-lg shadow-md w-full"
-              />
-            </div>
-
-            {/* Assigned Employees */}
-            <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">الموظفون المخصصون</h3>
-              {assignedEmployees.length > 0 ? (
-                <ul className="space-y-4">
-                  {assignedEmployees.map(employee => (
-                    <li
-                      key={employee.id}
-                      className="bg-gray-50 p-4 rounded-lg flex items-center justify-between"
-                    >
-                      <span className="text-lg font-medium text-gray-900">{employee.name}</span>
-                      <span className="text-gray-500">{employee.position}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-gray-500">لا يوجد موظفون مخصصون</p>
-              )}
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">صور المخطط</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {unit.engineeringPlan.map((image, index) => (
+                  <img
+                    key={index}
+                    src={`/images/${image}`}
+                    alt={`Unit Image ${index + 1}`}
+                    className="rounded-lg shadow-md w-full h-48 object-cover"
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Assigned Employees */}
+        {/* <div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-4">الموظفون المخصصون</h3>
+          {assignedEmployees.length > 0 ? (
+            <ul className="space-y-4">
+              {assignedEmployees.map(employee => (
+                <li
+                  key={employee.id}
+                  className="bg-gray-50 p-4 rounded-lg flex items-center justify-between"
+                >
+                  <span className="text-lg font-medium text-gray-900">{employee.name}</span>
+                  <span className="text-gray-500">{employee.position}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-500">لا يوجد موظفون مخصصون</p>
+          )}
+        </div> */}
       </div>
     </div>
   );

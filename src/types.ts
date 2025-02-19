@@ -17,6 +17,6 @@ export interface Unit {
   code: string; // Added code field
   description: string; // Added description field
   images: string[]; // Added images field (array of image URLs)
-  engineeringPlan: string; // Added engineeringPlan field (URL of the plan image)
+  engineeringPlan: string[]; // Added engineeringPlan field (URL of the plan image)
   assignedEmployees: number[];
 }
