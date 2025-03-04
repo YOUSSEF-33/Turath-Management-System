@@ -7,8 +7,16 @@ import { Eye, Edit, Trash } from 'lucide-react';
 interface Unit {
   id: number;
   building_id: number;
-  name: string;
-  description: string;
+  unit_number: string;
+  unit_type: string;
+  price: number;
+  status: string;
+  area: string;
+  floor: number;
+  bedrooms: number;
+  bathrooms: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Building {
@@ -44,11 +52,12 @@ const ViewUnit: React.FC = () => {
   }, [buildingId]);
 
   const handleView = (unit: number) => {
+    
     console.log('View unit', unit);
   };
 
   const handleEdit = (unit: number) => {
-    navigate(`/units/edit/${unit}`);
+    navigate(`units/${unit}/edit`);
     console.log('Edit unit', unit);
   };
 
@@ -95,13 +104,18 @@ const ViewUnit: React.FC = () => {
           {building && (
             <GenericTable
               columns={[
-                { header: 'رقم الوحدة', key: 'id' },
-                { header: 'اسم الوحدة', key: 'name' },
-                { header: 'الوصف', key: 'description' },
+                { header: 'رقم الوحدة', key: 'unit_number' },
+                { header: 'نوع الوحدة', key: 'unit_type' },
+                { header: 'السعر', key: 'price' },
+                { header: 'الحالة', key: 'status' },
+                { header: 'المساحة', key: 'area' },
+                { header: 'الطابق', key: 'floor' },
+                { header: 'غرف النوم', key: 'bedrooms' },
+                { header: 'الحمامات', key: 'bathrooms' },
               ]}
               data={building.units}
               actions={actions}
-              onCreate={() => navigate(`/buildings/${buildingId}/create`)}
+              onCreate={() => navigate("units/create")}
               createButtonText="إضافة وحدة جديدة"
             />
           )}

@@ -183,7 +183,7 @@ const ReverseUnit = () => {
                 printWindow.document.write(`
                     <html>
                     <head>
-                        <title>Contract</title>
+                        <title ></title>
                         <style>
                             body { direction: rtl; font-family: Arial, sans-serif; }
                             .contract { padding: 20px; }
@@ -295,7 +295,7 @@ const ReverseUnit = () => {
                             label={label}
                             type={key === "contractDate" ? "date" : "text"}
                             value={clientData[key]}
-                            onChange={(e) => setClientData((prev: any) => ({ ...prev, [key]: e.target.value }))}
+                            onChange={(e: any) => setClientData((prev: any) => ({ ...prev, [key]: e.target.value }))}
                             placeholder={`أدخل ${label}`}
                         />
                     ))}
@@ -359,7 +359,7 @@ const ReverseUnit = () => {
                                 label={label}
                                 type="number"
                                 value={unitDetails[key]}
-                                onChange={(e) => setUnitDetails((prev: any) => ({ ...prev, [key]: e.target.value }))}
+                                onChange={(e: any) => setUnitDetails((prev: any) => ({ ...prev, [key]: e.target.value }))}
                                 placeholder={`أدخل ${label}`}
                                 disabled={isDisabled}
                                 className={isLastInput ? "col-span-2" : ""}
@@ -401,16 +401,22 @@ const ReverseUnit = () => {
                 }}
             >
                 {/* Header */}
-                <h1 style={{
-                    fontSize: '28px',
-                    color: '#2c3e50',
+                <div style={{
                     textAlign: 'center',
                     marginBottom: '25px',
                     borderBottom: '2px solid #3498db',
                     paddingBottom: '10px'
                 }}>
-                    شركة العقارات
-                </h1>
+                    <img
+                        src="/images/output-onlinepngtools.png" 
+                        alt="Company Logo"
+                        style={{
+                            maxWidth: '200px',
+                            maxHeight: '80px',
+                            objectFit: 'contain'
+                        }}
+                    />
+                </div>
 
                 {/* Date */}
                 <p style={{
