@@ -58,9 +58,9 @@ function App() {
                         <Route path="/employees/view/:id" element={<ViewEmployee />} />
 
 
-                        <Route path="/units" element={<Units />} />
-                        <Route path="/units/create" element={<CreateUnit />} />
-                        <Route path="/units/edit/:id" element={<EditUnit />} />
+                        <Route path="" element={<Units />} />
+                        <Route path="/projects/:projectId/buildings/:buildingId/units/create" element={<CreateUnit />} />
+                        <Route path="/projects/:projectId/buildings/:buildingId/units/:unitId/edit" element={<EditUnit />} />
                         <Route path="/projects/:projectId/buildings/:buildingId" element={<ViewUnit />} />
 
 

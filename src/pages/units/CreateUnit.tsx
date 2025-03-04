@@ -1,32 +1,44 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import axiosInstance from '../../axiosInstance';
 
 const CreateUnit = () => {
   const navigate = useNavigate();
-  const [images, setImages] = useState<File[]>([]);
-  const [archPlanningImages, setArchPlanningImages] = useState<File[]>([]);
+  const [unitNumber, setUnitNumber] = useState('');
+  const [unitType, setUnitType] = useState('villa');
+  const [price, setPrice] = useState('');
+  const [area, setArea] = useState('');
+  const [floor, setFloor] = useState('');
+  const [bedrooms, setBedrooms] = useState('');
+  const [bathrooms, setBathrooms] = useState('');
+  const [description, setDescription] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('تم إضافة الوحدة بنجاح');
-    navigate('/units');
-  };
+    const formData = new FormData();
+    formData.append('building_id', '2');
+    formData.append('unit_number', unitNumber);
+    formData.append('unit_type', unitType);
+    formData.append('price', price);
+    formData.append('area', area);
+    formData.append('floor', floor);
+    formData.append('bedrooms', bedrooms);
+    formData.append('bathrooms', bathrooms);
+    formData.append('description', description);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setImages(Array.from(e.target.files));
-    }
-  };
-
-  const handleArchPlanningImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setArchPlanningImages(Array.from(e.target.files));
+    try {
+      await axiosInstance.post('/units', formData);
+      toast.success('تم إضافة الوحدة بنجاح');
+      navigate('/units');
+    } catch (error) {
+      toast.error('حدث خطأ أثناء إضافة الوحدة');
+      console.log(error);
     }
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className="bg-gray-100 min-h-screen">
       {/* Page Header */}
       <div className="bg-white shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
@@ -43,22 +55,26 @@ const CreateUnit = () => {
       {/* Main Content */}
       <div className="container mx-auto px-6 py-8">
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-8">
+          {/* Unit Number */}
+          <div className='my-4'>
+            <label className="block text-sm font-medium text-gray-700 mb-1">رقم الوحدة</label>
+            <input
+              type="text"
+              value={unitNumber}
+              onChange={(e) => setUnitNumber(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
           {/* Two-column layout for large screens */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Unit Number */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">رقم الوحدة</label>
-              <input
-                type="text"
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
 
             {/* Unit Type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">النوع</label>
               <select
+                value={unitType}
+                onChange={(e) => setUnitType(e.target.value)}
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
                 required
               >
@@ -72,7 +88,9 @@ const CreateUnit = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">المساحة (م²)</label>
               <input
-                type="number"
+                type="text"
+                value={area}
+                onChange={(e) => setArea(e.target.value)}
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
                 required
               />
@@ -82,67 +100,59 @@ const CreateUnit = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">السعر (جنيه)</label>
               <input
-                type="number"
+                type="text"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
 
-            
-          </div>
-
-          {/* Unit Images */}
-          <div className="mt-6">
-
-            {/* Unit Status */}
-            <div className='mb-2'>
-              <label className="block text-sm font-medium text-gray-700 mb-1">الحالة</label>
-              <select
+            {/* Floor */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">الطابق</label>
+              <input
+                type="text"
+                value={floor}
+                onChange={(e) => setFloor(e.target.value)}
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
                 required
-              >
-                <option value="available">متاح</option>
-                <option value="occupied">مشغول</option>
-                <option value="maintenance">صيانة</option>
-              </select>
+              />
             </div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">صور الوحدة</label>
-            <input
-              type="file"
-              multiple
-              onChange={handleImageUpload}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
-            />
-            <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-4">
-              {images.map((image, index) => (
-                <img
-                  key={index}
-                  src={URL.createObjectURL(image)}
-                  alt={`Unit Image ${index + 1}`}
-                  className="w-full h-32 object-cover rounded-lg"
-                />
-              ))}
-            </div>
-          </div>
 
-          {/* Architectural Planning Images */}
-          <div className="mt-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1">صور الرسم الهندسي</label>
-            <input
-              type="file"
-              multiple
-              onChange={handleArchPlanningImageUpload}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
-            />
-            <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-4">
-              {archPlanningImages.map((image, index) => (
-                <img
-                  key={index}
-                  src={URL.createObjectURL(image)}
-                  alt={`Arch Planning Image ${index + 1}`}
-                  className="w-full h-32 object-cover rounded-lg"
-                />
-              ))}
+            {/* Bedrooms */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">غرف النوم</label>
+              <input
+                type="text"
+                value={bedrooms}
+                onChange={(e) => setBedrooms(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+
+            {/* Bathrooms */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">الحمامات</label>
+              <input
+                type="text"
+                value={bathrooms}
+                onChange={(e) => setBathrooms(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+
+            {/* Description */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">الوصف</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
+                required
+              />
             </div>
           </div>
 

@@ -1,41 +1,71 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { units } from '../../data';
+import axiosInstance from '../../axiosInstance';
 
 const EditUnit = () => {
   const navigate = useNavigate();
-  const { id } = useParams();
-  const unit = units.find(u => u.id === Number(id));
-
+  const { unitId:id } = useParams();
   const [unitData, setUnitData] = useState({
-    number: unit?.number || '',
-    type: unit?.type || 'apartment',
-    area: unit?.area || '',
-    price: unit?.price || '',
-    status: unit?.status || 'available',
-    images: unit?.images || []
+    id: '',
+    building_id: '',
+    unit_number: '',
+    unit_type: 'apartment',
+    price: '',
+    status: 'available',
+    area: '',
+    floor: '',
+    bedrooms: '',
+    bathrooms: '',
+    description: '',
+    created_at: '',
+    updated_at: ''
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  useEffect(() => {
+    const fetchUnitData = async () => {
+      try {
+        const response = await axiosInstance.get(`/units/${id}`);
+        setUnitData(response.data.data);
+      } catch (error) {
+        toast.error('حدث خطأ أثناء جلب بيانات الوحدة');
+        console.log(error);
+      }
+    };
+
+    fetchUnitData();
+  }, [id]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setUnitData({ ...unitData, [e.target.name]: e.target.value });
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newImages = Array.from(e.target.files).map(file => URL.createObjectURL(file));
-      setUnitData({ ...unitData, images: [...unitData.images, ...newImages] });
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append('unit_number', unitData.unit_number);
+    formData.append('unit_type', unitData.unit_type);
+    formData.append('building_id', unitData.building_id);
+    formData.append('area', unitData.area);
+    formData.append('price', unitData.price);
+    formData.append('status', unitData.status);
+    formData.append('floor', unitData.floor);
+    formData.append('bedrooms', unitData.bedrooms);
+    formData.append('bathrooms', unitData.bathrooms);
+    formData.append('description', unitData.description);
+    formData.append('_method', "PUT");
+
+    try {
+      await axiosInstance.post(`/units/${id}`, formData);
+      toast.success('تم تحديث بيانات الوحدة بنجاح');
+      navigate(-1);
+    } catch (error) {
+      toast.error('حدث خطأ أثناء تحديث بيانات الوحدة');
+      console.log(error);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Add unit update logic here
-    toast.success('تم تحديث بيانات الوحدة بنجاح');
-    navigate('/units');
-  };
-
-  if (!unit) {
+  if (!unitData) {
     return <div className="text-center mt-10 text-red-600">لم يتم العثور على الوحدة</div>;
   }
 
@@ -59,8 +89,8 @@ const EditUnit = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">رقم الوحدة</label>
             <input
               type="text"
-              name="number"
-              value={unitData.number}
+              name="unit_number"
+              value={unitData.unit_number}
               onChange={handleChange}
               className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
@@ -70,8 +100,8 @@ const EditUnit = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">النوع</label>
             <select
-              name="type"
-              value={unitData.type}
+              name="unit_type"
+              value={unitData.unit_type}
               onChange={handleChange}
               className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
@@ -85,7 +115,7 @@ const EditUnit = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">المساحة (م²)</label>
             <input
-              type="number"
+              type="text"
               name="area"
               value={unitData.area}
               onChange={handleChange}
@@ -121,20 +151,51 @@ const EditUnit = () => {
             </select>
           </div>
 
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">صور الوحدة</label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">الطابق</label>
             <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handleImageChange}
+              type="number"
+              name="floor"
+              value={unitData.floor}
+              onChange={handleChange}
               className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
             />
-            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-              {unitData.images.map((img, index) => (
-                <img key={index} src={img} alt={`unit-${index}`} className="w-full h-32 object-cover rounded-lg" />
-              ))}
-            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">غرف النوم</label>
+            <input
+              type="number"
+              name="bedrooms"
+              value={unitData.bedrooms}
+              onChange={handleChange}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">الحمامات</label>
+            <input
+              type="number"
+              name="bathrooms"
+              value={unitData.bathrooms}
+              onChange={handleChange}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">الوصف</label>
+            <textarea
+              name="description"
+              value={unitData.description}
+              onChange={handleChange}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            />
           </div>
 
           <div className="md:col-span-2 flex justify-end space-x-3">

@@ -47,7 +47,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
       {/* Main Navbar Content */}
       <div className="px-4 md:px-6 py-4 max-w-7xl mx-auto">
         <div className="flex items-center justify-between">
-          {/* Left Side: Menu Toggle and Title */}
+          {/* Left Side: Menu Toggle and Logo */}
           <div className="flex items-center">
             <button
               className="md:hidden p-2 -mr-2 text-gray-700 hover:text-gray-900 transition-colors"
@@ -56,7 +56,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
-            <h1 className="hidden md:inline text-xl font-semibold text-gray-800 mr-2">{title}</h1>
+            <img src="/images/output-onlinepngtools.png" alt="Logo" className=" h-8 mr-2" />
           </div>
 
           {/* Right Side: Search and Profile */}

@@ -66,67 +66,69 @@ const GenericTable = ({
         </div>
       )}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full">
-          <thead className="bg-gray-100">
-            <tr>
-              {columns.map((column) => (
-                <th
-                  key={column.key}
-                  className="px-6 py-3 text-right text-sm font-semibold text-gray-600"
-                >
-                  {column.header}
-                </th>
-              ))}
-              {actions && actions.length > 0 && (
-                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-600">
-                  الإجراءات
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {loading ? (
+        <div className="overflow-x-auto"> {/* Add this wrapper */}
+          <table className="min-w-full">
+            <thead className="bg-gray-100">
               <tr>
-                <td colSpan={columns.length + (actions ? 1 : 0)} className="px-6 py-4 text-center text-sm text-gray-900">
-                  جاري التحميل...
-                </td>
+                {columns.map((column) => (
+                  <th
+                    key={column.key}
+                    className="px-6 py-3 text-right text-sm font-semibold text-gray-600"
+                  >
+                    {column.header}
+                  </th>
+                ))}
+                {actions && actions.length > 0 && (
+                  <th className="px-6 py-3 text-center text-sm font-semibold text-gray-600">
+                    الإجراءات
+                  </th>
+                )}
               </tr>
-            ) : paginatedData.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length + (actions ? 1 : 0)} className="px-6 py-4 text-center text-sm text-gray-900">
-                  {noDataMessage}
-                </td>
-              </tr>
-            ) : (
-              paginatedData.map((row, rowIndex) => (
-                <tr key={rowIndex}>
-                  {columns.map((column) => (
-                    <td key={column.key} className="px-6 py-4 text-sm text-gray-900">
-                      {column.render ? column.render(row[column.key], row) : row[(column.key)]}
-                    </td>
-                  ))}
-                  {actions && actions.length > 0 && (
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      <div className="flex justify-center space-x-2">
-                        {actions.map((action) => (
-                          <button
-                            key={action.key}
-                            onClick={() => action.onClick(row.id)}
-                            className={`${action.color || 'text-gray-600'} mx-2 hover:text-${
-                              action.color?.split('-')[1] || 'gray'
-                            }-800`}
-                          >
-                            {action.icon}
-                          </button>
-                        ))}
-                      </div>
-                    </td>
-                  )}
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {loading ? (
+                <tr>
+                  <td colSpan={columns.length + (actions ? 1 : 0)} className="px-6 py-4 text-center text-sm text-gray-900">
+                    جاري التحميل...
+                  </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : paginatedData.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length + (actions ? 1 : 0)} className="px-6 py-4 text-center text-sm text-gray-900">
+                    {noDataMessage}
+                  </td>
+                </tr>
+              ) : (
+                paginatedData.map((row, rowIndex) => (
+                  <tr key={rowIndex}>
+                    {columns.map((column) => (
+                      <td key={column.key} className="px-6 py-4 text-sm text-gray-900">
+                        {column.render ? column.render(row[column.key], row) : row[(column.key)]}
+                      </td>
+                    ))}
+                    {actions && actions.length > 0 && (
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        <div className="flex justify-center space-x-2">
+                          {actions.map((action) => (
+                            <button
+                              key={action.key}
+                              onClick={() => action.onClick(row.id)}
+                              className={`${action.color || 'text-gray-600'} mx-2 hover:text-${
+                                action.color?.split('-')[1] || 'gray'
+                              }-800`}
+                            >
+                              {action.icon}
+                            </button>
+                          ))}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div> {/* End of wrapper */}
         <div className="flex justify-between items-center p-4 bg-gray-100">
           <button
             onClick={() => handlePageChange(currentPage - 1)}
