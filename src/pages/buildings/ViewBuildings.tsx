@@ -4,66 +4,67 @@ import axiosInstance from '../../axiosInstance';
 import GenericTable from '../../components/GenericTable';
 import { Eye, Edit, Trash } from 'lucide-react';
 
-interface Unit {
+interface Building {
   id: number;
-  building_id: number;
+  project_id: number;
   name: string;
   description: string;
 }
 
-interface Building {
+interface Project {
   id: number;
   name: string;
   description: string;
-  units: Unit[];
+  buildings: Building[];
 }
 
 interface Action {
   key: string;
   icon: JSX.Element;
-  onClick: (unit: number) => void;
+  onClick: (building: number) => void;
   color: string;
 }
 
-const ViewUnit: React.FC = () => {
-  const { buildingId } = useParams<{ buildingId: string }>();
+const ViewBuildings: React.FC = () => {
+  const { buildingId:id } = useParams<{ buildingId: string }>();
   const navigate = useNavigate();
-  const [building, setBuilding] = useState<Building | null>(null);
+  const [project, setProject] = useState<Project | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axiosInstance.get<{ data: Building }>(`/buildings/${buildingId}`);
-        setBuilding(response.data.data);
+        const response = await axiosInstance.get<{ data: Project }>(`/projects/${id}`);
+        setProject(response.data.data);
       } catch (error) {
         console.error('Error fetching data:', error);
       }
     };
 
     fetchData();
-  }, [buildingId]);
+  }, [id]);
 
-  const handleView = (unit: number) => {
-    console.log('View unit', unit);
+  const handleView = (building: number) => {
+    navigate(`buildings/${building}`);
+    console.log('View building', building);
   };
 
-  const handleEdit = (unit: number) => {
-    navigate(`/units/edit/${unit}`);
-    console.log('Edit unit', unit);
+  const handleEdit = (building: number) => {
+    navigate(`/buildings/edit/${building}`);
+    console.log('Edit building', building);
   };
 
-  const handleDelete = async (unit: number) => {
+  const handleDelete = async (building: number) => {
     try {
-      await axiosInstance.delete(`/units/${unit}`);
-      if (building) {
-        setBuilding({
-          ...building,
-          units: building.units.filter(u => u.id !== unit),
+      await axiosInstance.delete(`/buildings/${building}`);
+      if (project) {
+        setProject({
+          ...project,
+          buildings: project.buildings.filter(b => b.id !== building),
         });
       }
-      console.log('Deleted unit', unit);
+      console.log('Deleted building', building);
     } catch (error) {
-      console.error('Error deleting unit:', error);
+      console.error('Error deleting building:', error);
     }
   };
 
@@ -78,9 +79,9 @@ const ViewUnit: React.FC = () => {
       {/* Page Header */}
       <div className="bg-gray-100 shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">{building?.name}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{project?.name}</h1>
           <button
-            onClick={() => navigate('/buildings')}
+            onClick={() => navigate('/projects')}
             className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           >
             عودة
@@ -91,18 +92,18 @@ const ViewUnit: React.FC = () => {
       {/* Main Content */}
       <div className="container mx-auto px-6 py-8">
         <div className="bg-white rounded-lg shadow-lg p-8">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">قائمة الوحدات</h3>
-          {building && (
+          <h3 className="text-xl font-semibold text-gray-900 mb-4">قائمة المباني</h3>
+          {project && (
             <GenericTable
               columns={[
-                { header: 'رقم الوحدة', key: 'id' },
-                { header: 'اسم الوحدة', key: 'name' },
+                { header: 'رقم المبنى', key: 'id' },
+                { header: 'اسم المبنى', key: 'name' },
                 { header: 'الوصف', key: 'description' },
               ]}
-              data={building.units}
+              data={project.buildings}
               actions={actions}
-              onCreate={() => navigate(`/buildings/${buildingId}/create`)}
-              createButtonText="إضافة وحدة جديدة"
+              onCreate={() => navigate(`/projects/${id}/create`)}
+              createButtonText="إضافة مبنى جديد"
             />
           )}
         </div>
@@ -111,4 +112,4 @@ const ViewUnit: React.FC = () => {
   );
 };
 
-export default ViewUnit;
+export default ViewBuildings;
