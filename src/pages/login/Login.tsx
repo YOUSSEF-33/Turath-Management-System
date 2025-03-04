@@ -1,32 +1,43 @@
-import  { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom'; // If you're using react-router for navigation
 import toast from 'react-hot-toast'; // Import react-hot-toast
+import { useUserContext } from '../../context/UserContext'; // Import useUserContext
+import axiosInstance from '../../axiosInstance';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate(); // For navigation after successful login
+  const { setAccessToken, setRefreshToken, setUserInfo } = useUserContext(); // Use useUserContext
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setLoading(true);
 
-    // Simulate a login process (replace with actual API call later)
-    setTimeout(() => {
-      if (email === 'test@example.com' && password === 'password123') {
-        // Successful login
-        toast.success('تم تسجيل الدخول بنجاح!', {
-          position: 'top-center',
-        });
-        navigate('/dashboard'); // Navigate to Dashboard page
-      } else {
-        // Failed login
-        toast.error('البريد الإلكتروني أو كلمة المرور غير صحيحة', {
-          position: 'top-center',
-        });
-      }
+    try {
+      const response = await axiosInstance.post<{ access_token: string; refresh_token: string; user: any }>('/login', {
+        email,
+        password,
+      });
+
+      const { access_token, refresh_token, user } = response.data;
+
+      // Save tokens separately
+       setAccessToken(access_token);
+       setRefreshToken(refresh_token);
+       setUserInfo(user);
+
+      toast.success('تم تسجيل الدخول بنجاح!', {
+        position: 'top-center',
+      });
+      navigate('/'); 
+    } catch (error) {
+      toast.error('البريد الإلكتروني أو كلمة المرور غير صحيحة', {
+        position: 'top-center',
+      });
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
