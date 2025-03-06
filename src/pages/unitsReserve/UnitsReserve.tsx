@@ -31,7 +31,7 @@ const UnitReserve = () => {
   };
 
   const handleViewUnit = (id: number) => {
-    navigate(`/units/view/${id}`);
+    navigate(`/units-reserve/details/${id}`);
   };
 
   const handleAcceptUnit = (id: number) => {
@@ -76,6 +76,7 @@ const UnitReserve = () => {
   const pendingActions = [
     { key: 'accept', icon: <Check className="h-5 w-5" />, onClick: handleAcceptUnit, color: 'text-green-600' },
     { key: 'reject', icon: <X className="h-5 w-5" />, onClick: handleRejectUnit, color: 'text-red-600' },
+    { key: 'view', icon: <Eye className="h-5 w-5" />, onClick: handleViewUnit, color: 'text-blue-600' },
   ];
 
   return (
@@ -93,15 +94,16 @@ const UnitReserve = () => {
 
       {/* Reserved Units Section */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">الوحدات المحجوزة</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">الوحدات المعلقه </h2>
         <GenericTable
-          columns={reservedColumns}
-          data={reservedUnits}
-          actions={reservedActions}
+          columns={pendingColumns}
+          data={pendingUnits}
+          actions={pendingActions}
           itemsPerPage={itemsPerPage}
-          currentPage={reservedPage}
-          onPageChange={setReservedPage}
+          currentPage={pendingPage}
+          onPageChange={setPendingPage}
         />
+        
       </div>
 
       {/* Sold Units Section */}
@@ -119,14 +121,14 @@ const UnitReserve = () => {
 
       {/* Pending Units Section */}
       <div>
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">الوحدات المعلقه</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">الوحدات المحجوزة</h2>
         <GenericTable
-          columns={pendingColumns}
-          data={pendingUnits}
-          actions={pendingActions}
+          columns={reservedColumns}
+          data={reservedUnits}
+          actions={reservedActions}
           itemsPerPage={itemsPerPage}
-          currentPage={pendingPage}
-          onPageChange={setPendingPage}
+          currentPage={reservedPage}
+          onPageChange={setReservedPage}
         />
       </div>
     </div>

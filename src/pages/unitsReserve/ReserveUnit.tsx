@@ -1,61 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Search, Upload, Trash2, Check, Printer } from "lucide-react";
 import { InputField } from "../../components/InputField";
-
-// Define the InputField component
-
+import axiosInstance from "../../axiosInstance";
 
 const ReverseUnit = () => {
-    // Static data for projects, buildings, and units
-    const projects = [
-        { id: 1, name: "مشروع 1" },
-        { id: 2, name: "مشروع 2" },
-    ];
-
-    const buildings = [
-        { id: 1, name: "المبنى 1", projectId: 1 },
-        { id: 2, name: "المبنى 2", projectId: 1 },
-        { id: 3, name: "المبنى 3", projectId: 2 },
-    ];
-
-    const units = [
-        {
-            id: 1,
-            unit_number: "101",
-            unit_type: "شقة",
-            price: "500000",
-            status: "متاح",
-            area: "120",
-            floor: "1",
-            bedrooms: "2",
-            bathrooms: "1",
-            buildingId: 1,
-        },
-        {
-            id: 2,
-            unit_number: "102",
-            unit_type: "دوبلكس",
-            price: "700000",
-            status: "متاح",
-            area: "150",
-            floor: "2",
-            bedrooms: "3",
-            bathrooms: "2",
-            buildingId: 1,
-        },
-        {
-            id: 3,
-            unit_number: "201",
-            unit_type: "فيلا",
-            price: "1000000",
-            status: "متاح",
-            area: "200",
-            floor: "1",
-            bedrooms: "4",
-            bathrooms: "3",
-            buildingId: 2,
-        },
-    ];
+    // State for projects, buildings, and units
+    const [projects, setProjects] = useState<any[]>([]);
+    const [buildings, setBuildings] = useState<any[]>([]);
+    const [units, setUnits] = useState<any[]>([]);
 
     // State for selected project, building, and unit
     const [selectedProject, setSelectedProject] = useState<any>(null);
@@ -74,7 +26,6 @@ const ReverseUnit = () => {
 
     // Attachments State
     const [attachments, setAttachments] = useState<any>({
-        bookingForm: null,
         paymentReceipt: null,
         nationalIdCard: null,
     });
@@ -95,14 +46,46 @@ const ReverseUnit = () => {
         monthlyInstallment: "0",
     });
 
+    const [loading, setLoading] = useState<boolean>(false);
+
+    const validateInput = (value: string, type: string) => {
+        if (type === "number") {
+            const numberValue = parseFloat(value);
+            return !isNaN(numberValue) && numberValue >= 0;
+        } else if (type === "text") {
+            return value.trim().length > 0;
+        } else if (type === "date") {
+            return !isNaN(Date.parse(value));
+        }
+        return true;
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, key: string, type: string) => {
+        const { value } = e.target;
+        if (validateInput(value, type)) {
+            setClientData((prev: any) => ({ ...prev, [key]: value }));
+        }
+    };
+
+    const handleUnitDetailsChange = (e: React.ChangeEvent<HTMLInputElement>, key: string) => {
+        const { value } = e.target;
+        if (validateInput(value, "number")) {
+            setUnitDetails((prev: any) => ({ ...prev, [key]: value }));
+        }
+    };
+
+    if (loading) {
+        return <div className="loader"></div>;
+    }
+
     // Filter buildings based on selected project
-    const filteredBuildings = buildings.filter(
-        (building) => building.projectId === selectedProject
+    const filteredBuildings = buildings?.filter(
+        (building) => building.project_id === selectedProject
     );
 
     // Filter units based on selected building
     const filteredUnits = units.filter(
-        (unit) => unit.buildingId === selectedBuilding
+        (unit) => unit.building_id === selectedBuilding
     );
 
     // Update unit details when a unit is selected
@@ -165,6 +148,7 @@ const ReverseUnit = () => {
     // Handle form submission
     const handleSubmit = () => {
         // Log form data to the console
+        handlePrint();
         console.log({
             clientData,
             unitDetails,
@@ -183,7 +167,7 @@ const ReverseUnit = () => {
                 printWindow.document.write(`
                     <html>
                     <head>
-                        <title ></title>
+                        <title >.</title>
                         <style>
                             body { direction: rtl; font-family: Arial, sans-serif; }
                             .contract { padding: 20px; }
@@ -210,6 +194,52 @@ const ReverseUnit = () => {
         }
     };
 
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const projectsResponse = await axiosInstance.get('/projects');
+                setProjects(projectsResponse.data.data);
+            } catch (error) {
+                console.error('Error fetching projects:', error);
+            }
+        };
+
+        fetchData();
+    }, []);
+
+    useEffect(() => {
+        const fetchBuildings = async () => {
+            if (selectedProject) {
+                try {
+                    const buildingsResponse = await axiosInstance.get(`/projects/${selectedProject}`);
+                    setBuildings(buildingsResponse.data.data.buildings);
+                    console.log(buildingsResponse.data.data.buildings)
+                } catch (error) {
+                    console.error('Error fetching buildings:', error);
+                }
+            }
+        };
+
+        fetchBuildings();
+    }, [selectedProject]);
+
+    //console.log(buildings)
+
+    useEffect(() => {
+        const fetchUnits = async () => {
+            if (selectedBuilding) {
+                try {
+                    const unitsResponse = await axiosInstance.get(`/buildings/${selectedBuilding}`);
+                    setUnits(unitsResponse.data.data.units);
+                } catch (error) {
+                    console.error('Error fetching units:', error);
+                }
+            }
+        };
+
+        fetchUnits();
+    }, [selectedBuilding]);
+
     return (
         <div className="min-h-screen bg-gray-100 p-6">
             <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">حجز وحدة</h1>
@@ -227,7 +257,7 @@ const ReverseUnit = () => {
                         <option value="" disabled>
                             اختر المشروع
                         </option>
-                        {projects.map((project) => (
+                        {projects?.map((project) => (
                             <option key={project.id} value={project.id}>
                                 {project.name}
                             </option>
@@ -247,7 +277,7 @@ const ReverseUnit = () => {
                             <option value="" disabled>
                                 اختر المبنى
                             </option>
-                            {filteredBuildings.map((building) => (
+                            {filteredBuildings?.map((building) => (
                                 <option key={building.id} value={building.id}>
                                     {building.name}
                                 </option>
@@ -295,7 +325,7 @@ const ReverseUnit = () => {
                             label={label}
                             type={key === "contractDate" ? "date" : "text"}
                             value={clientData[key]}
-                            onChange={(e: any) => setClientData((prev: any) => ({ ...prev, [key]: e.target.value }))}
+                            onChange={(e: any) => handleInputChange(e, key, key === "contractDate" ? "date" : "text")}
                             placeholder={`أدخل ${label}`}
                         />
                     ))}
@@ -305,9 +335,8 @@ const ReverseUnit = () => {
             {/* Attachments Section */}
             <div className="bg-white p-6 rounded-lg shadow-md mb-6">
                 <h2 className="text-xl font-bold text-gray-800 mb-4">المرفقات</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {[
-                        { key: "bookingForm", label: "استمارة الحجز" },
                         { key: "paymentReceipt", label: "إيصال السداد" },
                         { key: "nationalIdCard", label: "صورة البطاقة الشخصية" },
                     ].map(({ key, label }) => (
@@ -359,10 +388,9 @@ const ReverseUnit = () => {
                                 label={label}
                                 type="number"
                                 value={unitDetails[key]}
-                                onChange={(e: any) => setUnitDetails((prev: any) => ({ ...prev, [key]: e.target.value }))}
+                                onChange={(e: any) => handleUnitDetailsChange(e, key)}
                                 placeholder={`أدخل ${label}`}
                                 disabled={isDisabled}
-                                className={isLastInput ? "col-span-2" : ""}
                             />
                         );
                     })}
@@ -378,24 +406,17 @@ const ReverseUnit = () => {
                 إرسال البيانات
             </button>
 
-            <button
-                onClick={handlePrint}
-                className="w-full bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 flex items-center justify-center transition-colors mt-4"
-            >
-                <Printer className="h-5 w-5 mr-2" />
-                طباعة العقد
-            </button>
-
+            {/* CONTRACT FORM */}
             <div
                 ref={contractRef}
                 style={{
                     direction: 'rtl',
                     fontFamily: 'Arial, sans-serif',
-                    padding: '30px',
+                    padding: '20px', // Reduced padding
                     backgroundColor: '#f8f9fa',
                     borderRadius: '8px',
                     maxWidth: '800px',
-                    margin: '20px auto',
+                    margin: '10px auto', // Reduced margin
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                     display: "none"
                 }}
@@ -403,16 +424,16 @@ const ReverseUnit = () => {
                 {/* Header */}
                 <div style={{
                     textAlign: 'center',
-                    marginBottom: '25px',
+                    marginBottom: '15px', // Reduced margin
                     borderBottom: '2px solid #3498db',
-                    paddingBottom: '10px'
+                    paddingBottom: '8px' // Reduced padding
                 }}>
                     <img
-                        src="/images/output-onlinepngtools.png" 
+                        src="/images/output-onlinepngtools.png"
                         alt="Company Logo"
                         style={{
-                            maxWidth: '200px',
-                            maxHeight: '80px',
+                            maxWidth: '150px', // Reduced width
+                            maxHeight: '60px', // Reduced height
                             objectFit: 'contain'
                         }}
                     />
@@ -420,56 +441,40 @@ const ReverseUnit = () => {
 
                 {/* Date */}
                 <p style={{
-                    fontSize: '14px',
+                    fontSize: '12px', // Reduced font size
                     color: '#7f8c8d',
-                    marginBottom: '30px',
+                    marginBottom: '20px', // Reduced margin
                     textAlign: 'left'
                 }}>
                     التاريخ: {new Date().toLocaleDateString("ar-EG")}
                 </p>
 
                 {/* Client Information */}
-                <div style={{ marginBottom: '30px' }}>
+                <div style={{ marginBottom: '20px' }}> {/* Reduced margin */}
                     <h2 style={{
-                        fontSize: '20px',
+                        fontSize: '18px', // Reduced font size
                         color: '#2c3e50',
-                        marginBottom: '15px',
+                        marginBottom: '10px', // Reduced margin
                         borderBottom: '2px solid #3498db',
-                        paddingBottom: '8px'
+                        paddingBottom: '6px' // Reduced padding
                     }}>
                         بيانات العميل
                     </h2>
 
-                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '10px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '8px' }}> {/* Reduced spacing */}
                         <tbody>
                             <tr>
                                 <td style={{ padding: '0', width: '50%' }}>
                                     <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                                        <div style={{ width: '120px', padding: '12px 15px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '14px', backgroundColor: '#f8f9fa' }}>اسم العميل</div>
-                                        <div style={{ padding: '12px 15px', color: '#2c3e50', fontSize: '16px', fontWeight: '500', flex: 1 }}>{clientData.name}</div>
+                                        <div style={{ width: '100px', padding: '8px 10px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '12px', backgroundColor: '#f8f9fa' }}>اسم العميل</div> {/* Reduced padding and font size */}
+                                        <div style={{ padding: '8px 10px', color: '#2c3e50', fontSize: '14px', fontWeight: '500', flex: 1 }}>{clientData.name}</div> {/* Reduced padding and font size */}
                                     </div>
                                 </td>
 
                                 <td style={{ padding: '0', width: '50%' }}>
                                     <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                                        <div style={{ width: '120px', padding: '12px 15px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '14px', backgroundColor: '#f8f9fa' }}>رقم الهاتف</div>
-                                        <div style={{ padding: '12px 15px', color: '#2c3e50', fontSize: '16px', fontWeight: '500', flex: 1 }}>{clientData.phone}</div>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td style={{ padding: '0', width: '50%' }}>
-                                    <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                                        <div style={{ width: '120px', padding: '12px 15px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '14px', backgroundColor: '#f8f9fa' }}>الرقم القومي</div>
-                                        <div style={{ padding: '12px 15px', color: '#2c3e50', fontSize: '16px', fontWeight: '500', flex: 1 }}>{clientData.nationalId}</div>
-                                    </div>
-                                </td>
-
-                                <td style={{ padding: '0', width: '50%' }}>
-                                    <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                                        <div style={{ width: '120px', padding: '12px 15px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '14px', backgroundColor: '#f8f9fa' }}>العنوان</div>
-                                        <div style={{ padding: '12px 15px', color: '#2c3e50', fontSize: '16px', fontWeight: '500', flex: 1 }}>{clientData.address}</div>
+                                        <div style={{ width: '100px', padding: '8px 10px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '12px', backgroundColor: '#f8f9fa' }}>رقم الهاتف</div> {/* Reduced padding and font size */}
+                                        <div style={{ padding: '8px 10px', color: '#2c3e50', fontSize: '14px', fontWeight: '500', flex: 1 }}>{clientData.phone}</div> {/* Reduced padding and font size */}
                                     </div>
                                 </td>
                             </tr>
@@ -477,15 +482,31 @@ const ReverseUnit = () => {
                             <tr>
                                 <td style={{ padding: '0', width: '50%' }}>
                                     <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                                        <div style={{ width: '120px', padding: '12px 15px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '14px', backgroundColor: '#f8f9fa' }}>البريد الإلكتروني</div>
-                                        <div style={{ padding: '12px 15px', color: '#2c3e50', fontSize: '16px', fontWeight: '500', flex: 1 }}>{clientData.email}</div>
+                                        <div style={{ width: '100px', padding: '8px 10px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '12px', backgroundColor: '#f8f9fa' }}>الرقم القومي</div> {/* Reduced padding and font size */}
+                                        <div style={{ padding: '8px 10px', color: '#2c3e50', fontSize: '14px', fontWeight: '500', flex: 1 }}>{clientData.nationalId}</div> {/* Reduced padding and font size */}
                                     </div>
                                 </td>
 
                                 <td style={{ padding: '0', width: '50%' }}>
                                     <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                                        <div style={{ width: '120px', padding: '12px 15px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '14px', backgroundColor: '#f8f9fa' }}>تاريخ التعاقد</div>
-                                        <div style={{ padding: '12px 15px', color: '#2c3e50', fontSize: '16px', fontWeight: '500', flex: 1 }}>{clientData.contractDate}</div>
+                                        <div style={{ width: '100px', padding: '8px 10px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '12px', backgroundColor: '#f8f9fa' }}>العنوان</div> {/* Reduced padding and font size */}
+                                        <div style={{ padding: '8px 10px', color: '#2c3e50', fontSize: '14px', fontWeight: '500', flex: 1 }}>{clientData.address}</div> {/* Reduced padding and font size */}
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td style={{ padding: '0', width: '50%' }}>
+                                    <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
+                                        <div style={{ width: '100px', padding: '8px 10px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '12px', backgroundColor: '#f8f9fa' }}>البريد الإلكتروني</div> {/* Reduced padding and font size */}
+                                        <div style={{ padding: '8px 10px', color: '#2c3e50', fontSize: '14px', fontWeight: '500', flex: 1 }}>{clientData.email}</div> {/* Reduced padding and font size */}
+                                    </div>
+                                </td>
+
+                                <td style={{ padding: '0', width: '50%' }}>
+                                    <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
+                                        <div style={{ width: '100px', padding: '8px 10px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '12px', backgroundColor: '#f8f9fa' }}>تاريخ التعاقد</div> {/* Reduced padding and font size */}
+                                        <div style={{ padding: '8px 10px', color: '#2c3e50', fontSize: '14px', fontWeight: '500', flex: 1 }}>{clientData.contractDate}</div> {/* Reduced padding and font size */}
                                     </div>
                                 </td>
                             </tr>
@@ -494,58 +515,58 @@ const ReverseUnit = () => {
                 </div>
 
                 {/* Unit Information */}
-                <div style={{ marginBottom: '30px' }}>
+                <div style={{ marginBottom: '20px' }}> {/* Reduced margin */}
                     <h2 style={{
-                        fontSize: '20px',
+                        fontSize: '18px', // Reduced font size
                         color: '#2c3e50',
-                        marginBottom: '15px',
+                        marginBottom: '10px', // Reduced margin
                         borderBottom: '2px solid #3498db',
-                        paddingBottom: '8px'
+                        paddingBottom: '6px' // Reduced padding
                     }}>
                         بيانات الوحدة
                     </h2>
 
-                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '10px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '8px' }}> {/* Reduced spacing */}
                         <tbody>
                             <tr>
                                 <td style={{ padding: '0', width: '50%' }}>
                                     <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                                        <div style={{ width: '120px', padding: '12px 15px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '14px', backgroundColor: '#f8f9fa' }}>رقم الوحدة</div>
-                                        <div style={{ padding: '12px 15px', color: '#2c3e50', fontSize: '16px', fontWeight: '500', flex: 1 }}>{unitDetails.unit_number}</div>
+                                        <div style={{ width: '100px', padding: '8px 10px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '12px', backgroundColor: '#f8f9fa' }}>رقم الوحدة</div> {/* Reduced padding and font size */}
+                                        <div style={{ padding: '8px 10px', color: '#2c3e50', fontSize: '14px', fontWeight: '500', flex: 1 }}>{unitDetails.unit_number}</div> {/* Reduced padding and font size */}
                                     </div>
                                 </td>
                                 <td style={{ padding: '0', width: '50%' }}>
                                     <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                                        <div style={{ width: '120px', padding: '12px 15px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '14px', backgroundColor: '#f8f9fa' }}>نوع الوحدة</div>
-                                        <div style={{ padding: '12px 15px', color: '#2c3e50', fontSize: '16px', fontWeight: '500', flex: 1 }}>{unitDetails.unit_type}</div>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td style={{ padding: '0', width: '50%' }}>
-                                    <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                                        <div style={{ width: '120px', padding: '12px 15px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '14px', backgroundColor: '#f8f9fa' }}>المساحة</div>
-                                        <div style={{ padding: '12px 15px', color: '#2c3e50', fontSize: '16px', fontWeight: '500', flex: 1 }}>{unitDetails.area}</div>
-                                    </div>
-                                </td>
-                                <td style={{ padding: '0', width: '50%' }}>
-                                    <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                                        <div style={{ width: '120px', padding: '12px 15px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '14px', backgroundColor: '#f8f9fa' }}>السعر</div>
-                                        <div style={{ padding: '12px 15px', color: '#2c3e50', fontSize: '16px', fontWeight: '500', flex: 1 }}>{unitDetails.price}</div>
+                                        <div style={{ width: '100px', padding: '8px 10px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '12px', backgroundColor: '#f8f9fa' }}>نوع الوحدة</div> {/* Reduced padding and font size */}
+                                        <div style={{ padding: '8px 10px', color: '#2c3e50', fontSize: '14px', fontWeight: '500', flex: 1 }}>{unitDetails.unit_type}</div> {/* Reduced padding and font size */}
                                     </div>
                                 </td>
                             </tr>
                             <tr>
                                 <td style={{ padding: '0', width: '50%' }}>
                                     <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                                        <div style={{ width: '120px', padding: '12px 15px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '14px', backgroundColor: '#f8f9fa' }}>عدد الغرف</div>
-                                        <div style={{ padding: '12px 15px', color: '#2c3e50', fontSize: '16px', fontWeight: '500', flex: 1 }}>{unitDetails.bedrooms}</div>
+                                        <div style={{ width: '100px', padding: '8px 10px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '12px', backgroundColor: '#f8f9fa' }}>المساحة</div> {/* Reduced padding and font size */}
+                                        <div style={{ padding: '8px 10px', color: '#2c3e50', fontSize: '14px', fontWeight: '500', flex: 1 }}>{unitDetails.area}</div> {/* Reduced padding and font size */}
                                     </div>
                                 </td>
                                 <td style={{ padding: '0', width: '50%' }}>
                                     <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                                        <div style={{ width: '120px', padding: '12px 15px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '14px', backgroundColor: '#f8f9fa' }}>عدد الحمامات</div>
-                                        <div style={{ padding: '12px 15px', color: '#2c3e50', fontSize: '16px', fontWeight: '500', flex: 1 }}>{unitDetails.bathrooms}</div>
+                                        <div style={{ width: '100px', padding: '8px 10px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '12px', backgroundColor: '#f8f9fa' }}>السعر</div> {/* Reduced padding and font size */}
+                                        <div style={{ padding: '8px 10px', color: '#2c3e50', fontSize: '14px', fontWeight: '500', flex: 1 }}>{unitDetails.price}</div> {/* Reduced padding and font size */}
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style={{ padding: '0', width: '50%' }}>
+                                    <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
+                                        <div style={{ width: '100px', padding: '8px 10px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '12px', backgroundColor: '#f8f9fa' }}>عدد الغرف</div> {/* Reduced padding and font size */}
+                                        <div style={{ padding: '8px 10px', color: '#2c3e50', fontSize: '14px', fontWeight: '500', flex: 1 }}>{unitDetails.bedrooms}</div> {/* Reduced padding and font size */}
+                                    </div>
+                                </td>
+                                <td style={{ padding: '0', width: '50%' }}>
+                                    <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
+                                        <div style={{ width: '100px', padding: '8px 10px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '12px', backgroundColor: '#f8f9fa' }}>عدد الحمامات</div> {/* Reduced padding and font size */}
+                                        <div style={{ padding: '8px 10px', color: '#2c3e50', fontSize: '14px', fontWeight: '500', flex: 1 }}>{unitDetails.bathrooms}</div> {/* Reduced padding and font size */}
                                     </div>
                                 </td>
                             </tr>
@@ -554,38 +575,38 @@ const ReverseUnit = () => {
                 </div>
 
                 {/* Payment Information */}
-                <div style={{ marginBottom: '30px' }}>
+                <div style={{ marginBottom: '20px' }}> {/* Reduced margin */}
                     <h2 style={{
-                        fontSize: '20px',
+                        fontSize: '18px', // Reduced font size
                         color: '#2c3e50',
-                        marginBottom: '15px',
+                        marginBottom: '10px', // Reduced margin
                         borderBottom: '2px solid #3498db',
-                        paddingBottom: '8px'
+                        paddingBottom: '6px' // Reduced padding
                     }}>
                         الثمن وطريقة السداد
                     </h2>
 
-                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '10px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '8px' }}> {/* Reduced spacing */}
                         <tbody>
                             <tr>
                                 <td style={{ padding: '0', width: '50%' }}>
                                     <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                                        <div style={{ width: '120px', padding: '12px 15px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '14px', backgroundColor: '#f8f9fa' }}>السعر النهائي</div>
-                                        <div style={{ padding: '12px 15px', color: '#2c3e50', fontSize: '16px', fontWeight: '500', flex: 1 }}>{unitDetails.finalPrice}</div>
+                                        <div style={{ width: '100px', padding: '8px 10px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '12px', backgroundColor: '#f8f9fa' }}>السعر النهائي</div> {/* Reduced padding and font size */}
+                                        <div style={{ padding: '8px 10px', color: '#2c3e50', fontSize: '14px', fontWeight: '500', flex: 1 }}>{unitDetails.finalPrice}</div> {/* Reduced padding and font size */}
                                     </div>
                                 </td>
                                 <td style={{ padding: '0', width: '50%' }}>
                                     <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                                        <div style={{ width: '120px', padding: '12px 15px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '14px', backgroundColor: '#f8f9fa' }}>الدفعة المقدمة</div>
-                                        <div style={{ padding: '12px 15px', color: '#2c3e50', fontSize: '16px', fontWeight: '500', flex: 1 }}>{unitDetails.downPayment}</div>
+                                        <div style={{ width: '100px', padding: '8px 10px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '12px', backgroundColor: '#f8f9fa' }}>الدفعة المقدمة</div> {/* Reduced padding and font size */}
+                                        <div style={{ padding: '8px 10px', color: '#2c3e50', fontSize: '14px', fontWeight: '500', flex: 1 }}>{unitDetails.downPayment}</div> {/* Reduced padding and font size */}
                                     </div>
                                 </td>
                             </tr>
                             <tr>
                                 <td style={{ padding: '0', width: '50%' }}>
                                     <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                                        <div style={{ width: '120px', padding: '12px 15px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '14px', backgroundColor: '#f8f9fa' }}>القسط الشهري</div>
-                                        <div style={{ padding: '12px 15px', color: '#2c3e50', fontSize: '16px', fontWeight: '500', flex: 1 }}>{unitDetails.monthlyInstallment}</div>
+                                        <div style={{ width: '100px', padding: '8px 10px', borderLeft: '1px solid #e0e0e0', color: '#7f8c8d', fontSize: '12px', backgroundColor: '#f8f9fa' }}>القسط الشهري</div> {/* Reduced padding and font size */}
+                                        <div style={{ padding: '8px 10px', color: '#2c3e50', fontSize: '14px', fontWeight: '500', flex: 1 }}>{unitDetails.monthlyInstallment}</div> {/* Reduced padding and font size */}
                                     </div>
                                 </td>
                                 <td style={{ padding: '0', width: '50%' }}></td>
@@ -593,29 +614,30 @@ const ReverseUnit = () => {
                         </tbody>
                     </table>
                 </div>
+
                 {/* Terms Section */}
-                <div style={{ marginBottom: '30px' }}>
+                <div style={{ marginBottom: '20px' }}> {/* Reduced margin */}
                     <h2 style={{
-                        fontSize: '20px',
+                        fontSize: '18px', // Reduced font size
                         color: '#2c3e50',
-                        marginBottom: '15px',
+                        marginBottom: '10px', // Reduced margin
                         borderBottom: '2px solid #3498db',
-                        paddingBottom: '8px'
+                        paddingBottom: '6px' // Reduced padding
                     }}>
                         شروط الحجز
                     </h2>
 
                     <div style={{
                         backgroundColor: '#ffffff',
-                        padding: '20px',
+                        padding: '15px', // Reduced padding
                         borderRadius: '6px',
                         border: '1px solid #e0e0e0',
                         boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                     }}>
-                        <p style={{ fontSize: '14px', color: '#7f8c8d', lineHeight: '1.6', marginBottom: '15px' }}>
+                        <p style={{ fontSize: '12px', color: '#7f8c8d', lineHeight: '1.6', marginBottom: '10px' }}> {/* Reduced font size and margin */}
                             % يتم التوقيع على العقد خلال المدة المتفق عليها في الاستمارة وفي حالة عدم إتمام التعاقد خلال تلك المدة بخصم 50 من قيمة إستمارة الحجز دون الحاجة إلى أي تنبيه او استفسار بكم فقدان.
                         </p>
-                        <p style={{ fontSize: '14px', color: '#7f8c8d', lineHeight: '1.6' }}>
+                        <p style={{ fontSize: '12px', color: '#7f8c8d', lineHeight: '1.6' }}> {/* Reduced font size */}
                             لا يوجد أي حقوق للعميل في الوحدة المحجوزة إلا بعد إتمام التعاقد.
                         </p>
                     </div>
@@ -625,8 +647,8 @@ const ReverseUnit = () => {
                 <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    marginTop: '40px',
-                    paddingTop: '20px',
+                    marginTop: '30px', // Reduced margin
+                    paddingTop: '15px', // Reduced padding
                     borderTop: '2px solid #e0e0e0'
                 }}>
                     <div style={{
@@ -635,14 +657,14 @@ const ReverseUnit = () => {
                     }}>
                         <div style={{
                             height: '1px',
-                            borderBottom: '2px dashed #bdc3c7',
-                            margin: '20px 0'
+                            margin: '15px 0' // Reduced margin
                         }}></div>
                         <p style={{
                             color: '#7f8c8d',
-                            marginTop: '8px',
-                            fontSize: '14px'
-                        }}>توقيع العميل</p>
+                            marginTop: '6px', // Reduced margin
+                            fontSize: '16px' // Reduced font size
+                        }}>اسم العميل</p>
+                        ..................
                     </div>
 
                     <div style={{
@@ -651,14 +673,45 @@ const ReverseUnit = () => {
                     }}>
                         <div style={{
                             height: '1px',
-                            borderBottom: '2px dashed #bdc3c7',
-                            margin: '20px 0'
+                            margin: '15px 0' // Reduced margin
                         }}></div>
                         <p style={{
                             color: '#7f8c8d',
-                            marginTop: '8px',
-                            fontSize: '14px'
-                        }}>توقيع الشركة</p>
+                            marginTop: '6px', // Reduced margin
+                            fontSize: '16px' // Reduced font size
+                        }}>توقيع العميل</p>
+                        ..................
+                    </div>
+                    <div style={{
+                        textAlign: 'center',
+                        width: '45%'
+                    }}>
+                        <div style={{
+                            height: '1px',
+                            margin: '15px 0' // Reduced margin
+                        }}></div>
+                        <p style={{
+                            color: '#7f8c8d',
+                            marginTop: '6px', // Reduced margin
+                            fontSize: '16px' // Reduced font size
+                        }}> المبيعات</p>
+                        ..................
+                    </div>
+
+                    <div style={{
+                        textAlign: 'center',
+                        width: '45%'
+                    }}>
+                        <div style={{
+                            height: '1px',
+                            margin: '15px 0' // Reduced margin
+                        }}></div>
+                        <p style={{
+                            color: '#7f8c8d',
+                            marginTop: '6px', // Reduced margin
+                            fontSize: '16px' // Reduced font size
+                        }}>مسؤول الحجز</p>
+                        ..................
                     </div>
                 </div>
             </div>

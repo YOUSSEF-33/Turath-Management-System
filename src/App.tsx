@@ -22,6 +22,9 @@ import CreateProject from './pages/projects/CreateProject';
 import EditProject from './pages/projects/EditProject';
 import ViewBuildings from './pages/buildings/ViewBuildings';
 import CreateBuilding from './pages/buildings/CreateBuilding';
+import EditBuilding from './pages/buildings/EditBuilding';
+import ViewUnitDetails from './pages/units/ViewUnitDetails';
+import UnitDetails from './pages/unitsReserve/UnitDetails';
 
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -62,35 +65,38 @@ function App() {
                         <Route path="/projects/:projectId/buildings/:buildingId/units/create" element={<CreateUnit />} />
                         <Route path="/projects/:projectId/buildings/:buildingId/units/:unitId/edit" element={<EditUnit />} />
                         <Route path="/projects/:projectId/buildings/:buildingId" element={<ViewUnit />} />
+                        <Route path="/projects/:projectId/buildings/:buildingId/units/:unitId" element={<ViewUnitDetails />} />
 
 
                         <Route path="/units-reserve" element={<UnitReserve />} />
                         <Route path="/units-reserve/reserve" element={<ReverseUnit />} />
+                        <Route path="/units-reserve/details/:id" element={<UnitDetails />} />
 
                         <Route path="/projects" element={<ViewProjects />} />
                         <Route path="/projects/create" element={<CreateProject />} />
                         <Route path="/projects/edit/:id" element={<EditProject />} />
 
                         <Route path="/projects/:buildingId" element={<ViewBuildings />} />
-                        <Route path="/projects/:buildingId/create" element={<CreateBuilding />} />
+                        <Route path="/projects/:projectId/create" element={<CreateBuilding />} />
+                        <Route path="/projects/:projectId/edit/:buildingId" element={<EditBuilding />} />
                       </Routes>
                     </main>
                   </div>
-                  <Toaster
-                    position="top-center"
-                    toastOptions={{
-                      duration: 3000,
-                      style: {
-                        background: '#333',
-                        color: '#fff',
-                      },
-                    }}
-                  />
                 </div>
               }
             />
           </Route>
         </Routes>
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: '#333',
+              color: '#fff',
+            },
+          }}
+        />
       </Router>
     </UserProvider>
   );
