@@ -2,20 +2,41 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axiosInstance from '../../axiosInstance';
+import { InputField } from '../../components/InputField';
 
 const CreateProject = () => {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [errors, setErrors] = useState({ name: '' });
+  const [loading, setLoading] = useState(false);
+
+  const validate = () => {
+    let valid = true;
+    let errors = { name: '' };
+
+    if (name.trim().length < 3) {
+      errors.name = 'اسم المشروع يجب أن يكون على الأقل 3 أحرف';
+      valid = false;
+    }
+
+    setErrors(errors);
+    return valid;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
+
+    setLoading(true);
     try {
       await axiosInstance.post('/projects', { name, description });
       toast.success('تم إضافة المشروع بنجاح');
       navigate('/projects');
     } catch (error) {
       toast.error('حدث خطأ أثناء إضافة المشروع');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -39,14 +60,14 @@ const CreateProject = () => {
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-8">
           {/* Project Name */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1">اسم المشروع</label>
-            <input
+            <InputField
+              label="اسم المشروع"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
-              required
+              placeholder="أدخل اسم المشروع"
             />
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
           </div>
 
           {/* Project Description */}
@@ -65,15 +86,16 @@ const CreateProject = () => {
             <button
               type="button"
               onClick={() => navigate('/projects')}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              className=" mx-2 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
             >
               إلغاء
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+              className={`${loading? "loader": "bg-blue-600 px-4 py-2 text-white rounded-lg hover:bg-blue-700"}`}
+              disabled={loading}
             >
-              إضافة
+              {loading ? '' : 'إضافة'}
             </button>
           </div>
         </form>

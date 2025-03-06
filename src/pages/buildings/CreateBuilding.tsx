@@ -5,19 +5,44 @@ import axiosInstance from '../../axiosInstance';
 
 const CreateBuilding = () => {
   const navigate = useNavigate();
-  const { buildingId } = useParams<{ buildingId: string }>();
+  const { projectId } = useParams<{ projectId: string }>();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({ name: '', description: '' });
+
+  console.log(projectId)
+  const validate = () => {
+    let valid = true;
+    let errors = { name: '', description: '' };
+
+    if (name.trim().length < 3) {
+      errors.name = 'اسم المبنى يجب أن يكون على الأقل 3 أحرف';
+      valid = false;
+    }
+
+    if (description.trim().length < 10) {
+      errors.description = 'وصف المبنى يجب أن يكون على الأقل 10 أحرف';
+      valid = false;
+    }
+
+    setErrors(errors);
+    return valid;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
+    setLoading(true);
     try {
-      await axiosInstance.post('/buildings', { name, description, project_id: buildingId });
+      await axiosInstance.post('/buildings', { name, description, project_id: projectId });
       toast.success('تم إضافة المبنى بنجاح');
-      navigate(`/projects/${buildingId}`);
+      navigate(`/projects/${projectId}`);
     } catch (error) {
       toast.error('حدث خطأ أثناء إضافة المبنى');
-      console.log(error)
+      console.log(error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -28,7 +53,7 @@ const CreateBuilding = () => {
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">إضافة مبنى جديد</h1>
           <button
-            onClick={() => navigate(`/projects/${buildingId}`)}
+            onClick={() => navigate(`/projects/${projectId}`)}
             className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           >
             عودة
@@ -49,6 +74,7 @@ const CreateBuilding = () => {
               className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
               required
             />
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
           </div>
 
           {/* Building Description */}
@@ -60,22 +86,24 @@ const CreateBuilding = () => {
               className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
               required
             />
+            {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
           </div>
 
           {/* Form Actions */}
           <div className="mt-8 flex justify-end space-x-3">
             <button
               type="button"
-              onClick={() => navigate(`/projects/${buildingId}`)}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              onClick={() => navigate(`/projects/${projectId}`)}
+              className="mx-2 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
             >
               إلغاء
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+              className={`${loading ? "loader" : "bg-blue-600 px-4 py-2 text-white rounded-lg hover:bg-blue-700"}`}
+              disabled={loading}
             >
-              إضافة
+              {loading ? '' : 'إضافة'}
             </button>
           </div>
         </form>

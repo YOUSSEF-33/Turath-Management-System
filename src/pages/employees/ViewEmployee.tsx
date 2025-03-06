@@ -54,26 +54,6 @@ const ViewEmployee = () => {
               </div>
             </div>
 
-            {/* Assigned Units */}
-            <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">الوحدات المخصصة</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {assignedUnits.length > 0 ? (
-                  assignedUnits.map(unit => (
-                    <div key={unit.id} className="bg-gray-50 p-4 rounded-lg shadow-md">
-                      <p className="text-sm text-gray-500">رقم الوحدة</p>
-                      <p className="text-lg font-medium text-gray-900">{unit.number}</p>
-                      <p className="text-sm text-gray-500 mt-2">النوع</p>
-                      <p className="text-lg font-medium text-gray-900">
-                        {unit.type === 'villa' ? 'فيلا' : unit.type === 'duplex' ? 'دوبلكس' : 'شقة'}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-500">لا توجد وحدات مخصصة</p>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       </div>

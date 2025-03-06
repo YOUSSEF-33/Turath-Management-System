@@ -47,7 +47,6 @@ const Employees = () => {
                 <th className="px-6 py-3 text-right text-sm font-semibold text-gray-600">المنصب</th>
                 <th className="px-6 py-3 text-right text-sm font-semibold text-gray-600">رقم الهاتف</th>
                 <th className="px-6 py-3 text-right text-sm font-semibold text-gray-600">البريد الإلكتروني</th>
-                <th className="px-6 py-3 text-right text-sm font-semibold text-gray-600">الوحدات المخصصة</th>
                 <th className="px-6 py-3 text-center text-sm font-semibold text-gray-600">الإجراءات</th>
               </tr>
             </thead>
@@ -58,11 +57,6 @@ const Employees = () => {
                   <td className="px-6 py-4 text-sm text-gray-900">{employee.position}</td>
                   <td className="px-6 py-4 text-sm text-gray-900">{employee.phone}</td>
                   <td className="px-6 py-4 text-sm text-gray-900">{employee.email}</td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    {employee.assignedUnits
-                      .map((unitId) => units.find((u) => u.id === unitId)?.number)
-                      .join(', ')}
-                  </td>
                   <td className="px-6 py-4 text-sm text-gray-900">
                     <div className="flex justify-center space-x-2">
                       <button

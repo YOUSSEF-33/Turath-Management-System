@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axiosInstance from '../../axiosInstance';
+import { untisValidation } from './UnitsValidatoin';
+import { InputField } from '../../components/InputField';
 
 const CreateUnit = () => {
+  const {projectId, buildingId} = useParams();
   const navigate = useNavigate();
   const [unitNumber, setUnitNumber] = useState('');
   const [unitType, setUnitType] = useState('villa');
@@ -13,11 +16,15 @@ const CreateUnit = () => {
   const [bedrooms, setBedrooms] = useState('');
   const [bathrooms, setBathrooms] = useState('');
   const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setErrors({});
     const formData = new FormData();
-    formData.append('building_id', '2');
+    formData.append('building_id', buildingId);
     formData.append('unit_number', unitNumber);
     formData.append('unit_type', unitType);
     formData.append('price', price);
@@ -30,10 +37,21 @@ const CreateUnit = () => {
     try {
       await axiosInstance.post('/units', formData);
       toast.success('تم إضافة الوحدة بنجاح');
-      navigate('/units');
+      navigate(`/projects/${projectId}/buildings/${buildingId}`);
     } catch (error) {
-      toast.error('حدث خطأ أثناء إضافة الوحدة');
+      if (error.response && error.response.status === 422) {
+        const translatedErrors = {};
+        for (const [key, value] of Object.entries(error.response.data.errors)) {
+              translatedErrors[key] = untisValidation(key, value)
+        }
+        setErrors(translatedErrors);
+        toast.error('حدث خطأ أثناء إضافة الوحدة');
+      } else {
+        toast.error('حدث خطأ أثناء إضافة الوحدة');
+      }
       console.log(error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -57,18 +75,18 @@ const CreateUnit = () => {
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-8">
           {/* Unit Number */}
           <div className='my-4'>
-            <label className="block text-sm font-medium text-gray-700 mb-1">رقم الوحدة</label>
-            <input
+            <InputField
+              label="رقم الوحدة"
               type="text"
               value={unitNumber}
               onChange={(e) => setUnitNumber(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
-              required
+              placeholder=""
+              disabled={false}
             />
+            {errors.unit_number && <p className="text-red-500 text-sm">{errors.unit_number}</p>}
           </div>
           {/* Two-column layout for large screens */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
             {/* Unit Type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">النوع</label>
@@ -82,66 +100,72 @@ const CreateUnit = () => {
                 <option value="duplex">دوبلكس</option>
                 <option value="apartment">شقة</option>
               </select>
+              {errors.unit_type && <p className="text-red-500 text-sm">{errors.unit_type}</p>}
             </div>
 
             {/* Unit Area */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">المساحة (م²)</label>
-              <input
-                type="text"
+              <InputField
+                label="المساحة (م²)"
+                type="number"
                 value={area}
                 onChange={(e) => setArea(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
-                required
+                placeholder=""
+                disabled={false}
               />
+              {errors.area && <p className="text-red-500 text-sm">{errors.area}</p>}
             </div>
 
             {/* Unit Price */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">السعر (جنيه)</label>
-              <input
-                type="text"
+              <InputField
+                label="السعر (جنيه)"
+                type="number"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
-                required
+                placeholder=""
+                disabled={false}
               />
+              {errors.price && <p className="text-red-500 text-sm">{errors.price}</p>}
             </div>
 
             {/* Floor */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">الطابق</label>
-              <input
-                type="text"
+              <InputField
+                label="الطابق"
+                type="number"
                 value={floor}
                 onChange={(e) => setFloor(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
-                required
+                placeholder=""
+                disabled={false}
               />
+              {errors.floor && <p className="text-red-500 text-sm">{errors.floor}</p>}
             </div>
 
             {/* Bedrooms */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">غرف النوم</label>
-              <input
-                type="text"
+              <InputField
+                label="غرف النوم"
+                type="number"
                 value={bedrooms}
                 onChange={(e) => setBedrooms(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
-                required
+                placeholder=""
+                disabled={false}
               />
+              {errors.bedrooms && <p className="text-red-500 text-sm">{errors.bedrooms}</p>}
             </div>
 
             {/* Bathrooms */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">الحمامات</label>
-              <input
-                type="text"
+              <InputField
+                label="الحمامات"
+                type="number"
                 value={bathrooms}
                 onChange={(e) => setBathrooms(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
-                required
+                placeholder=""
+                disabled={false}
               />
+              {errors.bathrooms && <p className="text-red-500 text-sm">{errors.bathrooms}</p>}
             </div>
 
             {/* Description */}
@@ -153,6 +177,7 @@ const CreateUnit = () => {
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
                 required
               />
+              {errors.description && <p className="text-red-500 text-sm">{errors.description}</p>}
             </div>
           </div>
 
@@ -167,9 +192,10 @@ const CreateUnit = () => {
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+              className={`px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 ${loading ? 'loader' : ''}`}
+              disabled={loading}
             >
-              إضافة
+              {loading ? ''  : 'إضافة'}
             </button>
           </div>
         </form>

@@ -35,7 +35,7 @@ const GenericTable = ({
   createButtonText = 'إضافة جديد',
   noDataMessage = 'لا توجد بيانات لعرضها', // Default message
   itemsPerPage = 10, // Default items per page
-  loading = false, // Default loading state
+  loading = false, 
 }: GenericTableProps) => {
   const navigate = useNavigate();
   const tableData = Array.isArray(data) ? data : []; // Convert to array
@@ -89,7 +89,7 @@ const GenericTable = ({
               {loading ? (
                 <tr>
                   <td colSpan={columns.length + (actions ? 1 : 0)} className="px-6 py-4 text-center text-sm text-gray-900">
-                    جاري التحميل...
+                    <div className="loader mx-auto"></div> {/* Add loader classname and center it */}
                   </td>
                 </tr>
               ) : paginatedData.length === 0 ? (

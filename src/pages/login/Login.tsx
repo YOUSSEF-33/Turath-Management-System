@@ -8,10 +8,35 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const navigate = useNavigate(); // For navigation after successful login
   const { setAccessToken, setRefreshToken, setUserInfo } = useUserContext(); // Use useUserContext
 
+  const validateEmail = (email: string) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(String(email).toLowerCase());
+  };
+
   const handleLogin = async () => {
+    let valid = true;
+
+    if (!validateEmail(email)) {
+      setEmailError('يرجى إدخال بريد إلكتروني صالح');
+      valid = false;
+    } else {
+      setEmailError('');
+    }
+
+    if (password.length < 6) {
+      setPasswordError('يجب أن تكون كلمة المرور 6 أحرف على الأقل');
+      valid = false;
+    } else {
+      setPasswordError('');
+    }
+
+    if (!valid) return;
+
     setLoading(true);
 
     try {
@@ -32,9 +57,7 @@ const LoginPage = () => {
       });
       navigate('/'); 
     } catch (error) {
-      toast.error('البريد الإلكتروني أو كلمة المرور غير صحيحة', {
-        position: 'top-center',
-      });
+      toast.error('البريد الإلكتروني أو كلمة المرور غير صحيحة');
     } finally {
       setLoading(false);
     }
@@ -54,6 +77,7 @@ const LoginPage = () => {
             onChange={(e) => setEmail(e.target.value)}
             className="mt-2 w-full p-3 border border-gray-300 rounded-md"
           />
+          {emailError && <p className="text-red-500 text-sm mt-1">{emailError}</p>}
         </div>
         <div className="mb-6">
           <label htmlFor="password" className="block text-sm font-medium text-gray-700">كلمة المرور</label>
@@ -65,13 +89,14 @@ const LoginPage = () => {
             onChange={(e) => setPassword(e.target.value)}
             className="mt-2 w-full p-3 border border-gray-300 rounded-md"
           />
+          {passwordError && <p className="text-red-500 text-sm mt-1">{passwordError}</p>}
         </div>
         <button
           onClick={handleLogin}
           disabled={loading}
-          className="w-full p-3 bg-blue-600 text-white rounded-md text-lg hover:bg-blue-700 focus:outline-none"
+          className="w-full p-3 bg-blue-600 text-white rounded-md text-lg hover:bg-blue-700 focus:outline-none flex justify-center items-center"
         >
-          {loading ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
+          {loading ? <span className="loader"></span> : 'تسجيل الدخول'}
         </button>
       </div>
     </div>

@@ -8,6 +8,9 @@ const EditProject = () => {
   const { id } = useParams<{ id: string }>();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [errors, setErrors] = useState({ name: '' });
+  const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true); // New state for data loading
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -17,22 +20,46 @@ const EditProject = () => {
         setDescription(response.data.data.description);
       } catch (error) {
         toast.error('حدث خطأ أثناء جلب بيانات المشروع');
+      } finally {
+        setDataLoading(false); // Set data loading to false after fetching
       }
     };
 
     fetchProject();
   }, [id]);
 
+  const validate = () => {
+    let valid = true;
+    let errors = { name: '' };
+
+    if (name.trim().length < 3) {
+      errors.name = 'اسم المشروع يجب أن يكون على الأقل 3 أحرف';
+      valid = false;
+    }
+
+    setErrors(errors);
+    return valid;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
+
+    setLoading(true);
     try {
       await axiosInstance.put(`/projects/${id}`, { name, description });
       toast.success('تم تحديث المشروع بنجاح');
       navigate('/projects');
     } catch (error) {
       toast.error('حدث خطأ أثناء تحديث المشروع');
+    } finally {
+      setLoading(false);
     }
   };
+
+  if (dataLoading) {
+    return <div className='loader'></div>; // Show loading indicator while fetching data
+  }
 
   return (
     <div className="bg-gray-100 min-h-screen">
@@ -62,6 +89,7 @@ const EditProject = () => {
               className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
               required
             />
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
           </div>
 
           {/* Project Description */}
@@ -80,15 +108,16 @@ const EditProject = () => {
             <button
               type="button"
               onClick={() => navigate('/projects')}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              className=" mx-2 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
             >
               إلغاء
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+              className={`${loading ? "loader" : "bg-blue-600 px-4 py-2 text-white rounded-lg hover:bg-blue-700"}`}
+              disabled={loading}
             >
-              تحديث
+              {loading ? '' : 'تحديث'}
             </button>
           </div>
         </form>
