@@ -18,6 +18,8 @@ const CreateUnit = () => {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [gallery, setGallery] = useState<File[]>([]);
+  const [planImages, setPlanImages] = useState<File[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +35,14 @@ const CreateUnit = () => {
     formData.append('bedrooms', bedrooms);
     formData.append('bathrooms', bathrooms);
     formData.append('description', description);
+
+    gallery.forEach((image, index) => {
+      formData.append(`gallery[${index}]`, image);
+    });
+
+    planImages.forEach((image, index) => {
+      formData.append(`plan_images[${index}]`, image);
+    });
 
     try {
       await axiosInstance.post('/units', formData);
@@ -52,6 +62,18 @@ const CreateUnit = () => {
       console.log(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGalleryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setGallery(Array.from(e.target.files));
+    }
+  };
+
+  const handlePlanImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setPlanImages(Array.from(e.target.files));
     }
   };
 
@@ -178,6 +200,30 @@ const CreateUnit = () => {
                 required
               />
               {errors.description && <p className="text-red-500 text-sm">{errors.description}</p>}
+            </div>
+
+            {/* Gallery */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">معرض الصور</label>
+              <input
+                type="file"
+                multiple
+                onChange={handleGalleryChange}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
+              />
+              {errors.gallery && <p className="text-red-500 text-sm">{errors.gallery}</p>}
+            </div>
+
+            {/* Plan Images */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">صور المخطط</label>
+              <input
+                type="file"
+                multiple
+                onChange={handlePlanImagesChange}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
+              />
+              {errors.plan_images && <p className="text-red-500 text-sm">{errors.plan_images}</p>}
             </div>
           </div>
 

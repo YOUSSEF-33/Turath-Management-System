@@ -1,7 +1,8 @@
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 const UnitDetails = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
   // Fetch unit details using the id
   // For now, we'll use mock data
@@ -15,8 +16,7 @@ const UnitDetails = () => {
   };
 
   const handleAcceptUnit = () => {
-    // Logic to accept the unit
-    console.log(`Unit ${id} accepted`);
+     navigate('accept')
   };
 
   const handleRejectUnit = () => {
@@ -46,7 +46,7 @@ const UnitDetails = () => {
         <div className="flex space-x-4">
           <button
             onClick={handleAcceptUnit}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+            className="mx-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
           >
             قبول
           </button>

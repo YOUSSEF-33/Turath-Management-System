@@ -7,7 +7,7 @@ const ViewUnitDetails = () => {
     const [loading, setLoading] = useState<boolean>(true);
     const { unitId, projectId, buildingId } = useParams(); // Add projectId to useParams
     const navigate = useNavigate(); // Initialize useNavigate
-
+    
     useEffect(() => {
         axiosInstance.get(`/units/${unitId}`)
             .then(response => {
@@ -27,7 +27,8 @@ const ViewUnitDetails = () => {
     if (!unitDetails) {
         return <div>No unit details available.</div>;
     }
-
+    //
+    // console.log(unitDetails)
     return (
         <div className="min-h-screen bg-gray-100 p-6 flex flex-col items-center">
             {/* Page Header */}
@@ -45,6 +46,19 @@ const ViewUnitDetails = () => {
             {/* Main Content */}
             <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-4xl">
                 <h2 className="text-2xl font-semibold text-gray-800 mb-6">بيانات الوحدة</h2>
+                
+                {/* Gallery Section */}
+                {unitDetails.gallery && unitDetails.gallery.length > 0 && (
+                    <div className="mb-8">
+                        <h3 className="text-xl font-semibold text-gray-800 mb-4">معرض الصور</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {unitDetails.gallery.map((image: string, index: number) => (
+                                <img key={index} src={image} alt={`Gallery ${index}`} className="w-full h-48 object-cover rounded-lg shadow-md" />
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="flex flex-col">
                         <label className="block text-sm font-medium text-gray-700 mb-2">رقم الوحدة</label>
@@ -83,6 +97,18 @@ const ViewUnitDetails = () => {
                         <div className="w-full px-4 py-2 border border-gray-300 rounded-lg">{unitDetails.description}</div>
                     </div>
                 </div>
+
+                {/* Plan Images Section */}
+                {unitDetails.plan_images && unitDetails.plan_images.length > 0 && (
+                    <div className="mt-8">
+                        <h3 className="text-xl font-semibold text-gray-800 mb-4">صور المخطط</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {unitDetails.plan_images.map((image: string, index: number) => (
+                                <img key={index} src={image} alt={`Plan Image ${index}`} className="w-full h-48 object-cover rounded-lg shadow-md" />
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

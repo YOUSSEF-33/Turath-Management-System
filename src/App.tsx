@@ -25,6 +25,7 @@ import CreateBuilding from './pages/buildings/CreateBuilding';
 import EditBuilding from './pages/buildings/EditBuilding';
 import ViewUnitDetails from './pages/units/ViewUnitDetails';
 import UnitDetails from './pages/unitsReserve/UnitDetails';
+import AcceptUnitSale from './pages/unitsReserve/AcceptUnitSale';
 
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -71,6 +72,7 @@ function App() {
                         <Route path="/units-reserve" element={<UnitReserve />} />
                         <Route path="/units-reserve/reserve" element={<ReverseUnit />} />
                         <Route path="/units-reserve/details/:id" element={<UnitDetails />} />
+                        <Route path="/units-reserve/details/:id/accept" element={<AcceptUnitSale />} />
 
                         <Route path="/projects" element={<ViewProjects />} />
                         <Route path="/projects/create" element={<CreateProject />} />
