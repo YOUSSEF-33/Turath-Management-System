@@ -6,7 +6,7 @@ import { untisValidation } from './UnitsValidatoin';
 import { InputField } from '../../components/InputField';
 
 const CreateUnit = () => {
-  const {projectId, buildingId} = useParams();
+  const { projectId, buildingId } = useParams();
   const navigate = useNavigate();
   const [unitNumber, setUnitNumber] = useState('');
   const [unitType, setUnitType] = useState('villa');
@@ -18,6 +18,8 @@ const CreateUnit = () => {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [gallery, setGallery] = useState<File[]>([]);
+  const [planImages, setPlanImages] = useState<File[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,15 +36,28 @@ const CreateUnit = () => {
     formData.append('bathrooms', bathrooms);
     formData.append('description', description);
 
+    gallery.forEach((image: File, index) => {
+      console.log(image, index)
+      formData.append(`gallery[${index}]`, image);
+    });
+
+    planImages.forEach((image, index) => {
+      formData.append(`plan_images[${index}]`, image);
+    });
+
     try {
-      await axiosInstance.post('/units', formData);
+      await axiosInstance.post('/units', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       toast.success('تم إضافة الوحدة بنجاح');
       navigate(`/projects/${projectId}/buildings/${buildingId}`);
-    } catch (error) {
+    } catch (error: any) {
       if (error.response && error.response.status === 422) {
-        const translatedErrors = {};
+        const translatedErrors: any = {};
         for (const [key, value] of Object.entries(error.response.data.errors)) {
-              translatedErrors[key] = untisValidation(key, value)
+          translatedErrors[key] = untisValidation(key, value)
         }
         setErrors(translatedErrors);
         toast.error('حدث خطأ أثناء إضافة الوحدة');
@@ -52,6 +67,18 @@ const CreateUnit = () => {
       console.log(error);
     } finally {
       setLoading(false);
+    }
+  };
+  console.log(gallery)
+  const handleGalleryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setGallery(Array.from(e.target.files));
+    }
+  };
+
+  const handlePlanImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setPlanImages(Array.from(e.target.files));
     }
   };
 
@@ -179,6 +206,30 @@ const CreateUnit = () => {
               />
               {errors.description && <p className="text-red-500 text-sm">{errors.description}</p>}
             </div>
+
+            {/* Gallery */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">معرض الصور</label>
+              <input
+                type="file"
+                multiple
+                onChange={handleGalleryChange}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
+              />
+              {errors.gallery && <p className="text-red-500 text-sm">{errors.gallery}</p>}
+            </div>
+
+            {/* Plan Images */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">صور المخطط</label>
+              <input
+                type="file"
+                multiple
+                onChange={handlePlanImagesChange}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
+              />
+              {errors.plan_images && <p className="text-red-500 text-sm">{errors.plan_images}</p>}
+            </div>
           </div>
 
           {/* Form Actions */}
@@ -195,7 +246,7 @@ const CreateUnit = () => {
               className={`px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 ${loading ? 'loader' : ''}`}
               disabled={loading}
             >
-              {loading ? ''  : 'إضافة'}
+              {loading ? '' : 'إضافة'}
             </button>
           </div>
         </form>
