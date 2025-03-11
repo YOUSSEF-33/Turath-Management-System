@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import axiosInstance from '../../axiosInstance';
 import GenericTable from '../../components/GenericTable';
 import { Eye, Edit, Trash } from 'lucide-react';
-import { Modal, Button, message } from 'antd'; // Import the Modal, Button, and message components from antd
+import { Modal, Button } from 'antd'; // Import the Modal and Button components from antd
 import toast from 'react-hot-toast';
 
 interface Unit {
@@ -44,12 +44,17 @@ const ViewUnit: React.FC = () => {
   const [unitToDelete, setUnitToDelete] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [totalPages, setTotalPages] = useState<number>(1);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const response = await axiosInstance.get<{ data: Building }>(`/buildings/${buildingId}`);
         setBuilding(response.data.data);
-        //toast.success('تم تحميل البيانات بنجاح');
+        toast.success('تم تحميل البيانات بنجاح');
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('حدث خطأ أثناء تحميل البيانات');
@@ -59,7 +64,7 @@ const ViewUnit: React.FC = () => {
     };
 
     fetchData();
-  }, [buildingId]);
+  }, [buildingId, currentPage, itemsPerPage]);
 
   const handleView = (unit: number) => {
     navigate(`units/${unit}`);
@@ -105,6 +110,15 @@ const ViewUnit: React.FC = () => {
     { key: 'delete', icon: <Trash className="h-5 w-5" />, onClick: confirmDelete, color: 'text-red-600' },
   ];
 
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to the first page when itemsPerPage changes
+  };
+
   return (
     <div className="bg-gray-100 min-h-screen">
       {/* Page Header */}
@@ -124,24 +138,29 @@ const ViewUnit: React.FC = () => {
       <div className="container mx-auto px-6 py-8">
         <div className="bg-white rounded-lg shadow-lg p-8">
           <h3 className="text-xl font-semibold text-gray-900 mb-4">قائمة الوحدات</h3>
-          
-            <GenericTable
-              columns={[
-                { header: 'رقم الوحدة', key: 'unit_number' },
-                { header: 'نوع الوحدة', key: 'unit_type' },
-                { header: 'السعر', key: 'price' },
-                { header: 'الحالة', key: 'status' },
-                { header: 'المساحة', key: 'area' },
-                { header: 'الطابق', key: 'floor' },
-                { header: 'غرف النوم', key: 'bedrooms' },
-                { header: 'الحمامات', key: 'bathrooms' },
-              ]}
-              data={building?.units}
-              actions={actions}
-              loading={loading}
-              onCreate={() => navigate("units/create")}
-              createButtonText="إضافة وحدة جديدة"
-            />
+
+          <GenericTable
+            columns={[
+              { header: 'رقم الوحدة', key: 'unit_number' },
+              { header: 'نوع الوحدة', key: 'unit_type' },
+              { header: 'السعر', key: 'price' },
+              { header: 'الحالة', key: 'status' },
+              { header: 'المساحة', key: 'area' },
+              { header: 'الطابق', key: 'floor' },
+              { header: 'غرف النوم', key: 'bedrooms' },
+              { header: 'الحمامات', key: 'bathrooms' },
+            ]}
+            data={building?.units || []}
+            actions={actions}
+            loading={loading}
+            onCreate={() => navigate("units/create")}
+            createButtonText="إضافة وحدة جديدة"
+            itemsPerPage={itemsPerPage}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
         </div>
       </div>
 

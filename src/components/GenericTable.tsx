@@ -25,6 +25,10 @@ interface GenericTableProps {
   noDataMessage?: string; // New prop for no data message
   itemsPerPage?: number; // New prop for items per page
   loading?: boolean; // New prop for loading state
+  filters?: React.ReactNode; // New prop for filters
+  totalPages?: number; // New prop for total pages
+  onPageChange?: (page: number) => void; // New prop for page change handler
+  onItemsPerPageChange?: (itemsPerPage: number) => void; // New prop for itemsPerPage change handler
 }
 
 const GenericTable = ({
@@ -34,23 +38,36 @@ const GenericTable = ({
   onCreate,
   createButtonText = 'إضافة جديد',
   noDataMessage = 'لا توجد بيانات لعرضها', // Default message
-  itemsPerPage = 10, // Default items per page
-  loading = false, 
+  itemsPerPage: initialItemsPerPage = 10, // Default items per page
+  loading = false,
+  filters, // Add filters prop
+  totalPages = 1, // Default total pages
+  onPageChange, // Add onPageChange prop
+  onItemsPerPageChange, // Add onItemsPerPageChange prop
 }: GenericTableProps) => {
   const navigate = useNavigate();
   const tableData = Array.isArray(data) ? data : []; // Convert to array
 
   const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = Math.ceil(tableData.length / itemsPerPage);
+  const [itemsPerPage, setItemsPerPage] = useState(initialItemsPerPage); // State for itemsPerPage
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+    if (onPageChange) {
+      onPageChange(page); // Call the onPageChange prop if provided
+    }
   };
 
-  const paginatedData = tableData.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const handleItemsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newItemsPerPage = parseInt(e.target.value, 10);
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to the first page when itemsPerPage changes
+    if (onItemsPerPageChange) {
+      onItemsPerPageChange(newItemsPerPage); // Call the onItemsPerPageChange prop if provided
+    }
+  };
+
+  const paginatedData = data
 
   return (
     <div className="p-6">
@@ -65,6 +82,7 @@ const GenericTable = ({
           </button>
         </div>
       )}
+      {filters && <div className="mb-4">{filters}</div>} {/* Render filters if provided */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto"> {/* Add this wrapper */}
           <table className="min-w-full">
@@ -137,9 +155,21 @@ const GenericTable = ({
           >
             السابق
           </button>
-          <span className="text-sm text-gray-600">
-            صفحة {currentPage} من {totalPages}
-          </span>
+          <div className="flex items-center space-x-4">
+            <span className="mx-2 text-sm text-gray-600">
+              صفحة {currentPage} من {totalPages}
+            </span>
+            <select
+              value={itemsPerPage}
+              onChange={handleItemsPerPageChange}
+              className="mx-2 px-2 py-1 bg-white border border-gray-300 rounded-lg text-sm text-gray-600"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}

@@ -1,136 +1,160 @@
 import { useNavigate } from 'react-router-dom';
-import { Eye, Plus, Check, X } from 'lucide-react'; // Added Check and X icons
-import { useState } from 'react';
+import { Eye, Plus, Check, X, Calendar } from 'lucide-react'; // Added Check and X icons
+import { useEffect, useState } from 'react';
+import axios from 'axios';
 import GenericTable from '../../components/GenericTable';
-
-// Mock data for reserved, sold, and pending units
-const reservedUnits = [
-  { id: 1, number: '101', type: 'villa', area: 200, client: 'علي محمد' },
-  { id: 2, number: '102', type: 'apartment', area: 120, client: 'فاطمة أحمد' },
-];
-
-const soldUnits = [
-  { id: 3, number: '201', type: 'duplex', area: 180, client: 'خالد سعيد' },
-  { id: 4, number: '202', type: 'villa', area: 250, client: 'ليلى عبدالله' },
-];
-
-const pendingUnits = [
-  { id: 5, number: '301', type: 'studio', area: 80, client: 'محمد علي' },
-  { id: 6, number: '302', type: 'apartment', area: 110, client: 'سارة يوسف' },
-];
+import axiosInstance from '../../axiosInstance';
 
 const UnitReserve = () => {
   const navigate = useNavigate();
-  const [reservedPage, setReservedPage] = useState(1);
-  const [soldPage, setSoldPage] = useState(1);
-  const [pendingPage, setPendingPage] = useState(1);
-  const itemsPerPage = 5;
+  const [units, setUnits] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1); // Add totalPages state
+  const [itemsPerPage, setItemsPerPage] = useState(10); // Add totalPages state
+  const [statusFilter, setStatusFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+
+  useEffect(() => {
+    const fetchUnits = async () => {
+      try {
+        const response = await axiosInstance.get('/reservations', {
+          params: {
+            per_page: itemsPerPage,
+            page: currentPage,
+            status: statusFilter,
+            date_from: dateFrom,
+            date_to: dateTo,
+          },
+        });
+        const formattedData = response.data.data.map(unit => ({
+          ...unit,
+          contract_date: new Date(unit.contract_date).toLocaleDateString('en-GB'),
+          status: (
+            <span className={`px-2 py-1 rounded-full ${unit.status === 'PENDING' ? 'bg-yellow-200 text-yellow-800' :
+              unit.status === 'CONFIRMED' ? 'bg-green-200 text-green-800' :
+                unit.status === 'REJECTED' ? 'bg-red-200 text-red-800' :
+                  unit.status === 'SOLD' ? 'bg-blue-200 text-blue-800' : ''
+              }`}>
+              {unit.status}
+            </span>
+          )
+        }));
+        setUnits(formattedData);
+        const totalPages = Math.ceil(response.data.meta.total / itemsPerPage);
+        setTotalPages(totalPages); // Set total pages from API response
+        //console.log(formattedData);
+      } catch (error) {
+        console.error('Error fetching units:', error);
+      }
+    };
+
+    fetchUnits();
+  },  [currentPage, statusFilter, dateFrom, dateTo, itemsPerPage]);
 
   const handleReserveUnit = () => {
     navigate('/units-reserve/reserve');
   };
 
-  const handleViewUnit = (id: number) => {
+  const handleViewUnit = (id) => {
     navigate(`/units-reserve/details/${id}`);
   };
 
-  const handleAcceptUnit = (id: number) => {
+  const handleReserveAddendum = (id) => {
+    navigate(`/units-reserve/details/${id}/accept`);
+  };
+
+  const handleAcceptUnit = (id) => {
     // Logic to accept the unit
     console.log(`Unit ${id} accepted`);
   };
 
-  const handleRejectUnit = (id: number) => {
+  const handleRejectUnit = (id) => {
     // Logic to reject the unit
     console.log(`Unit ${id} rejected`);
   };
 
-  const reservedColumns = [
-    { header: 'رقم الوحدة', key: 'number' },
-    { header: 'النوع', key: 'type' },
-    { header: 'المساحة', key: 'area' },
-    { header: 'العميل', key: 'client' },
+  const columns = [
+    { header: 'رقم الوحدة', key: 'unit_id' },
+    { header: 'العميل', key: 'client_id' },
+    { header: 'الحالة', key: 'status' },
+    { header: 'تاريخ العقد', key: 'contract_date' },
+    { header: 'السعر النهائي', key: 'final_price' },
+    { header: 'دفعة الحجز', key: 'reservation_deposit' },
   ];
 
-  const soldColumns = [
-    { header: 'رقم الوحدة', key: 'number' },
-    { header: 'النوع', key: 'type' },
-    { header: 'المساحة', key: 'area' },
-    { header: 'العميل', key: 'client' },
-  ];
-
-  const pendingColumns = [
-    { header: 'رقم الوحدة', key: 'number' },
-    { header: 'النوع', key: 'type' },
-    { header: 'المساحة', key: 'area' },
-    { header: 'العميل', key: 'client' },
-  ];
-
-  const reservedActions = [
+  const actions = [
     { key: 'view', icon: <Eye className="h-5 w-5" />, onClick: handleViewUnit, color: 'text-blue-600' },
+    { key: 'booking', icon: <Calendar className="h-5 w-5" />, onClick: handleReserveAddendum, color: 'text-green-600' },
   ];
 
-  const soldActions = [
-    { key: 'view', icon: <Eye className="h-5 w-5" />, onClick: handleViewUnit, color: 'text-blue-600' },
-  ];
-
-  const pendingActions = [
-    { key: 'accept', icon: <Check className="h-5 w-5" />, onClick: handleAcceptUnit, color: 'text-green-600' },
-    { key: 'reject', icon: <X className="h-5 w-5" />, onClick: handleRejectUnit, color: 'text-red-600' },
-    { key: 'view', icon: <Eye className="h-5 w-5" />, onClick: handleViewUnit, color: 'text-blue-600' },
-  ];
+  const filters = (
+    <div className="flex justify-start space-x-4">
+      <div className="flex flex-col">
+        <label htmlFor="statusFilter" className="mb-1 text-gray-700">الحالة</label>
+        <select
+          id="statusFilter"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="mx-4 bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg"
+        >
+          <option value="">كل الحالات</option>
+          <option value="PENDING">معلق </option>
+          <option value="CONFIRMED">مؤكد</option>
+          <option value="REJECTED">مرفوض</option>
+          <option value="SOLD">مباع</option>
+        </select>
+      </div>
+      <div className="flex flex-col">
+        <label htmlFor="dateFrom" className="mb-1 text-gray-700">التاريخ من</label>
+        <input
+          id="dateFrom"
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg"
+        />
+      </div>
+      <div className="flex flex-col">
+        <label htmlFor="dateTo" className="mb-1 text-gray-700">التاريخ إلى</label>
+        <input
+          id="dateTo"
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg"
+        />
+      </div>
+    </div>
+  );
 
   return (
     <div className="p-6 bg-gray-50 md:m-4 md:rounded my-2">
       {/* Button to Reserve Unit */}
-      <div className="mb-6 flex justify-start">
-        <button
-          onClick={handleReserveUnit}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="ml-2 h-5 w-5" />
-          حجز وحدة
-        </button>
+      <div className='flex justify-between items-center mb-4 mx-6'>
+        <h2 className="text-2xl font-semibold text-gray-800 mb-4">الوحدات</h2>
+        <div className="mb-2 flex justify-start">
+          <button
+            onClick={handleReserveUnit}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="ml-2 h-5 w-5" />
+            حجز وحدة
+          </button>
+        </div>
       </div>
-
-      {/* Reserved Units Section */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">الوحدات المعلقه </h2>
-        <GenericTable
-          columns={pendingColumns}
-          data={pendingUnits}
-          actions={pendingActions}
-          itemsPerPage={itemsPerPage}
-          currentPage={pendingPage}
-          onPageChange={setPendingPage}
-        />
-        
-      </div>
-
-      {/* Sold Units Section */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">الوحدات المباعة</h2>
-        <GenericTable
-          columns={soldColumns}
-          data={soldUnits}
-          actions={soldActions}
-          itemsPerPage={itemsPerPage}
-          currentPage={soldPage}
-          onPageChange={setSoldPage}
-        />
-      </div>
-
-      {/* Pending Units Section */}
-      <div>
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">الوحدات المحجوزة</h2>
-        <GenericTable
-          columns={reservedColumns}
-          data={reservedUnits}
-          actions={reservedActions}
-          itemsPerPage={itemsPerPage}
-          currentPage={reservedPage}
-          onPageChange={setReservedPage}
-        />
-      </div>
+      <GenericTable
+        columns={columns}
+        data={units}
+        actions={actions}
+        itemsPerPage={itemsPerPage}
+        currentPage={currentPage}
+        totalPages={totalPages} // Pass totalPages to GenericTable
+        onPageChange={setCurrentPage} 
+        onItemsPerPageChange = {setItemsPerPage}
+        filters={filters} // Pass filters to GenericTable
+      />
     </div>
   );
 };

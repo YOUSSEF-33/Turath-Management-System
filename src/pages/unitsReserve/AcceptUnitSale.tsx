@@ -1,30 +1,82 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
+import axiosInstance from '../../axiosInstance'; // Adjust the import path as needed
 import { convertToArabicWords } from '../../utils/convertNumbers';
-import * as XLSX from 'xlsx'; // Import the xlsx library
+import * as XLSX from 'xlsx';
 
 const AcceptUnitSale = () => {
-  const [rows, setRows] = useState([
-    { paymentDate: '2023-01-01', checkNumber: '123456', amountNumber: '1000', amountWords: 'ألف' },
-    { paymentDate: '2023-02-01', checkNumber: '123457', amountNumber: '2000', amountWords: 'ألفين' },
-    { paymentDate: '2023-03-01', checkNumber: '123458', amountNumber: '3000', amountWords: 'ثلاثة آلاف' }
-  ]);
+  const { id } = useParams<{ id: string }>();
+  const [reservation, setReservation] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState({ totalAmount: 0, checkDate: '', checkNumber: '', maintenanceDeposit: '', maintenanceDate: '', maintenanceCheckNumber: '' });
   const contractRef = useRef<HTMLDivElement>(null);
 
+  // Fetch reservation data
+  useEffect(() => {
+    const fetchReservation = async () => {
+      try {
+        const response = await axiosInstance.get(`/reservations/${id}`);
+        setReservation(response.data.data);
+
+        // Generate installment rows
+        const { final_price, down_payment, monthly_installment, months_count } = response.data.data;
+        const installmentRows = generateInstallmentRows(final_price, down_payment, monthly_installment, months_count);
+        setRows(installmentRows);
+
+        // Set total amount
+        setTotal(prev => ({ ...prev, totalAmount: parseFloat(final_price) }));
+        setLoading(false);
+      } catch (err) {
+        setError('فشل في تحميل بيانات الحجز');
+        console.error(err);
+        setLoading(false);
+      }
+    };
+
+    fetchReservation();
+  }, [id]);
+
+  // Generate installment rows
+  const generateInstallmentRows = (finalPrice: string, downPayment: string, monthlyInstallment: string, monthsCount: number) => {
+    const rows = [];
+    let currentDate = new Date(); // Start from today
+
+    for (let i = 0; i < monthsCount; i++) {
+      const paymentDate = new Date(currentDate);
+      paymentDate.setMonth(currentDate.getMonth() + i); // Add i months to the current date
+
+      rows.push({
+        paymentDate: paymentDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        checkNumber: `CHK${1000 + i}`, // Sequential check numbers
+        amountNumber: monthlyInstallment, // Monthly installment amount
+        amountWords: convertToArabicWords(monthlyInstallment), // Convert to Arabic words
+      });
+    }
+
+    return rows;
+  };
+
+  // Handle input changes for rows
   const handleInputChange = (index: number, field: string, value: string) => {
     const newRows = [...rows];
     newRows[index][field] = value;
     setRows(newRows);
   };
 
+  // Handle input changes for total
   const handleTotalChange = (field: string, value: string) => {
     setTotal({ ...total, [field]: value });
   };
 
+  // Add a new row
   const addRow = () => {
     setRows([...rows, { paymentDate: '', checkNumber: '', amountNumber: '', amountWords: '' }]);
   };
 
+  // Handle print (PDF export)
   const handlePrint = () => {
     if (contractRef.current) {
       const printWindow = window.open("", "_blank");
@@ -55,46 +107,85 @@ const AcceptUnitSale = () => {
     }
   };
 
+  // Handle form submission
   const handleSubmit = () => {
-    console.log({ rows, total });
+    console.log({ reservationId: reservation.id, rows, total });
     alert('تم قبول البيانات بنجاح');
   };
 
-  // Function to export data to Excel
+  // Export data to Excel
   const exportToExcel = () => {
-    // Prepare the data for export
     const data = [
       ['تاريخ الدفعه', 'رقم الشيك', 'القيمه بالارقام', 'القيمه بالحروف'],
       ...rows.map(row => [row.paymentDate, row.checkNumber, row.amountNumber, row.amountWords]),
       ['الإجمالي', '', total.totalAmount, convertToArabicWords(total.totalAmount)],
-      ['وديعة صيانة ومرافق', total.maintenanceDate, total.maintenanceCheckNumber, total.maintenanceDeposit, convertToArabicWords(total.maintenanceDeposit)]
+      ['وديعة صيانة ومرافق', total.maintenanceDate, total.maintenanceCheckNumber, total.maintenanceDeposit, convertToArabicWords(total.maintenanceDeposit)],
+      ['تفاصيل الحجز', '', '', ''],
+      ['السعر النهائي', reservation.final_price, '', ''],
+      ['الدفعة المقدمة', reservation.down_payment, '', ''],
+      ['القسط الشهري', reservation.monthly_installment, '', ''],
+      ['عدد الشهور', reservation.months_count, '', '']
     ];
 
-    // Create a worksheet
     const ws = XLSX.utils.aoa_to_sheet(data);
-
-    // Create a workbook
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
-
-    // Export the file
-    XLSX.writeFile(wb, 'بيانات_البيع.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, 'بيانات الحجز');
+    XLSX.writeFile(wb, 'بيانات_الحجز.xlsx');
   };
 
-  const exportToPDF = ()=>{
+  // Export data to PDF
+  const exportToPDF = () => {
     handlePrint();
+  };
+
+  // Loading state
+  if (loading) {
+    return <div className="p-6 text-center">جاري التحميل...</div>;
+  }
+
+  // Error state
+  if (error) {
+    return <div className="p-6 text-center text-red-500">{error}</div>;
+  }
+
+  // No reservation data
+  if (!reservation) {
+    return <div className="p-6 text-center">لا توجد بيانات متاحة</div>;
   }
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-md">
-      {/* Add Export to Excel Button */}
+      {/* Export Buttons */}
       <button onClick={exportToExcel} className="mx-2 mb-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
         تصدير إلى Excel
       </button>
       <button onClick={exportToPDF} className="mb-4 px-4 py-2 bg-red-800 text-white rounded-lg hover:bg-red-900">
         تصدير إلى PDF
       </button>
+
+      {/* Page Title */}
       <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">ملحق الحجز</h1>
+
+      {/* Reservation Details */}
+      <div className="mb-6 bg-gray-100 p-4 rounded-lg">
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">تفاصيل الحجز</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <strong>السعر النهائي:</strong> {reservation.final_price} جنيه
+          </div>
+          <div>
+            <strong>الدفعة المقدمة:</strong> {reservation.down_payment} جنيه
+          </div>
+          <div>
+            <strong>القسط الشهري:</strong> {reservation.monthly_installment} جنيه
+          </div>
+          <div>
+            <strong>عدد الشهور:</strong> {reservation.months_count}
+          </div>
+        </div>
+      </div>
+
+      {/* Payment Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white">
           <thead>
@@ -164,9 +255,13 @@ const AcceptUnitSale = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Add Row Button */}
       <button onClick={addRow} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
         إضافة صف
       </button>
+
+      {/* Maintenance Deposit Section */}
       <div className="mt-6">
         <h2 className="text-xl font-bold text-gray-800 mb-4">وديعه صيانه و مرافق</h2>
         <table className="min-w-full bg-white">
@@ -216,9 +311,13 @@ const AcceptUnitSale = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Submit Button */}
       <button onClick={handleSubmit} className="mt-6 w-full bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
         قبول
       </button>
+
+      {/* Hidden Div for PDF Export */}
       <div ref={contractRef} style={{ display: 'none' }}>
         <h1 style={{ textAlign: 'center', marginBottom: '20px', fontSize: '24px' }}>قبول بيع الوحدة</h1>
         <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
@@ -247,7 +346,7 @@ const AcceptUnitSale = () => {
           </tbody>
         </table>
 
-        {/* New Table for Maintenance Deposit */}
+        {/* Maintenance Deposit Table for PDF */}
         <h2 style={{ textAlign: 'right', marginTop: '20px', fontSize: '18px' }}>وديعة صيانة ومرافق</h2>
         <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
           <thead>

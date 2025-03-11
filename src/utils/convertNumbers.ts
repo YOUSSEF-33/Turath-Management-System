@@ -34,7 +34,10 @@ export const convertToArabicWords = (num) => {
 
     let words = [];
 
-    // دالة لتحويل الرقم إلى نص
+    // التعامل مع الأجزاء العشرية
+    let integerPart = Math.floor(num);
+    let decimalPart = Math.round((num - integerPart) * 100); // نأخذ فقط خانتين عشريتين
+
     const getThreeDigitWords = (n) => {
         let result = [];
 
@@ -49,9 +52,9 @@ export const convertToArabicWords = (num) => {
             let unit = n % 10;
             let ten = Math.floor(n / 10);
             if (unit > 0) {
-                result.push(ones[unit]); // الوحدات أولًا
+                result.push(ones[unit]);
             }
-            result.push(tens[ten]); // ثم العشرات
+            result.push(tens[ten]);
         } else if (n > 0) {
             result.push(ones[n]);
         }
@@ -59,10 +62,9 @@ export const convertToArabicWords = (num) => {
         return result.join(" و ");
     };
 
-    let numStr = num.toString();
+    let numStr = integerPart.toString();
     let numParts = [];
 
-    // تقسيم الرقم إلى أجزاء من 3 خانات
     while (numStr.length > 0) {
         numParts.unshift(parseInt(numStr.slice(-3), 10));
         numStr = numStr.slice(0, -3);
@@ -78,20 +80,26 @@ export const convertToArabicWords = (num) => {
 
         if (scaleIndex > 0) {
             if (part === 1) {
-                partWords = scales[scaleIndex - 2]; // ألف، مليون، مليار
+                partWords = scales[scaleIndex - 2];
             } else if (part === 2) {
-                partWords = scales[scaleIndex - 2] + "ان"; // ألفان، مليونان، ملياران
+                partWords = scales[scaleIndex - 2] + "ان";
             } else if (part >= 3 && part <= 10) {
-                partWords += " " + scales[scaleIndex]; // آلاف، ملايين، مليارات
+                partWords += " " + scales[scaleIndex];
             } else {
-                partWords += " " + scales[scaleIndex - 1]; // ألفًا، مليونًا، مليارًا
+                partWords += " " + scales[scaleIndex - 1];
             }
         }
 
         words.push(partWords);
     });
 
-    return words.join(" و ");
+    let result = words.join(" و ");
+
+    if (decimalPart > 0) {
+        result += ` و ${getThreeDigitWords(decimalPart)} جزء من المائة`;
+    }
+
+    return result;
 };
 
 

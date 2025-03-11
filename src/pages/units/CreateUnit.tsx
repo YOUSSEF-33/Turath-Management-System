@@ -6,7 +6,7 @@ import { untisValidation } from './UnitsValidatoin';
 import { InputField } from '../../components/InputField';
 
 const CreateUnit = () => {
-  const {projectId, buildingId} = useParams();
+  const { projectId, buildingId } = useParams();
   const navigate = useNavigate();
   const [unitNumber, setUnitNumber] = useState('');
   const [unitType, setUnitType] = useState('villa');
@@ -36,7 +36,8 @@ const CreateUnit = () => {
     formData.append('bathrooms', bathrooms);
     formData.append('description', description);
 
-    gallery.forEach((image, index) => {
+    gallery.forEach((image: File, index) => {
+      console.log(image, index)
       formData.append(`gallery[${index}]`, image);
     });
 
@@ -45,14 +46,18 @@ const CreateUnit = () => {
     });
 
     try {
-      await axiosInstance.post('/units', formData);
+      await axiosInstance.post('/units', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       toast.success('تم إضافة الوحدة بنجاح');
       navigate(`/projects/${projectId}/buildings/${buildingId}`);
-    } catch (error) {
+    } catch (error: any) {
       if (error.response && error.response.status === 422) {
-        const translatedErrors = {};
+        const translatedErrors: any = {};
         for (const [key, value] of Object.entries(error.response.data.errors)) {
-              translatedErrors[key] = untisValidation(key, value)
+          translatedErrors[key] = untisValidation(key, value)
         }
         setErrors(translatedErrors);
         toast.error('حدث خطأ أثناء إضافة الوحدة');
@@ -64,7 +69,7 @@ const CreateUnit = () => {
       setLoading(false);
     }
   };
-
+  console.log(gallery)
   const handleGalleryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setGallery(Array.from(e.target.files));
@@ -241,7 +246,7 @@ const CreateUnit = () => {
               className={`px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 ${loading ? 'loader' : ''}`}
               disabled={loading}
             >
-              {loading ? ''  : 'إضافة'}
+              {loading ? '' : 'إضافة'}
             </button>
           </div>
         </form>

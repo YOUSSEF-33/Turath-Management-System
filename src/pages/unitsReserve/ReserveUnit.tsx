@@ -2,9 +2,12 @@ import React, { useState, useEffect, useRef } from "react";
 import { Search, Upload, Trash2, Check, Printer } from "lucide-react";
 import { InputField } from "../../components/InputField";
 import axiosInstance from "../../axiosInstance";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 const ReverseUnit = () => {
     // State for projects, buildings, and units
+    const navigate = useNavigate();
     const [projects, setProjects] = useState<any[]>([]);
     const [buildings, setBuildings] = useState<any[]>([]);
     const [units, setUnits] = useState<any[]>([]);
@@ -26,8 +29,9 @@ const ReverseUnit = () => {
 
     // Attachments State
     const [attachments, setAttachments] = useState<any>({
-        paymentReceipt: null,
-        nationalIdCard: null,
+        nationalIdCard: [],
+        reservation_deposit_receipt: null,
+        attachments: [],
     });
 
     // Unit Details State
@@ -40,10 +44,11 @@ const ReverseUnit = () => {
         floor: "",
         bedrooms: "",
         bathrooms: "",
-        months: "",
-        downPayment: "",
-        finalPrice: "0",
-        monthlyInstallment: "0",
+        months: 0,
+        downPayment: 0,
+        finalPrice: 0,
+        monthlyInstallment: 0,
+        reservationDeposit: 0,
     });
 
     const [loading, setLoading] = useState<boolean>(false);
@@ -70,7 +75,61 @@ const ReverseUnit = () => {
     const handleUnitDetailsChange = (e: React.ChangeEvent<HTMLInputElement>, key: string) => {
         const { value } = e.target;
         if (validateInput(value, "number")) {
-            setUnitDetails((prev: any) => ({ ...prev, [key]: value }));
+            setUnitDetails((prev: any) => ({ ...prev, [key]: parseFloat(value) }));
+        }
+    };
+
+
+    const handleSubmit = async () => {
+        const formData = new FormData();
+
+        // Append unit_id
+        formData.append("unit_id", selectedUnit);
+
+        // Append client data
+        formData.append("client[name]", clientData.name);
+        formData.append("client[email]", clientData.email);
+        formData.append("client[phone]", clientData.phone);
+        formData.append("client[address]", clientData.address);
+
+        // Append unit details
+        formData.append("final_price", unitDetails.finalPrice);
+        formData.append("reservation_deposit", unitDetails.reservationDeposit);
+        formData.append("down_payment", unitDetails.downPayment);
+        formData.append("monthly_installment", unitDetails.monthlyInstallment);
+        formData.append("months_count", unitDetails.months);
+        formData.append("contract_date", clientData.contractDate);
+
+        // Append national ID images
+        if (attachments.nationalIdCard && attachments.nationalIdCard.length > 0) {
+            attachments.nationalIdCard.forEach((file: File, index: number) => {
+                formData.append(`national_id_images[${index}]`, file);
+            });
+        }
+
+        // Append reservation deposit receipt
+        if (attachments.reservation_deposit_receipt) {
+            formData.append("reservation_deposit_receipt", attachments.reservation_deposit_receipt);
+        }
+
+        // Append additional attachments
+        if (attachments.attachments && attachments.attachments.length > 0) {
+            attachments.attachments.forEach((file: File, index: number) => {
+                formData.append(`attachments[${index}]`, file);
+            });
+        }
+
+        try {
+            const response = await axiosInstance.post("/reservations", formData, {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            });
+            toast.success("تم إرسال البيانات بنجاح");
+            navigate("/units-reserve");
+        } catch (error) {
+            console.error("Error submitting form:", error);
+            alert("حدث خطأ أثناء إرسال البيانات");
         }
     };
 
@@ -96,13 +155,17 @@ const ReverseUnit = () => {
                 setUnitDetails({
                     unit_number: unit.unit_number,
                     unit_type: unit.unit_type,
-                    price: unit.price.toString(),
+                    price: unit.price,
                     status: unit.status,
                     area: unit.area,
-                    floor: unit.floor.toString(),
-                    bedrooms: unit.bedrooms.toString(),
-                    bathrooms: unit.bathrooms.toString(),
-                    finalPrice: unit.price.toString(),
+                    floor: unit.floor,
+                    bedrooms: unit.bedrooms,
+                    bathrooms: unit.bathrooms,
+                    finalPrice: unit.price,
+                    months: unit.months || 0,
+                    downPayment: unit.downPayment || 0,
+                    monthlyInstallment: unit.monthlyInstallment || 0,
+                    reservationDeposit: unit.reservationDeposit || 0,
                 });
             }
         }
@@ -111,8 +174,8 @@ const ReverseUnit = () => {
     // Calculate final price and monthly installment
     useEffect(() => {
         const price = parseFloat(unitDetails.price);
-        const months = parseInt(unitDetails.months, 10);
-        const downPayment = parseFloat(unitDetails.downPayment);
+        const months = unitDetails.months;
+        const downPayment = unitDetails.downPayment;
 
         if (!isNaN(price) && !isNaN(months) && !isNaN(downPayment) && months > 0) {
             const remainingAmount = price - downPayment;
@@ -120,43 +183,47 @@ const ReverseUnit = () => {
 
             setUnitDetails((prevState: any) => ({
                 ...prevState,
-                finalPrice: price.toFixed(2).toString(),
-                monthlyInstallment: monthlyInstallment.toFixed(2).toString(),
+                finalPrice: price.toFixed(2),
+                monthlyInstallment: monthlyInstallment.toFixed(2),
             }));
         }
     }, [unitDetails.price, unitDetails.months, unitDetails.downPayment]);
 
     // Handle file upload
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
-        const file = e.target.files?.[0];
-        if (file) {
+        const files = e.target.files;
+        if (files) {
+            if (type === "nationalIdCard" || type === "attachments") {
+                setAttachments((prev: any) => ({
+                    ...prev,
+                    [type]: [...prev[type], ...Array.from(files)],
+                }));
+            } else {
+                console.log({
+                    [type]: files[0],
+                })
+                setAttachments((prev: any) => ({
+                    ...prev,
+                    [type]: files[0],
+                }));
+            }
+        }
+    };
+
+    const removeFile = (type: string, index?: number) => {
+        if ((type === "nationalIdCard" || type === "attachments") && index !== undefined) {
             setAttachments((prev: any) => ({
                 ...prev,
-                [type]: file,
+                [type]: prev[type].filter((_: any, i: number) => i !== index),
+            }));
+        } else {
+            setAttachments((prev: any) => ({
+                ...prev,
+                [type]: null,
             }));
         }
     };
 
-    // Remove a file
-    const removeFile = (type: string) => {
-        setAttachments((prev: any) => ({
-            ...prev,
-            [type]: null,
-        }));
-    };
-
-    // Handle form submission
-    const handleSubmit = () => {
-        // Log form data to the console
-        handlePrint();
-        console.log({
-            clientData,
-            unitDetails,
-            attachments,
-        });
-
-        alert("تم إرسال البيانات بنجاح");
-    };
 
     const contractRef = useRef<HTMLDivElement>(null);
 
@@ -335,23 +402,40 @@ const ReverseUnit = () => {
             {/* Attachments Section */}
             <div className="bg-white p-6 rounded-lg shadow-md mb-6">
                 <h2 className="text-xl font-bold text-gray-800 mb-4">المرفقات</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {[
-                        { key: "paymentReceipt", label: "إيصال السداد" },
-                        { key: "nationalIdCard", label: "صورة البطاقة الشخصية" },
-                    ].map(({ key, label }) => (
+                        { key: "nationalIdCard", label: "صورة البطاقة الشخصية", multiple: true },
+                        { key: "reservation_deposit_receipt", label: "إيصال السداد", multiple: false },
+                        { key: "attachments", label: "مرفقات إضافية", multiple: true },
+                    ].map(({ key, label, multiple }) => (
                         <div key={key}>
                             <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
-                            {attachments[key] ? (
-                                <div className="flex items-center justify-between p-4 border border-gray-300 rounded-lg">
-                                    <span>{attachments[key].name}</span>
-                                    <button
-                                        onClick={() => removeFile(key)}
-                                        className="text-red-500 hover:text-red-700"
-                                    >
-                                        <Trash2 className="h-5 w-5" />
-                                    </button>
-                                </div>
+                            {attachments[key] && (multiple ? attachments[key].length > 0 : attachments[key]) ? (
+                                multiple ? (
+                                    // Render multiple files for nationalIdCard and attachments
+                                    attachments[key].map((file: File, index: number) => (
+                                        <div key={index} className="flex items-center justify-between p-4 border border-gray-300 rounded-lg mb-2">
+                                            <span>{file.name}</span>
+                                            <button
+                                                onClick={() => removeFile(key, index)}
+                                                className="text-red-500 hover:text-red-700"
+                                            >
+                                                <Trash2 className="h-5 w-5" />
+                                            </button>
+                                        </div>
+                                    ))
+                                ) : (
+                                    // Render single file for reservation_deposit_receipt
+                                    <div className="flex items-center justify-between p-4 border border-gray-300 rounded-lg mb-2">
+                                        <span>{attachments[key].name}</span>
+                                        <button
+                                            onClick={() => removeFile(key)}
+                                            className="text-red-500 hover:text-red-700"
+                                        >
+                                            <Trash2 className="h-5 w-5" />
+                                        </button>
+                                    </div>
+                                )
                             ) : (
                                 <label className="flex items-center justify-center p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
                                     <Upload className="h-5 w-5 mr-2" />
@@ -360,6 +444,7 @@ const ReverseUnit = () => {
                                         type="file"
                                         onChange={(e) => handleFileUpload(e, key)}
                                         className="hidden"
+                                        multiple={multiple} // Set multiple based on the field
                                     />
                                 </label>
                             )}
@@ -374,6 +459,7 @@ const ReverseUnit = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {Object.entries({
                         price: "السعر",
+                        reservationDeposit: "إيصال السداد",
                         months: "عدد الشهور",
                         downPayment: "الدفعة المقدمة",
                         finalPrice: "السعر النهائي",
