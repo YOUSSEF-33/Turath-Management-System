@@ -36,9 +36,10 @@ interface Action {
 }
 
 const ViewUnit: React.FC = () => {
-  const { buildingId, projectId } = useParams<{ buildingId: string }>();
+  const { buildingId } = useParams<{ buildingId: string }>();
   const navigate = useNavigate();
   const [building, setBuilding] = useState<Building | null>(null);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [unitToDelete, setUnitToDelete] = useState<number | null>(null);
@@ -52,8 +53,27 @@ const ViewUnit: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axiosInstance.get<{ data: Building }>(`/buildings/${buildingId}`);
-        setBuilding(response.data.data);
+        // First fetch building details
+        const buildingResponse = await axiosInstance.get<{ data: Building }>(`/buildings/${buildingId}`);
+        setBuilding(buildingResponse.data.data);
+        
+        // Then fetch units for this building with pagination
+        const unitsResponse = await axiosInstance.get(`/units`, {
+          params: {
+            building_id: buildingId,
+            page: currentPage,
+            per_page: itemsPerPage
+          }
+        });
+        
+        setUnits(unitsResponse.data.data);
+        
+        // Set total pages from response metadata
+        if (unitsResponse.data.meta && unitsResponse.data.meta.total) {
+          const total = Math.ceil(unitsResponse.data.meta.total / itemsPerPage);
+          setTotalPages(total);
+        }
+        
         toast.success('تم تحميل البيانات بنجاح');
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -114,11 +134,6 @@ const ViewUnit: React.FC = () => {
     setCurrentPage(page);
   };
 
-  const handleItemsPerPageChange = (newItemsPerPage: number) => {
-    setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1); // Reset to the first page when itemsPerPage changes
-  };
-
   return (
     <div className="bg-gray-100 min-h-screen">
       {/* Page Header */}
@@ -126,7 +141,7 @@ const ViewUnit: React.FC = () => {
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">{building?.name}</h1>
           <button
-            onClick={() => navigate(`/projects/${projectId}`)}
+            onClick={() => navigate(`/projects`)}
             className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           >
             عودة
@@ -150,16 +165,14 @@ const ViewUnit: React.FC = () => {
               { header: 'غرف النوم', key: 'bedrooms' },
               { header: 'الحمامات', key: 'bathrooms' },
             ]}
-            data={building?.units || []}
+            data={units as unknown as Record<string, unknown>[]}
             actions={actions}
             loading={loading}
             onCreate={() => navigate("units/create")}
             createButtonText="إضافة وحدة جديدة"
             itemsPerPage={itemsPerPage}
-            currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={handlePageChange}
-            onItemsPerPageChange={handleItemsPerPageChange}
           />
         </div>
       </div>

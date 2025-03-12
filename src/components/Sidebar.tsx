@@ -1,6 +1,15 @@
-import React from "react";
-import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, Home, Hotel } from "lucide-react";
+import React, { useCallback } from "react";
+import { NavLink, useLocation } from "react-router-dom";
+import { 
+  LayoutDashboard, 
+  Users, 
+  Hotel, 
+  Settings, 
+  Building, 
+  LogOut,
+  ChevronDown,
+  ChevronUp
+} from "lucide-react";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -8,36 +17,81 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
-  const menuItems = [
+  const location = useLocation();
+  const [projectsExpanded, setProjectsExpanded] = React.useState(
+    location.pathname.includes('/projects')
+  );
+  
+  const toggleProjectsMenu = useCallback(() => {
+    setProjectsExpanded(prev => !prev);
+  }, []);
+  
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    window.location.href = '/login';
+  }, []);
+  
+  const mainItems = [
     { path: "/", icon: <LayoutDashboard className="ml-2" />, text: "لوحة التحكم" },
     { path: "/employees", icon: <Users className="ml-2" />, text: "الموظفون" },
   ];
 
   const unitsItems = [
-    { path: "/projects", icon: <Home className="ml-2" />, text: "ادارة المشاريع" },
+    { 
+      path: "/projects", 
+      icon: <Building className="ml-2" />, 
+      text: "ادارة المشاريع",
+      onToggle: toggleProjectsMenu,
+      subItems: [
+        { path: "/projects/create", text: "إضافة مشروع جديد" },
+      ]
+    },
     { path: "/units-reserve", icon: <Hotel className="ml-2" />, text: "حجز الوحدات" },
   ];
+
+  // Check if the current route is active (for main routes and sub-routes)
+  const isRouteActive = (path: string) => {
+    if (path === '/') {
+      return location.pathname === '/';
+    }
+    return location.pathname.startsWith(path);
+  };
+
+  // Check if any sub-item is active
+  const isAnySubItemActive = (subItems: { path: string, text: string }[]) => {
+    return subItems.some(item => location.pathname === item.path);
+  };
 
   return (
     <>
       {/* Sidebar/Mobile Menu */}
       <aside
-        className={`fixed md:sticky top-0 right-0 h-screen w-64 bg-gray-50 text-gray-800 transform transition-transform duration-300 ease-in-out z-30 ${isOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"
-          }`}
+        className={`fixed md:sticky top-0 right-0 h-screen w-64 bg-white shadow-lg text-gray-800 transform transition-transform duration-300 ease-in-out z-30 ${
+          isOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"
+        }`}
       >
         <div className="flex flex-col h-full">
-          <div className="p-4">
-            <h1 className="text-xl font-bold text-center mb-8">لوحة التحكم</h1>
-            <nav className="space-y-2">
-              <h2 className="text-sm font-semibold text-gray-600 px-3 my-2">الرئيسية</h2>
+          <div className="p-4 border-b border-gray-100">
+            <div className="flex items-center justify-center mb-6">
+              <img src="/images/output-onlinepngtools.png" alt="Logo" className="h-10" />
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4">
+            <nav className="space-y-1">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mb-2">الرئيسية</h2>
               {/* Regular Menu Items */}
-              {menuItems.map((item) => (
+              {mainItems.map((item) => (
                 <NavLink
                   key={item.path}
                   to={item.path}
                   onClick={onClose}
                   className={({ isActive }) =>
-                    `flex items-center p-3 rounded-lg transition-colors ${isActive ? "bg-blue-500 text-white" : "hover:bg-blue-100 text-gray-800"
+                    `flex items-center p-3 rounded-lg transition-colors ${
+                      isActive 
+                        ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium" 
+                        : "hover:bg-gray-100 text-gray-700"
                     }`
                   }
                 >
@@ -46,25 +100,113 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 </NavLink>
               ))}
 
-              {/* Units Section with Title */}
-              <div className="mt-6">
-                <h2 className="text-sm font-semibold text-gray-600 px-3 mb-2 mt-3">الوحدات</h2>
-                {unitsItems.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    onClick={onClose}
-                    className={({ isActive }) =>
-                      `flex items-center mb-2 p-3 rounded-lg transition-colors ${isActive ? "bg-blue-500 text-white" : "hover:bg-blue-100 text-gray-800"
-                      }`
-                    }
-                  >
-                    {item.icon}
-                    <span>{item.text}</span>
-                  </NavLink>
-                ))}
-              </div>
+              {/* Units Section */}
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mt-6 mb-2">الوحدات</h2>
+              {unitsItems.map((item) => (
+                <div key={item.path} className="mb-1">
+                  {item.isExpandable ? (
+                    <>
+                      <button
+                        onClick={item.onToggle}
+                        className={`flex items-center justify-between w-full p-3 rounded-lg transition-colors ${
+                          isRouteActive(item.path) || isAnySubItemActive(item.subItems || [])
+                            ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium"
+                            : "hover:bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          {item.icon}
+                          <span>{item.text}</span>
+                        </div>
+                        {item.isExpanded ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </button>
+                      
+                      {/* Submenu */}
+                      {item.isExpanded && item.subItems && (
+                        <div className="mr-7 mt-1 border-r-2 border-gray-200 pr-3">
+                          {item.subItems.map(subItem => (
+                            <NavLink
+                              key={subItem.path}
+                              to={subItem.path}
+                              onClick={onClose}
+                              className={({ isActive }) =>
+                                `flex items-center p-2 text-sm rounded-lg mb-1 transition-colors ${
+                                  isActive
+                                    ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium"
+                                    : "hover:bg-gray-100 text-gray-700"
+                                }`
+                              }
+                            >
+                              <span>{subItem.text}</span>
+                            </NavLink>
+                          ))}
+                          <NavLink
+                            to={item.path}
+                            onClick={onClose}
+                            className={({ isActive }) =>
+                              `flex items-center p-2 text-sm rounded-lg mb-1 transition-colors ${
+                                isActive && location.pathname === item.path
+                                  ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium"
+                                  : "hover:bg-gray-100 text-gray-700"
+                              }`
+                            }
+                          >
+                            <span>عرض كل المشاريع</span>
+                          </NavLink>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <NavLink
+                      to={item.path}
+                      onClick={onClose}
+                      className={({ isActive }) =>
+                        `flex items-center p-3 rounded-lg transition-colors ${
+                          isActive
+                            ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium" 
+                            : "hover:bg-gray-100 text-gray-700"
+                        }`
+                      }
+                    >
+                      {item.icon}
+                      <span>{item.text}</span>
+                    </NavLink>
+                  )}
+                </div>
+              ))}
+              
+              {/* Settings */}
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mt-6 mb-2">الإعدادات</h2>
+              <NavLink
+                to="/settings"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `flex items-center p-3 rounded-lg transition-colors ${
+                    isActive
+                      ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium" 
+                      : "hover:bg-gray-100 text-gray-700"
+                  }`
+                }
+              >
+                <Settings className="ml-2" />
+                <span>الإعدادات</span>
+              </NavLink>
             </nav>
+          </div>
+          
+          {/* Logout Button */}
+          <div className="p-4 border-t border-gray-100">
+            <button
+              onClick={handleLogout}
+              className="flex items-center p-3 w-full rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <LogOut className="ml-2" />
+              <span>تسجيل الخروج</span>
+            </button>
           </div>
         </div>
       </aside>
@@ -72,7 +214,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       {/* Overlay for mobile */}
       {isOpen && (
         <div
-          className="fixed bg-black bg-opacity-50 z-25 md:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
           onClick={onClose}
           aria-hidden="true"
         />

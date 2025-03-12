@@ -150,10 +150,9 @@ const UnitReserve = () => {
         actions={actions}
         itemsPerPage={itemsPerPage}
         currentPage={currentPage}
-        totalPages={totalPages} // Pass totalPages to GenericTable
-        onPageChange={setCurrentPage} 
-        onItemsPerPageChange = {setItemsPerPage}
-        filters={filters} // Pass filters to GenericTable
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        filters={filters}
       />
     </div>
   );

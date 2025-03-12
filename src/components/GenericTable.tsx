@@ -1,34 +1,32 @@
-import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { Eye, Edit, Trash, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
 
 interface Column {
   key: string;
   header: string;
-  render?: (value: any, row: any) => React.ReactNode; // Optional custom render function
+  render?: (value: unknown, row: Record<string, unknown>) => React.ReactNode;
 }
 
 interface Action {
   key: string;
   icon: React.ReactNode;
   onClick: (id: number) => void;
-  color?: string; // Optional color for the action button
+  color?: string;
 }
 
 interface GenericTableProps {
-  data: any[];
+  data: Record<string, unknown>[];
   columns: Column[];
   actions?: Action[];
   onCreate?: () => void;
   createButtonText?: string;
-  noDataMessage?: string; // New prop for no data message
-  itemsPerPage?: number; // New prop for items per page
-  loading?: boolean; // New prop for loading state
-  filters?: React.ReactNode; // New prop for filters
-  totalPages?: number; // New prop for total pages
-  onPageChange?: (page: number) => void; // New prop for page change handler
-  onItemsPerPageChange?: (itemsPerPage: number) => void; // New prop for itemsPerPage change handler
+  noDataMessage?: string;
+  itemsPerPage?: number;
+  loading?: boolean;
+  filters?: React.ReactNode;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
+  onItemsPerPageChange?: (itemsPerPage: number) => void;
 }
 
 const GenericTable = ({
@@ -37,37 +35,22 @@ const GenericTable = ({
   actions,
   onCreate,
   createButtonText = 'إضافة جديد',
-  noDataMessage = 'لا توجد بيانات لعرضها', // Default message
-  itemsPerPage: initialItemsPerPage = 10, // Default items per page
+  noDataMessage = 'لا توجد بيانات لعرضها',
   loading = false,
-  filters, // Add filters prop
-  totalPages = 1, // Default total pages
-  onPageChange, // Add onPageChange prop
-  onItemsPerPageChange, // Add onItemsPerPageChange prop
+  filters,
+  totalPages = 1,
+  onPageChange,
 }: GenericTableProps) => {
-  const navigate = useNavigate();
-  const tableData = Array.isArray(data) ? data : []; // Convert to array
-
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(initialItemsPerPage); // State for itemsPerPage
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     if (onPageChange) {
-      onPageChange(page); // Call the onPageChange prop if provided
+      onPageChange(page);
     }
   };
 
-  const handleItemsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newItemsPerPage = parseInt(e.target.value, 10);
-    setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1); // Reset to the first page when itemsPerPage changes
-    if (onItemsPerPageChange) {
-      onItemsPerPageChange(newItemsPerPage); // Call the onItemsPerPageChange prop if provided
-    }
-  };
-
-  const paginatedData = data
+  const paginatedData = data;
 
   return (
     <div className="p-6">
@@ -82,9 +65,9 @@ const GenericTable = ({
           </button>
         </div>
       )}
-      {filters && <div className="mb-4">{filters}</div>} {/* Render filters if provided */}
+      {filters && <div className="mb-4">{filters}</div>}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto"> {/* Add this wrapper */}
+        <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead className="bg-gray-100">
               <tr>
@@ -107,7 +90,7 @@ const GenericTable = ({
               {loading ? (
                 <tr>
                   <td colSpan={columns.length + (actions ? 1 : 0)} className="px-6 py-4 text-center text-sm text-gray-900">
-                    <div className="loader mx-auto"></div> {/* Add loader classname and center it */}
+                    <div className="loader mx-auto"></div>
                   </td>
                 </tr>
               ) : paginatedData.length === 0 ? (
@@ -121,7 +104,7 @@ const GenericTable = ({
                   <tr key={rowIndex}>
                     {columns.map((column) => (
                       <td key={column.key} className="px-6 py-4 text-sm text-gray-900">
-                        {column.render ? column.render(row[column.key], row) : row[(column.key)]}
+                        {column.render ? column.render(row[column.key], row) : String(row[column.key] || '')}
                       </td>
                     ))}
                     {actions && actions.length > 0 && (
@@ -130,7 +113,7 @@ const GenericTable = ({
                           {actions.map((action) => (
                             <button
                               key={action.key}
-                              onClick={() => action.onClick(row.id)}
+                              onClick={() => action.onClick(Number(row.id || 0))}
                               className={`${action.color || 'text-gray-600'} mx-2 hover:text-${
                                 action.color?.split('-')[1] || 'gray'
                               }-800`}
@@ -146,7 +129,7 @@ const GenericTable = ({
               )}
             </tbody>
           </table>
-        </div> {/* End of wrapper */}
+        </div>
         <div className="flex justify-between items-center p-4 bg-gray-100">
           <button
             onClick={() => handlePageChange(currentPage - 1)}
@@ -155,21 +138,6 @@ const GenericTable = ({
           >
             السابق
           </button>
-          <div className="flex items-center space-x-4">
-            <span className="mx-2 text-sm text-gray-600">
-              صفحة {currentPage} من {totalPages}
-            </span>
-            <select
-              value={itemsPerPage}
-              onChange={handleItemsPerPageChange}
-              className="mx-2 px-2 py-1 bg-white border border-gray-300 rounded-lg text-sm text-gray-600"
-            >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-            </select>
-          </div>
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
