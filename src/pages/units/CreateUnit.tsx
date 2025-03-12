@@ -4,6 +4,11 @@ import toast from 'react-hot-toast';
 import axiosInstance from '../../axiosInstance';
 import { untisValidation } from './UnitsValidatoin';
 import { InputField } from '../../components/InputField';
+import { Upload } from 'antd';
+import { InboxOutlined } from '@ant-design/icons';
+import type { UploadChangeParam, UploadFile } from 'antd/lib/upload/interface';
+
+const { Dragger } = Upload;
 
 const CreateUnit = () => {
   const { projectId, buildingId } = useParams();
@@ -17,7 +22,7 @@ const CreateUnit = () => {
   const [bathrooms, setBathrooms] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [gallery, setGallery] = useState<File[]>([]);
   const [planImages, setPlanImages] = useState<File[]>([]);
 
@@ -25,8 +30,13 @@ const CreateUnit = () => {
     e.preventDefault();
     setLoading(true);
     setErrors({});
+    if (!unitNumber.trim() || !price.trim() || !area.trim()) {
+      toast.error('يرجى تعبئة الحقول المطلوبة: رقم الوحدة، السعر، والمساحة. والصور');
+      setLoading(false);
+      return;
+    }
     const formData = new FormData();
-    formData.append('building_id', buildingId);
+    formData.append('building_id', buildingId || "");
     formData.append('unit_number', unitNumber);
     formData.append('unit_type', unitType);
     formData.append('price', price);
@@ -36,13 +46,12 @@ const CreateUnit = () => {
     formData.append('bathrooms', bathrooms);
     formData.append('description', description);
 
-    gallery.forEach((image: File, index) => {
-      console.log(image, index)
-      formData.append(`gallery[${index}]`, image);
+    gallery.forEach((file, index) => {
+      formData.append(`gallery[${index}]`, file);
     });
 
-    planImages.forEach((image, index) => {
-      formData.append(`plan_images[${index}]`, image);
+    planImages.forEach((file, index) => {
+      formData.append(`plan_images[${index}]`, file);
     });
 
     try {
@@ -53,11 +62,12 @@ const CreateUnit = () => {
       });
       toast.success('تم إضافة الوحدة بنجاح');
       navigate(`/projects/${projectId}/buildings/${buildingId}`);
-    } catch (error: any) {
-      if (error.response && error.response.status === 422) {
-        const translatedErrors: any = {};
-        for (const [key, value] of Object.entries(error.response.data.errors)) {
-          translatedErrors[key] = untisValidation(key, value)
+    } catch (error: unknown) {
+      const err = error as { response?: { status: number; data: { errors: Record<string, string> } } };
+      if (err.response && err.response.status === 422) {
+        const translatedErrors: Record<string, string> = {};
+        for (const [key, value] of Object.entries(err.response.data.errors)) {
+          translatedErrors[key] = untisValidation(key, value);
         }
         setErrors(translatedErrors);
         toast.error('حدث خطأ أثناء إضافة الوحدة');
@@ -69,17 +79,25 @@ const CreateUnit = () => {
       setLoading(false);
     }
   };
-  console.log(gallery)
-  const handleGalleryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setGallery(Array.from(e.target.files));
-    }
+
+  const galleryProps = {
+    name: 'gallery',
+    multiple: true,
+    beforeUpload: (_: File) => false,
+    onChange: (info: UploadChangeParam<File>) => {
+      const files = info.fileList.map((f: UploadFile<File>) => f.originFileObj).filter(Boolean) as File[];
+      setGallery(files);
+    },
   };
 
-  const handlePlanImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setPlanImages(Array.from(e.target.files));
-    }
+  const planImagesProps = {
+    name: 'plan_images',
+    multiple: true,
+    beforeUpload: (_: File) => false,
+    onChange: (info: UploadChangeParam<File>) => {
+      const files = info.fileList.map((f: UploadFile<File>) => f.originFileObj).filter(Boolean) as File[];
+      setPlanImages(files);
+    },
   };
 
   return (
@@ -89,7 +107,7 @@ const CreateUnit = () => {
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">إضافة وحدة جديدة</h1>
           <button
-            onClick={() => navigate('/units')}
+            onClick={() => navigate(`/projects/${projectId}/buildings/${buildingId}`)}
             className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           >
             عودة
@@ -101,22 +119,23 @@ const CreateUnit = () => {
       <div className="container mx-auto px-6 py-8">
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-8">
           {/* Unit Number */}
-          <div className='my-4'>
+          <div className="my-4">
             <InputField
-              label="رقم الوحدة"
+              label="رقم الوحدة *"
               type="text"
               value={unitNumber}
-              onChange={(e) => setUnitNumber(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUnitNumber(e.target.value)}
               placeholder=""
               disabled={false}
             />
             {errors.unit_number && <p className="text-red-500 text-sm">{errors.unit_number}</p>}
           </div>
-          {/* Two-column layout for large screens */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          {/* Two-column layout */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Unit Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">النوع</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">النوع *</label>
               <select
                 value={unitType}
                 onChange={(e) => setUnitType(e.target.value)}
@@ -133,10 +152,10 @@ const CreateUnit = () => {
             {/* Unit Area */}
             <div>
               <InputField
-                label="المساحة (م²)"
+                label="المساحة (م²) *"
                 type="number"
                 value={area}
-                onChange={(e) => setArea(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setArea(e.target.value)}
                 placeholder=""
                 disabled={false}
               />
@@ -146,10 +165,10 @@ const CreateUnit = () => {
             {/* Unit Price */}
             <div>
               <InputField
-                label="السعر (جنيه)"
+                label="السعر (جنيه) *"
                 type="number"
                 value={price}
-                onChange={(e) => setPrice(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPrice(e.target.value)}
                 placeholder=""
                 disabled={false}
               />
@@ -162,7 +181,7 @@ const CreateUnit = () => {
                 label="الطابق"
                 type="number"
                 value={floor}
-                onChange={(e) => setFloor(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFloor(e.target.value)}
                 placeholder=""
                 disabled={false}
               />
@@ -175,7 +194,7 @@ const CreateUnit = () => {
                 label="غرف النوم"
                 type="number"
                 value={bedrooms}
-                onChange={(e) => setBedrooms(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBedrooms(e.target.value)}
                 placeholder=""
                 disabled={false}
               />
@@ -188,7 +207,7 @@ const CreateUnit = () => {
                 label="الحمامات"
                 type="number"
                 value={bathrooms}
-                onChange={(e) => setBathrooms(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBathrooms(e.target.value)}
                 placeholder=""
                 disabled={false}
               />
@@ -208,26 +227,28 @@ const CreateUnit = () => {
             </div>
 
             {/* Gallery */}
-            <div className="md:col-span-2">
+            <div className="md:col-span-2" style={{ marginBottom: '50px' }}>
               <label className="block text-sm font-medium text-gray-700 mb-1">معرض الصور</label>
-              <input
-                type="file"
-                multiple
-                onChange={handleGalleryChange}
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
-              />
+              <Dragger {...galleryProps}>
+                <p className="ant-upload-drag-icon">
+                  <InboxOutlined />
+                </p>
+                <p className="ant-upload-text">انقر أو اسحب الملفات إلى هذه المنطقة للتحميل</p>
+                <p className="ant-upload-hint">يمكنك تحميل ملفات متعددة</p>
+              </Dragger>
               {errors.gallery && <p className="text-red-500 text-sm">{errors.gallery}</p>}
             </div>
 
             {/* Plan Images */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">صور المخطط</label>
-              <input
-                type="file"
-                multiple
-                onChange={handlePlanImagesChange}
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
-              />
+            <div className="md:col-span-2" style={{ marginBottom: '50px' }}>
+              <label className="block text-sm font-medium text-gray-700 mb-1">صور المخطط *</label>
+              <Dragger {...planImagesProps}>
+                <p className="ant-upload-drag-icon">
+                  <InboxOutlined />
+                </p>
+                <p className="ant-upload-text">انقر أو اسحب الملفات إلى هذه المنطقة للتحميل</p>
+                <p className="ant-upload-hint">يمكنك تحميل ملفات متعددة</p>
+              </Dragger>
               {errors.plan_images && <p className="text-red-500 text-sm">{errors.plan_images}</p>}
             </div>
           </div>
@@ -236,7 +257,7 @@ const CreateUnit = () => {
           <div className="mt-8 flex justify-end space-x-3">
             <button
               type="button"
-              onClick={() => navigate('/units')}
+              onClick={() => navigate(`/projects/${projectId}/buildings/${buildingId}`)}
               className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
             >
               إلغاء

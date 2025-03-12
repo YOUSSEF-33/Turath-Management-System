@@ -1,4 +1,4 @@
-import { UploadFile } from 'antd/es/upload/interface';
+import { UploadFile } from 'antd/lib/upload/interface';
 
 export interface ProjectFormData {
   name: string;
@@ -12,7 +12,6 @@ export interface BuildingFormData {
 }
 
 export interface UnitFormData {
-  building_id: number;
   unit_number: string;
   unit_type: string;
   price?: number;
@@ -21,6 +20,15 @@ export interface UnitFormData {
   bedrooms?: number;
   bathrooms?: number;
   description?: string;
+  building_id: number;
+}
+
+export interface ExtendedUnitFormData extends UnitFormData {
+  plan_images?: UploadFile[];
+  gallery?: UploadFile[];
+}
+
+export interface UnitFormValidationSchema extends UnitFormData {
   plan_images: UploadFile[];
   gallery?: UploadFile[];
 } 

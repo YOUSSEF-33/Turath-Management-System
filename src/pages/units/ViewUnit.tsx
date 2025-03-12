@@ -1,3 +1,4 @@
+import React from "react";
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import axiosInstance from '../../axiosInstance';
@@ -6,6 +7,7 @@ import { Eye, Edit, Trash } from 'lucide-react';
 import { Modal, Button } from 'antd'; // Import the Modal and Button components from antd
 import toast from 'react-hot-toast';
 import ToggleSwitch from '../../components/ToggleSwitch';
+
 
 interface Unit {
   id: number;
@@ -30,15 +32,8 @@ interface Building {
   units: Unit[];
 }
 
-interface Action {
-  key: string;
-  icon: JSX.Element;
-  onClick: (unit: number) => void;
-  color: string;
-}
-
 const ViewUnit: React.FC = () => {
-  const { buildingId } = useParams<{ buildingId: string }>();
+  const { projectId, buildingId } = useParams<{ projectId: string; buildingId: string }>();
   const navigate = useNavigate();
   const [building, setBuilding] = useState<Building | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
@@ -55,6 +50,7 @@ const ViewUnit: React.FC = () => {
 
   const fetchData = async () => {
     try {
+      setLoading(true);
       // First fetch building details
       const buildingResponse = await axiosInstance.get<{ data: Building }>(`/buildings/${buildingId}`);
       setBuilding(buildingResponse.data.data);
@@ -75,7 +71,6 @@ const ViewUnit: React.FC = () => {
         const total = Math.ceil(unitsResponse.data.meta.total / itemsPerPage);
         setTotalPages(total);
       }
-      
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('حدث خطأ أثناء تحميل البيانات');
@@ -98,16 +93,33 @@ const ViewUnit: React.FC = () => {
     return () => {
       window.removeEventListener('focus', handleFocus);
     };
-  }, [buildingId, currentPage, itemsPerPage]);
+  }, []);
 
-  const handleView = (unit: number) => {
-    navigate(`units/${unit}`);
-    console.log('View unit', unit);
+  const handleView = (unitId: number) => {
+    navigate(`/projects/${projectId}/buildings/${buildingId}/units/${unitId}`);
   };
 
-  const handleEdit = (unit: number) => {
-    navigate(`units/${unit}/edit`);
-    console.log('Edit unit', unit);
+  const handleEdit = (unitId: number) => {
+    navigate(`/projects/${projectId}/buildings/${buildingId}/units/${unitId}/edit`);
+  };
+
+  const handleDelete = async () => {
+    if (unitToDelete !== null) {
+      setDeleting(true);
+      try {
+        await axiosInstance.delete(`/units/${unitToDelete}`);
+        setUnits(units.filter(unit => unit.id !== unitToDelete));
+        toast.success('تم حذف الوحدة بنجاح');
+        fetchData(); // Refresh the data after deletion
+      } catch (error) {
+        console.error('Error deleting unit:', error);
+        toast.error('حدث خطأ أثناء حذف الوحدة');
+      } finally {
+        setShowDeleteModal(false);
+        setUnitToDelete(null);
+        setDeleting(false);
+      }
+    }
   };
 
   const handleToggleActive = async (unitId: number, isActive: boolean) => {
@@ -131,43 +143,16 @@ const ViewUnit: React.FC = () => {
     }
   };
 
-  const handleDelete = async () => {
-    if (unitToDelete !== null) {
-      setDeleting(true);
-      try {
-        await axiosInstance.delete(`/units/${unitToDelete}`);
-        if (building) {
-          setBuilding({
-            ...building,
-            units: building.units.filter(u => u.id !== unitToDelete),
-          });
-        }
-        toast.success('تم حذف الوحدة بنجاح');
-      } catch (error) {
-        console.error('Error deleting unit:', error);
-        toast.error('حدث خطأ أثناء حذف الوحدة');
-      } finally {
-        setShowDeleteModal(false);
-        setUnitToDelete(null);
-        setDeleting(false);
-      }
-    }
-  };
-
-  const confirmDelete = (unit: number) => {
-    setUnitToDelete(unit);
+  const confirmDelete = (unitId: number) => {
+    setUnitToDelete(unitId);
     setShowDeleteModal(true);
   };
 
-  const actions: Action[] = [
+  const actions = [
     { key: 'view', icon: <Eye className="h-5 w-5" />, onClick: handleView, color: 'text-blue-600' },
-    { key: 'edit', icon: <Edit className="h-5 w-5" />, onClick: handleEdit, color: 'text-yellow-600' },
+    // { key: 'edit', icon: <Edit className="h-5 w-5" />, onClick: handleEdit, color: 'text-yellow-600' },
     { key: 'delete', icon: <Trash className="h-5 w-5" />, onClick: confirmDelete, color: 'text-red-600' },
   ];
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
 
   return (
     <div className="bg-gray-100 min-h-screen">
@@ -175,12 +160,14 @@ const ViewUnit: React.FC = () => {
       <div className="bg-gray-100 shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">{building?.name}</h1>
-          <button
-            onClick={() => navigate(`/projects`)}
-            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+          <Button
+            onClick={() => navigate(`/projects/${projectId}`)}
+            type="default"
+            size="middle"
+            className="flex items-center"
           >
             عودة
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -196,9 +183,6 @@ const ViewUnit: React.FC = () => {
               { header: 'السعر', key: 'price' },
               { header: 'الحالة', key: 'status' },
               { header: 'المساحة', key: 'area' },
-              { header: 'الطابق', key: 'floor' },
-              { header: 'غرف النوم', key: 'bedrooms' },
-              { header: 'الحمامات', key: 'bathrooms' },
               { 
                 header: 'نشط', 
                 key: 'is_active',
@@ -214,33 +198,31 @@ const ViewUnit: React.FC = () => {
             data={units as unknown as Record<string, unknown>[]}
             actions={actions}
             loading={loading}
-            onCreate={() => navigate("units/create")}
+            onCreate={() => navigate(`/projects/${projectId}/buildings/${buildingId}/units/create`)}
             createButtonText="إضافة وحدة جديدة"
             itemsPerPage={itemsPerPage}
             totalPages={totalPages}
-            onPageChange={handlePageChange}
+            onPageChange={setCurrentPage}
           />
         </div>
       </div>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <Modal
-          title="تأكيد الحذف"
-          open={showDeleteModal}
-          onCancel={() => setShowDeleteModal(false)}
-          footer={[
-            <Button key="cancel" onClick={() => setShowDeleteModal(false)}>
-              إلغاء
-            </Button>,
-            <Button key="confirm" type="primary" onClick={handleDelete} loading={deleting}>
-              تأكيد
-            </Button>,
-          ]}
-        >
-          <p>هل أنت متأكد أنك تريد حذف هذه الوحدة؟</p>
-        </Modal>
-      )}
+      <Modal
+        title="تأكيد الحذف"
+        open={showDeleteModal}
+        onCancel={() => setShowDeleteModal(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setShowDeleteModal(false)}>
+            إلغاء
+          </Button>,
+          <Button key="confirm" type="primary" onClick={handleDelete} loading={deleting}>
+            تأكيد
+          </Button>,
+        ]}
+      >
+        <p>هل أنت متأكد أنك تريد حذف هذه الوحدة؟</p>
+      </Modal>
     </div>
   );
 };
