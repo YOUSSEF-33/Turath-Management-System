@@ -4,11 +4,14 @@ import axiosInstance from '../../axiosInstance';
 import GenericTable from '../../components/GenericTable';
 import { Edit, Eye, Trash } from 'lucide-react';
 import { Modal, Button, message } from 'antd'; // Import the Modal, Button, and message components from antd
+import ToggleSwitch from '../../components/ToggleSwitch';
+import toast from 'react-hot-toast';
 
 interface Project {
   id: number;
   name: string;
   description: string;
+  is_active: boolean;
 }
 
 interface Action {
@@ -25,36 +28,49 @@ const ViewProjects: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [projectToDelete, setProjectToDelete] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
+  const [togglingStatus, setTogglingStatus] = useState<number | null>(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(10);
   const [totalPages, setTotalPages] = useState<number>(1);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await axiosInstance.get('/projects', {
-          params: {
-            page: currentPage,
-            per_page: itemsPerPage
-          }
-        });
-        setProjects(response.data.data);
-        
-        // Set total pages from response metadata
-        if (response.data.meta && response.data.meta.total) {
-          const total = Math.ceil(response.data.meta.total / itemsPerPage);
-          setTotalPages(total);
+  const fetchData = async () => {
+    try {
+      const response = await axiosInstance.get('/projects', {
+        params: {
+          page: currentPage,
+          per_page: itemsPerPage
         }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
+      });
+      setProjects(response.data.data);
+      
+      // Set total pages from response metadata
+      if (response.data.meta && response.data.meta.total) {
+        const total = Math.ceil(response.data.meta.total / itemsPerPage);
+        setTotalPages(total);
       }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [currentPage, itemsPerPage]);
+
+  // Add focus effect to refetch data
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchData();
     };
 
-    fetchData();
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [currentPage, itemsPerPage]);
 
   const handleCreate = () => {
@@ -83,6 +99,27 @@ const ViewProjects: React.FC = () => {
         setProjectToDelete(null);
         setDeleting(false);
       }
+    }
+  };
+
+  const handleToggleActive = async (projectId: number, isActive: boolean) => {
+    setTogglingStatus(projectId);
+    try {
+      await axiosInstance.patch(`/projects/${projectId}/activate`, {
+        is_active: isActive
+      });
+      
+      // Update the projects state with the new active status
+      setProjects(projects.map(project => 
+        project.id === projectId ? { ...project, is_active: isActive } : project
+      ));
+      
+      toast.success(`تم ${isActive ? 'تفعيل' : 'تعطيل'} المشروع بنجاح`);
+    } catch (error) {
+      console.error('Error toggling project status:', error);
+      toast.error('حدث خطأ أثناء تغيير حالة المشروع');
+    } finally {
+      setTogglingStatus(null);
     }
   };
 
@@ -125,6 +162,17 @@ const ViewProjects: React.FC = () => {
                 { header: 'رقم المشروع', key: 'id' },
                 { header: 'اسم المشروع', key: 'name' },
                 { header: 'الوصف', key: 'description' },
+                { 
+                  header: 'نشط', 
+                  key: 'is_active',
+                  render: (value, row) => (
+                    <ToggleSwitch 
+                      isActive={Boolean(value)} 
+                      onChange={(isActive) => handleToggleActive(Number(row.id), isActive)}
+                      loading={togglingStatus === Number(row.id)}
+                    />
+                  )
+                },
               ]}
               data={projects as unknown as Record<string, unknown>[]}
               actions={actions}

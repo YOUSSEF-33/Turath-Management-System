@@ -25,15 +25,6 @@ const ERROR_MESSAGES: Record<number, string> = {
   503: 'الخدمة غير متوفرة حاليًا. يرجى المحاولة لاحقًا.',
 };
 
-// Simple in-memory cache for GET requests
-interface CacheEntry {
-  data: unknown;
-  timestamp: number;
-}
-
-const apiCache = new Map<string, CacheEntry>();
-const CACHE_DURATION = 60000; // 1 minute cache
-
 // Request interceptor
 axiosInstance.interceptors.request.use(
   async (config) => {
@@ -42,25 +33,6 @@ axiosInstance.interceptors.request.use(
     
     if (accessToken && config.headers) {
       config.headers['Authorization'] = `Bearer ${accessToken}`;
-    }
-
-    // Check cache for GET requests if not specifically asked to skip cache
-    if (config.method?.toLowerCase() === 'get' && config.url && !config.params?.skipCache) {
-      const cacheKey = `${config.url}${JSON.stringify(config.params || {})}`;
-      const cachedResponse = apiCache.get(cacheKey);
-      
-      if (cachedResponse && (Date.now() - cachedResponse.timestamp) < CACHE_DURATION) {
-        // Return cached data instead of making a new request
-        config.adapter = () => {
-          return Promise.resolve({
-            data: cachedResponse.data,
-            status: 200,
-            statusText: 'OK',
-            headers: config.headers,
-            config: config
-          });
-        };
-      }
     }
     
     return config;
@@ -74,14 +46,6 @@ axiosInstance.interceptors.request.use(
 // Response interceptor
 axiosInstance.interceptors.response.use(
   (response) => {
-    // Cache successful GET responses
-    if (response.config.method?.toLowerCase() === 'get' && response.config.url) {
-      const cacheKey = `${response.config.url}${JSON.stringify(response.config.params || {})}`;
-      apiCache.set(cacheKey, {
-        data: response.data,
-        timestamp: Date.now()
-      });
-    }
     return response;
   },
   async (error) => {
@@ -159,21 +123,10 @@ axiosInstance.interceptors.response.use(
   }
 );
 
-// Helper function to clear cache
-export const clearApiCache = (urlPattern?: string) => {
-  if (urlPattern) {
-    // Clear specific cache entries that match the pattern
-    const keysToDelete: string[] = [];
-    apiCache.forEach((_, key) => {
-      if (key.includes(urlPattern)) {
-        keysToDelete.push(key);
-      }
-    });
-    keysToDelete.forEach(key => apiCache.delete(key));
-  } else {
-    // Clear entire cache
-    apiCache.clear();
-  }
+// Dummy function to maintain API compatibility with existing code
+// This function does nothing as caching has been disabled
+export const clearApiCache = () => {
+  // No operation - cache has been disabled
 };
 
 export default axiosInstance;

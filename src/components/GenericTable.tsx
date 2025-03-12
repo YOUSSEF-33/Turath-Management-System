@@ -103,7 +103,10 @@ const GenericTable = ({
                 paginatedData.map((row, rowIndex) => (
                   <tr key={rowIndex}>
                     {columns.map((column) => (
-                      <td key={column.key} className="px-6 py-4 text-sm text-gray-900">
+                      <td 
+                        key={column.key} 
+                        className={`px-6 py-4 text-sm text-gray-900 ${column.key === 'is_active' ? 'text-center' : ''}`}
+                      >
                         {column.render ? column.render(row[column.key], row) : String(row[column.key] || '')}
                       </td>
                     ))}

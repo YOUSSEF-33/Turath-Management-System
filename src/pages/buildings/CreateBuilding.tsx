@@ -21,11 +21,6 @@ const CreateBuilding = () => {
       valid = false;
     }
 
-    if (description.trim().length < 10) {
-      errors.description = 'وصف المبنى يجب أن يكون على الأقل 10 أحرف';
-      valid = false;
-    }
-
     setErrors(errors);
     return valid;
   };

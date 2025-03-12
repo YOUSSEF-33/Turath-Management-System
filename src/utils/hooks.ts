@@ -1,101 +1,114 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import axiosInstance, { clearApiCache } from '../axiosInstance';
+import { useState, useEffect, useCallback } from 'react';
+import axiosInstance from '../axiosInstance';
 import toast from 'react-hot-toast';
 
+interface ApiGetOptions<T> {
+  url: string;
+  dependencies?: unknown[];
+  skip?: boolean;
+  errorMessage?: string;
+  onSuccess?: (data: T) => void;
+  onError?: (error: Error) => void;
+}
+
+interface ApiMutationOptions {
+  url: string;
+  method: 'POST' | 'PUT' | 'DELETE';
+  onSuccess?: (data: unknown) => void;
+  onError?: (error: Error) => void;
+  successMessage?: string;
+  errorMessage?: string;
+}
+
 // Hook for data fetching with loading, error, and data states
-export function useApiGet<T>(url: string, initialData?: T, options?: {
-  dependencies?: unknown[],
-  skip?: boolean,
-  withCache?: boolean,
-  errorMessage?: string
-}) {
-  const [data, setData] = useState<T | undefined>(initialData);
-  const [loading, setLoading] = useState(false);
+export function useApiGet<T = unknown>({
+  url,
+  dependencies = [],
+  skip = false,
+  errorMessage = 'حدث خطأ أثناء جلب البيانات',
+  onSuccess,
+  onError
+}: ApiGetOptions<T>) {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [refetchIndex, setRefetchIndex] = useState(0);
 
-  const deps = options?.dependencies || [];
-  const errorMessage = options?.errorMessage || 'حدث خطأ أثناء تحميل البيانات';
-  
-  // Function to trigger a refetch
   const refetch = useCallback(() => {
     setRefetchIndex(prev => prev + 1);
   }, []);
 
   useEffect(() => {
-    // Skip fetch if skip option is true
-    if (options?.skip) {
+    if (skip) {
+      setLoading(false);
       return;
     }
 
-    async function fetchData() {
+    const fetchData = async () => {
       try {
-        setLoading(true);
-        setError(null);
-        
-        const params = options?.withCache ? undefined : { skipCache: true };
-        const response = await axiosInstance.get(url, { params });
-        
-        setData(response.data);
+        const response = await axiosInstance.get(url);
+        const result = response.data.data;
+        setData(result);
+        onSuccess?.(result);
       } catch (err) {
-        console.error('Error fetching data:', err);
-        setError(err as Error);
+        const error = err as Error;
+        setError(error);
+        onError?.(error);
         toast.error(errorMessage);
       } finally {
         setLoading(false);
       }
-    }
+    };
 
     fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [...deps, url, refetchIndex]);
+  }, [...dependencies, url, skip, refetchIndex]);
 
   return { data, loading, error, refetch };
 }
 
 // Hook for data mutations (POST, PUT, DELETE)
-export function useApiMutation<T, S>(
-  method: 'post' | 'put' | 'delete',
-  successMessage: string = 'تمت العملية بنجاح',
-  errorMessage: string = 'حدث خطأ أثناء تنفيذ العملية'
-) {
+export function useApiMutation({
+  url,
+  method,
+  onSuccess,
+  onError,
+  successMessage = 'تمت العملية بنجاح',
+  errorMessage = 'حدث خطأ أثناء تنفيذ العملية'
+}: ApiMutationOptions) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [data, setData] = useState<T | null>(null);
 
-  const mutate = useCallback(async (url: string, payload?: S, clearCachePattern?: string) => {
+  const mutate = useCallback(async (payload?: unknown) => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      const response = method === 'delete'
-        ? await axiosInstance.delete(url)
-        : await axiosInstance[method](url, payload);
-      
-      setData(response.data);
+      const response = await axiosInstance({
+        url,
+        method,
+        data: payload
+      });
+
+      const result = response.data;
+      onSuccess?.(result);
       toast.success(successMessage);
-      
-      // Clear cache if a pattern is provided
-      if (clearCachePattern) {
-        clearApiCache(clearCachePattern);
-      }
-      
-      return response.data;
+      return result;
     } catch (err) {
-      console.error(`Error in ${method} request:`, err);
-      setError(err as Error);
+      const error = err as Error;
+      setError(error);
+      onError?.(error);
       toast.error(errorMessage);
-      throw err;
+      throw error;
     } finally {
       setLoading(false);
     }
-  }, [method, successMessage, errorMessage]);
+  }, [url, method, onSuccess, onError, successMessage, errorMessage]);
 
-  return { mutate, loading, error, data };
+  return { mutate, loading, error };
 }
 
 // Hook for debounced values (useful for search inputs)
-export function useDebounce<T>(value: T, delay: number = 500): T {
+export function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
   useEffect(() => {
@@ -112,30 +125,32 @@ export function useDebounce<T>(value: T, delay: number = 500): T {
 }
 
 // Hook for preventing rapid multiple submissions (form submits, button clicks)
-export function useRateLimit(limit: number = 1000) {
-  const [isLimited, setIsLimited] = useState(false);
-  const lastActionTime = useRef<number>(0);
+export function useRateLimit(limit: number, interval: number) {
+  const [count, setCount] = useState(0);
+  const [lastReset, setLastReset] = useState(Date.now());
 
-  const checkAndExecute = useCallback((callback: () => void) => {
-    const now = Date.now();
-    
-    if (now - lastActionTime.current > limit) {
-      lastActionTime.current = now;
-      callback();
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (Date.now() - lastReset >= interval) {
+        setCount(0);
+        setLastReset(Date.now());
+      }
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, [interval, lastReset]);
+
+  const canProceed = count < limit;
+
+  const increment = useCallback(() => {
+    if (canProceed) {
+      setCount(c => c + 1);
       return true;
-    } else {
-      setIsLimited(true);
-      
-      // Reset the limited state after the rate limit period
-      setTimeout(() => {
-        setIsLimited(false);
-      }, limit);
-      
-      return false;
     }
-  }, [limit]);
+    return false;
+  }, [canProceed]);
 
-  return { isLimited, checkAndExecute };
+  return { canProceed, increment };
 }
 
 // Hook for handling scroll position to improve performance
@@ -160,13 +175,17 @@ export function useScrollPosition() {
 
 // Hook to detect if the app is online
 export function useOnlineStatus() {
-  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast.success('تم استعادة الاتصال بالإنترنت');
+    };
+
     const handleOffline = () => {
       setIsOnline(false);
-      toast.error('أنت غير متصل بالإنترنت حاليًا');
+      toast.error('انقطع الاتصال بالإنترنت');
     };
 
     window.addEventListener('online', handleOnline);

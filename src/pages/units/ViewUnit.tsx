@@ -5,6 +5,7 @@ import GenericTable from '../../components/GenericTable';
 import { Eye, Edit, Trash } from 'lucide-react';
 import { Modal, Button } from 'antd'; // Import the Modal and Button components from antd
 import toast from 'react-hot-toast';
+import ToggleSwitch from '../../components/ToggleSwitch';
 
 interface Unit {
   id: number;
@@ -19,6 +20,7 @@ interface Unit {
   bathrooms: number;
   created_at: string;
   updated_at: string;
+  is_active: boolean;
 }
 
 interface Building {
@@ -44,45 +46,58 @@ const ViewUnit: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [unitToDelete, setUnitToDelete] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
+  const [togglingStatus, setTogglingStatus] = useState<number | null>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(12);
+  const [itemsPerPage] = useState<number>(12);
   const [totalPages, setTotalPages] = useState<number>(1);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // First fetch building details
-        const buildingResponse = await axiosInstance.get<{ data: Building }>(`/buildings/${buildingId}`);
-        setBuilding(buildingResponse.data.data);
-        
-        // Then fetch units for this building with pagination
-        const unitsResponse = await axiosInstance.get(`/units`, {
-          params: {
-            building_id: buildingId,
-            page: currentPage,
-            per_page: itemsPerPage
-          }
-        });
-        
-        setUnits(unitsResponse.data.data);
-        
-        // Set total pages from response metadata
-        if (unitsResponse.data.meta && unitsResponse.data.meta.total) {
-          const total = Math.ceil(unitsResponse.data.meta.total / itemsPerPage);
-          setTotalPages(total);
+  const fetchData = async () => {
+    try {
+      // First fetch building details
+      const buildingResponse = await axiosInstance.get<{ data: Building }>(`/buildings/${buildingId}`);
+      setBuilding(buildingResponse.data.data);
+      
+      // Then fetch units for this building with pagination
+      const unitsResponse = await axiosInstance.get(`/units`, {
+        params: {
+          building_id: buildingId,
+          page: currentPage,
+          per_page: itemsPerPage
         }
-        
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        toast.error('حدث خطأ أثناء تحميل البيانات');
-      } finally {
-        setLoading(false);
+      });
+      
+      setUnits(unitsResponse.data.data);
+      
+      // Set total pages from response metadata
+      if (unitsResponse.data.meta && unitsResponse.data.meta.total) {
+        const total = Math.ceil(unitsResponse.data.meta.total / itemsPerPage);
+        setTotalPages(total);
       }
+      
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('حدث خطأ أثناء تحميل البيانات');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [buildingId, currentPage, itemsPerPage]);
+
+  // Add focus effect to refetch data
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchData();
     };
 
-    fetchData();
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [buildingId, currentPage, itemsPerPage]);
 
   const handleView = (unit: number) => {
@@ -93,6 +108,27 @@ const ViewUnit: React.FC = () => {
   const handleEdit = (unit: number) => {
     navigate(`units/${unit}/edit`);
     console.log('Edit unit', unit);
+  };
+
+  const handleToggleActive = async (unitId: number, isActive: boolean) => {
+    setTogglingStatus(unitId);
+    try {
+      await axiosInstance.patch(`/units/${unitId}/activate`, {
+        is_active: isActive
+      });
+      
+      // Update the units state with the new active status
+      setUnits(units.map(unit => 
+        unit.id === unitId ? { ...unit, is_active: isActive } : unit
+      ));
+      
+      toast.success(`تم ${isActive ? 'تفعيل' : 'تعطيل'} الوحدة بنجاح`);
+    } catch (error) {
+      console.error('Error toggling unit status:', error);
+      toast.error('حدث خطأ أثناء تغيير حالة الوحدة');
+    } finally {
+      setTogglingStatus(null);
+    }
   };
 
   const handleDelete = async () => {
@@ -163,6 +199,17 @@ const ViewUnit: React.FC = () => {
               { header: 'الطابق', key: 'floor' },
               { header: 'غرف النوم', key: 'bedrooms' },
               { header: 'الحمامات', key: 'bathrooms' },
+              { 
+                header: 'نشط', 
+                key: 'is_active',
+                render: (value, row) => (
+                  <ToggleSwitch 
+                    isActive={Boolean(value)} 
+                    onChange={(isActive) => handleToggleActive(Number(row.id), isActive)}
+                    loading={togglingStatus === Number(row.id)}
+                  />
+                )
+              },
             ]}
             data={units as unknown as Record<string, unknown>[]}
             actions={actions}

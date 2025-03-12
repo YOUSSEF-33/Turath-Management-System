@@ -5,12 +5,14 @@ import GenericTable from '../../components/GenericTable';
 import { Eye, Edit, Trash } from 'lucide-react';
 import { Modal, Button } from 'antd';
 import toast from 'react-hot-toast';
+import ToggleSwitch from '../../components/ToggleSwitch';
 
 interface Building {
   id: number;
   project_id: number;
   name: string;
   description: string;
+  is_active: boolean;
 }
 
 interface Action {
@@ -29,6 +31,7 @@ const ViewBuildings: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [buildingToDelete, setBuildingToDelete] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
+  const [togglingStatus, setTogglingStatus] = useState<number | null>(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -49,33 +52,45 @@ const ViewBuildings: React.FC = () => {
     fetchProjectName();
   }, [projectId]);
 
+  const fetchBuildings = async () => {
+    try {
+      const response = await axiosInstance.get('/buildings', {
+        params: {
+          project_id: projectId,
+          page: currentPage,
+          per_page: itemsPerPage
+        }
+      });
+      setBuildings(response.data.data);
+      
+      // Set total pages from response metadata
+      if (response.data.meta && response.data.meta.total) {
+        const total = Math.ceil(response.data.meta.total / itemsPerPage);
+        setTotalPages(total);
+      }
+    } catch (error) {
+      console.error('Error fetching buildings:', error);
+      toast.error('حدث خطأ أثناء تحميل البيانات');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch buildings with pagination
   useEffect(() => {
-    const fetchBuildings = async () => {
-      try {
-        const response = await axiosInstance.get('/buildings', {
-          params: {
-            project_id: projectId,
-            page: currentPage,
-            per_page: itemsPerPage
-          }
-        });
-        setBuildings(response.data.data);
-        
-        // Set total pages from response metadata
-        if (response.data.meta && response.data.meta.total) {
-          const total = Math.ceil(response.data.meta.total / itemsPerPage);
-          setTotalPages(total);
-        }
-      } catch (error) {
-        console.error('Error fetching buildings:', error);
-        toast.error('حدث خطأ أثناء تحميل البيانات');
-      } finally {
-        setLoading(false);
-      }
+    fetchBuildings();
+  }, [projectId, currentPage, itemsPerPage]);
+
+  // Add focus effect to refetch data
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchBuildings();
     };
 
-    fetchBuildings();
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [projectId, currentPage, itemsPerPage]);
 
   const handleView = (building: number) => {
@@ -84,6 +99,27 @@ const ViewBuildings: React.FC = () => {
 
   const handleEdit = (building: number) => {
     navigate(`edit/${building}`);
+  };
+
+  const handleToggleActive = async (buildingId: number, isActive: boolean) => {
+    setTogglingStatus(buildingId);
+    try {
+      await axiosInstance.patch(`/buildings/${buildingId}/activate`, {
+        is_active: isActive
+      });
+      
+      // Update the buildings state with the new active status
+      setBuildings(buildings.map(building => 
+        building.id === buildingId ? { ...building, is_active: isActive } : building
+      ));
+      
+      toast.success(`تم ${isActive ? 'تفعيل' : 'تعطيل'} المبنى بنجاح`);
+    } catch (error) {
+      console.error('Error toggling building status:', error);
+      toast.error('حدث خطأ أثناء تغيير حالة المبنى');
+    } finally {
+      setTogglingStatus(null);
+    }
   };
 
   const handleDelete = async () => {
@@ -145,6 +181,17 @@ const ViewBuildings: React.FC = () => {
                 { header: 'رقم المبنى', key: 'id' },
                 { header: 'اسم المبنى', key: 'name' },
                 { header: 'الوصف', key: 'description' },
+                { 
+                  header: 'نشط', 
+                  key: 'is_active',
+                  render: (value, row) => (
+                    <ToggleSwitch 
+                      isActive={Boolean(value)} 
+                      onChange={(isActive) => handleToggleActive(Number(row.id), isActive)}
+                      loading={togglingStatus === Number(row.id)}
+                    />
+                  )
+                },
               ]}
               data={buildings as unknown as Record<string, unknown>[]}
               actions={actions}
