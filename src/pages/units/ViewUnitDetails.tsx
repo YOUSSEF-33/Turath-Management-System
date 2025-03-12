@@ -1,117 +1,78 @@
-import React, { useEffect, useState } from "react";
-import axiosInstance from "../../axiosInstance";
-import { useParams, useNavigate } from "react-router-dom"; // Import useNavigate
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Button } from 'antd';
+import toast from 'react-hot-toast';
+import axiosInstance from '../../axiosInstance';
+import UnitForm from '../../components/forms/UnitForm';
+import type { UnitFormData } from '../../types/forms';
 
-const ViewUnitDetails = () => {
-    const [unitDetails, setUnitDetails] = useState<any>(null);
-    const [loading, setLoading] = useState<boolean>(true);
-    const { unitId, projectId, buildingId } = useParams(); // Add projectId to useParams
-    const navigate = useNavigate(); // Initialize useNavigate
-    
-    useEffect(() => {
-        axiosInstance.get(`/units/${unitId}`)
-            .then(response => {
-                setUnitDetails(response.data.data);
-                setLoading(false);
-            })
-            .catch(error => {
-                console.error("Error fetching unit details:", error);
-                setLoading(false);
-            });
-    }, [unitId]);
+export const ViewUnitDetails = () => {
+  const navigate = useNavigate();
+  const { unitId, projectId, buildingId } = useParams();
+  const [initialData, setInitialData] = useState<UnitFormData | undefined>();
+  const [loading, setLoading] = useState(true);
 
-    if (loading) {
-        return <div className="loader"></div>;
-    }
+  useEffect(() => {
+    const fetchUnitData = async () => {
+      try {
+        const response = await axiosInstance.get(`/units/${unitId}`);
+        setInitialData(response.data.data);
+      } catch (error) {
+        toast.error('حدث خطأ أثناء جلب بيانات الوحدة');
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    if (!unitDetails) {
-        return <div>No unit details available.</div>;
-    }
-    //
-    // console.log(unitDetails)
+    fetchUnitData();
+  }, [unitId]);
+
+  if (loading) {
     return (
-        <div className="min-h-screen bg-gray-100 p-6 flex flex-col items-center">
-            {/* Page Header */}
-            <div className="bg-gray-100 sticky top-0 z-10 w-full">
-                <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-                    <h1 className="text-3xl font-bold text-gray-800 mb-8">تفاصيل الوحدة</h1>
-                    <button
-                        onClick={() => navigate(`/projects/${projectId}/buildings/${buildingId}`)} // Update navigate path
-                        className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-                    >
-                        عودة
-                    </button>
-                </div>
-            </div>
-            {/* Main Content */}
-            <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-4xl">
-                <h2 className="text-2xl font-semibold text-gray-800 mb-6">بيانات الوحدة</h2>
-                
-                {/* Gallery Section */}
-                {unitDetails.gallery && unitDetails.gallery.length > 0 && (
-                    <div className="mb-8">
-                        <h3 className="text-xl font-semibold text-gray-800 mb-4">معرض الصور</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {unitDetails.gallery.map((image: string, index: number) => (
-                                <img key={index} src={image} alt={`Gallery ${index}`} className="w-full h-48 object-cover rounded-lg shadow-md" />
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="flex flex-col">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">رقم الوحدة</label>
-                        <div className="w-full px-4 py-2 border border-gray-300 rounded-lg">{unitDetails.unit_number}</div>
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">نوع الوحدة</label>
-                        <div className="w-full px-4 py-2 border border-gray-300 rounded-lg">{unitDetails.unit_type}</div>
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">السعر</label>
-                        <div className="w-full px-4 py-2 border border-gray-300 rounded-lg">{unitDetails.price}</div>
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">الحالة</label>
-                        <div className="w-full px-4 py-2 border border-gray-300 rounded-lg">{unitDetails.status}</div>
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">المساحة</label>
-                        <div className="w-full px-4 py-2 border border-gray-300 rounded-lg">{unitDetails.area}</div>
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">الطابق</label>
-                        <div className="w-full px-4 py-2 border border-gray-300 rounded-lg">{unitDetails.floor}</div>
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">عدد الغرف</label>
-                        <div className="w-full px-4 py-2 border border-gray-300 rounded-lg">{unitDetails.bedrooms}</div>
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">عدد الحمامات</label>
-                        <div className="w-full px-4 py-2 border border-gray-300 rounded-lg">{unitDetails.bathrooms}</div>
-                    </div>
-                    <div className="md:col-span-2 flex flex-col">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">الوصف</label>
-                        <div className="w-full px-4 py-2 border border-gray-300 rounded-lg">{unitDetails.description}</div>
-                    </div>
-                </div>
-
-                {/* Plan Images Section */}
-                {unitDetails.plan_images && unitDetails.plan_images.length > 0 && (
-                    <div className="mt-8">
-                        <h3 className="text-xl font-semibold text-gray-800 mb-4">صور المخطط</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {unitDetails.plan_images.map((image: string, index: number) => (
-                                <img key={index} src={image} alt={`Plan Image ${index}`} className="w-full h-48 object-cover rounded-lg shadow-md" />
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
     );
+  }
+
+  return (
+    <div className="bg-gray-50 min-h-screen" dir="rtl">
+      <div className="bg-white shadow-sm sticky top-0 z-10">
+        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">تفاصيل الوحدة</h1>
+          <div className="space-x-2 space-x-reverse">
+            <Button
+              onClick={() => navigate(`/projects/${projectId}/buildings/${buildingId}/units/${unitId}/edit`)}
+              type="primary"
+              className="bg-blue-600 hover:bg-blue-700 ml-2"
+            >
+              تعديل
+            </Button>
+            <Button
+              onClick={() => navigate(`/projects/${projectId}/buildings/${buildingId}`)}
+              type="default"
+              className="hover:bg-gray-200"
+            >
+              عودة
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-6 py-8">
+        <div className="bg-white rounded-lg shadow-lg">
+          <UnitForm
+            initialData={initialData}
+            isEdit={false}
+            unitId={Number(unitId)}
+            buildingId={Number(buildingId)}
+            readOnly={true}
+          />
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default ViewUnitDetails;

@@ -112,7 +112,7 @@ const ViewUser = () => {
             <div>
               <h3 className="text-sm font-medium text-gray-500">تاريخ الإنشاء</h3>
               <p className="mt-1 text-lg text-gray-900">
-                {new Date(user.created_at).toLocaleDateString('ar-SA')}
+                {new Date(user.created_at).toLocaleDateString('ar-EG', { timeZone: 'Africa/Cairo' })}
               </p>
             </div>
 
