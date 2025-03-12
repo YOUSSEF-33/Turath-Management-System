@@ -26,6 +26,10 @@ import EditBuilding from './pages/buildings/EditBuilding';
 import ViewUnitDetails from './pages/units/ViewUnitDetails';
 import UnitDetails from './pages/unitsReserve/UnitDetails';
 import AcceptUnitSale from './pages/unitsReserve/AcceptUnitSale';
+import ViewUsers from './pages/users/ViewUsers';
+import CreateUser from './pages/users/CreateUser';
+import EditUser from './pages/users/EditUser';
+import ViewUser from './pages/users/ViewUser';
 
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -55,19 +59,21 @@ function App() {
                       <Routes>
                         <Route path="/" element={<Dashboard />} />
 
+                        <Route path="/users" element={<ViewUsers />} />
+                        <Route path="/users/create" element={<CreateUser />} />
+                        <Route path="/users/edit/:id" element={<EditUser />} />
+                        <Route path="/users/:id" element={<ViewUser />} />
 
                         <Route path="/employees" element={<Employees />} />
                         <Route path="/employees/create" element={<CreateEmployee />} />
                         <Route path="/employees/edit/:id" element={<EditEmployee />} />
                         <Route path="/employees/view/:id" element={<ViewEmployee />} />
 
-
                         <Route path="" element={<Units />} />
                         <Route path="/projects/:projectId/buildings/:buildingId/units/create" element={<CreateUnit />} />
                         <Route path="/projects/:projectId/buildings/:buildingId/units/:unitId/edit" element={<EditUnit />} />
                         <Route path="/projects/:projectId/buildings/:buildingId" element={<ViewUnit />} />
                         <Route path="/projects/:projectId/buildings/:buildingId/units/:unitId" element={<ViewUnitDetails />} />
-
 
                         <Route path="/units-reserve" element={<UnitReserve />} />
                         <Route path="/units-reserve/reserve" element={<ReverseUnit />} />

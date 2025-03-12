@@ -8,7 +8,8 @@ import {
   Building, 
   LogOut,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  HardHat
 } from "lucide-react";
 
 interface SidebarProps {
@@ -34,7 +35,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   
   const mainItems = [
     { path: "/", icon: <LayoutDashboard className="ml-2" />, text: "لوحة التحكم" },
-    { path: "/employees", icon: <Users className="ml-2" />, text: "الموظفون" },
+    { path: "/employees", icon: <HardHat className="ml-2" />, text: "الموظفون" },
+    { path: "/users", icon: <Users className="ml-2" />, text: "المستخدمين" },
   ];
 
   const unitsItems = [
