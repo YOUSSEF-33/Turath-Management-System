@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import axiosInstance from '../../axiosInstance';
 import GenericTable from '../../components/GenericTable';
 import { Eye, Edit, Trash } from 'lucide-react';
-import { Modal, Button, message } from 'antd'; // Import the Modal, Button, and message components from antd
+import { Modal, Button } from 'antd';
 import toast from 'react-hot-toast';
 
 interface Building {
@@ -11,13 +11,6 @@ interface Building {
   project_id: number;
   name: string;
   description: string;
-}
-
-interface Project {
-  id: number;
-  name: string;
-  description: string;
-  buildings: Building[];
 }
 
 interface Action {
@@ -28,39 +21,69 @@ interface Action {
 }
 
 const ViewBuildings: React.FC = () => {
-  const { buildingId:id } = useParams<{ buildingId: string }>();
+  const { buildingId: projectId } = useParams<{ buildingId: string }>();
   const navigate = useNavigate();
-  const [project, setProject] = useState<Project | null>(null);
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [projectName, setProjectName] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [buildingToDelete, setBuildingToDelete] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage] = useState<number>(10);
+  const [totalPages, setTotalPages] = useState<number>(1);
 
+  // Fetch project name
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchProjectName = async () => {
       try {
-        const response = await axiosInstance.get<{ data: Project }>(`/projects/${id}`);
-        setProject(response.data.data);
-        //toast.success('تم تحميل البيانات بنجاح');
+        const response = await axiosInstance.get(`/projects/${projectId}`);
+        setProjectName(response.data.data.name);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching project name:', error);
+      }
+    };
+    
+    fetchProjectName();
+  }, [projectId]);
+
+  // Fetch buildings with pagination
+  useEffect(() => {
+    const fetchBuildings = async () => {
+      try {
+        const response = await axiosInstance.get('/buildings', {
+          params: {
+            project_id: projectId,
+            page: currentPage,
+            per_page: itemsPerPage
+          }
+        });
+        setBuildings(response.data.data);
+        
+        // Set total pages from response metadata
+        if (response.data.meta && response.data.meta.total) {
+          const total = Math.ceil(response.data.meta.total / itemsPerPage);
+          setTotalPages(total);
+        }
+      } catch (error) {
+        console.error('Error fetching buildings:', error);
         toast.error('حدث خطأ أثناء تحميل البيانات');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [id]);
+    fetchBuildings();
+  }, [projectId, currentPage, itemsPerPage]);
 
   const handleView = (building: number) => {
     navigate(`buildings/${building}`);
-    console.log('View building', building);
   };
 
   const handleEdit = (building: number) => {
     navigate(`edit/${building}`);
-    console.log('Edit building', building);
   };
 
   const handleDelete = async () => {
@@ -68,12 +91,8 @@ const ViewBuildings: React.FC = () => {
       setDeleting(true);
       try {
         await axiosInstance.delete(`/buildings/${buildingToDelete}`);
-        if (project) {
-          setProject({
-            ...project,
-            buildings: project.buildings.filter(b => b.id !== buildingToDelete),
-          });
-        }
+        // Remove the deleted building from the state
+        setBuildings(buildings.filter(b => b.id !== buildingToDelete));
         toast.success('تم حذف المبنى بنجاح');
       } catch (error) {
         console.error('Error deleting building:', error);
@@ -90,6 +109,10 @@ const ViewBuildings: React.FC = () => {
     setBuildingToDelete(building);
     setShowDeleteModal(true);
   };
+  
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
   const actions: Action[] = [
     { key: 'view', icon: <Eye className="h-5 w-5" />, onClick: handleView, color: 'text-blue-600' },
@@ -102,7 +125,7 @@ const ViewBuildings: React.FC = () => {
       {/* Page Header */}
       <div className="bg-gray-100 shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">{project?.name}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{projectName}</h1>
           <button
             onClick={() => navigate('/projects')}
             className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
@@ -123,11 +146,14 @@ const ViewBuildings: React.FC = () => {
                 { header: 'اسم المبنى', key: 'name' },
                 { header: 'الوصف', key: 'description' },
               ]}
-              data={project?.buildings}
+              data={buildings as unknown as Record<string, unknown>[]}
               actions={actions}
               loading={loading}
-              onCreate={() => navigate(`/projects/${id}/create`)}
+              onCreate={() => navigate(`/projects/${projectId}/create`)}
               createButtonText="إضافة مبنى جديد"
+              itemsPerPage={itemsPerPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
             />
           
         </div>
@@ -143,7 +169,7 @@ const ViewBuildings: React.FC = () => {
             <Button key="cancel" onClick={() => setShowDeleteModal(false)}>
               إلغاء
             </Button>,
-            <Button key="confirm" type="primary" onClick={handleDelete} loading={deleting}>
+            <Button key="confirm" type="primary" danger onClick={handleDelete} loading={deleting}>
               تأكيد
             </Button>,
           ]}

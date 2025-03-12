@@ -1,20 +1,29 @@
 import { useNavigate } from 'react-router-dom';
-import { Eye, Plus, Check, X, Calendar } from 'lucide-react'; // Added Check and X icons
+import { Eye, Plus, Calendar } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import GenericTable from '../../components/GenericTable';
 import axiosInstance from '../../axiosInstance';
 
+interface Reservation {
+  id: number;
+  unit_id: number;
+  client_id: number;
+  status: string;
+  contract_date: string;
+  final_price: number;
+  reservation_deposit: number;
+  [key: string]: unknown;
+}
+
 const UnitReserve = () => {
   const navigate = useNavigate();
-  const [units, setUnits] = useState([]);
+  const [units, setUnits] = useState<Array<Record<string, unknown>>>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1); // Add totalPages state
-  const [itemsPerPage, setItemsPerPage] = useState(10); // Add totalPages state
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(10);
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-
 
   useEffect(() => {
     const fetchUnits = async () => {
@@ -28,7 +37,7 @@ const UnitReserve = () => {
             date_to: dateTo,
           },
         });
-        const formattedData = response.data.data.map(unit => ({
+        const formattedData = response.data.data.map((unit: Reservation) => ({
           ...unit,
           contract_date: new Date(unit.contract_date).toLocaleDateString('en-GB'),
           status: (
@@ -43,8 +52,7 @@ const UnitReserve = () => {
         }));
         setUnits(formattedData);
         const totalPages = Math.ceil(response.data.meta.total / itemsPerPage);
-        setTotalPages(totalPages); // Set total pages from API response
-        //console.log(formattedData);
+        setTotalPages(totalPages);
       } catch (error) {
         console.error('Error fetching units:', error);
       }
@@ -57,22 +65,12 @@ const UnitReserve = () => {
     navigate('/units-reserve/reserve');
   };
 
-  const handleViewUnit = (id) => {
+  const handleViewUnit = (id: number) => {
     navigate(`/units-reserve/details/${id}`);
   };
 
-  const handleReserveAddendum = (id) => {
+  const handleReserveAddendum = (id: number) => {
     navigate(`/units-reserve/details/${id}/accept`);
-  };
-
-  const handleAcceptUnit = (id) => {
-    // Logic to accept the unit
-    console.log(`Unit ${id} accepted`);
-  };
-
-  const handleRejectUnit = (id) => {
-    // Logic to reject the unit
-    console.log(`Unit ${id} rejected`);
   };
 
   const columns = [
@@ -149,7 +147,6 @@ const UnitReserve = () => {
         data={units}
         actions={actions}
         itemsPerPage={itemsPerPage}
-        currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={setCurrentPage}
         filters={filters}

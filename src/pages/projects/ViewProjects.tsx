@@ -14,7 +14,7 @@ interface Project {
 interface Action {
   key: string;
   icon: JSX.Element;
-  onClick: (project: Project) => void;
+  onClick: (id: number) => void;
   color: string;
 }
 
@@ -25,12 +25,28 @@ const ViewProjects: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [projectToDelete, setProjectToDelete] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage] = useState<number>(10);
+  const [totalPages, setTotalPages] = useState<number>(1);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axiosInstance.get<{ data: Project[] }>('/projects');
+        const response = await axiosInstance.get('/projects', {
+          params: {
+            page: currentPage,
+            per_page: itemsPerPage
+          }
+        });
         setProjects(response.data.data);
+        
+        // Set total pages from response metadata
+        if (response.data.meta && response.data.meta.total) {
+          const total = Math.ceil(response.data.meta.total / itemsPerPage);
+          setTotalPages(total);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -39,21 +55,18 @@ const ViewProjects: React.FC = () => {
     };
 
     fetchData();
-  }, []);
+  }, [currentPage, itemsPerPage]);
 
   const handleCreate = () => {
-    // Handle the creation of a new project
     navigate('/projects/create');
   };
 
-  const handleView = (project: Project) => {
+  const handleView = (project: number) => {
     navigate(`/projects/${project}`);
-    console.log('View project', project);
   };
 
   const handleEdit = (project: number) => {
     navigate(`/projects/edit/${project}`);
-    console.log('Edit project', project);
   };
 
   const handleDelete = async () => {
@@ -63,7 +76,6 @@ const ViewProjects: React.FC = () => {
         await axiosInstance.delete(`/projects/${projectToDelete}`);
         setProjects(projects.filter(p => p.id !== projectToDelete));
         message.success('تم حذف المشروع بنجاح');
-        console.log('Deleted project', projectToDelete);
       } catch (error) {
         console.error('Error deleting project:', error);
       } finally {
@@ -77,6 +89,10 @@ const ViewProjects: React.FC = () => {
   const confirmDelete = (project: number) => {
     setProjectToDelete(project);
     setShowDeleteModal(true);
+  };
+  
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   const actions: Action[] = [
@@ -101,7 +117,7 @@ const ViewProjects: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-6 py-8  min-h-screen">
+      <div className="container mx-auto px-6 py-8 min-h-screen">
         <div className="bg-white rounded-lg shadow-lg p-8">
           <h3 className="text-xl font-semibold text-gray-900 mb-4">قائمة المشاريع</h3>
             <GenericTable
@@ -110,13 +126,15 @@ const ViewProjects: React.FC = () => {
                 { header: 'اسم المشروع', key: 'name' },
                 { header: 'الوصف', key: 'description' },
               ]}
-              data={projects}
+              data={projects as unknown as Record<string, unknown>[]}
               actions={actions}
               onCreate={handleCreate}
               createButtonText="إضافة مشروع جديد"
               loading={loading}
+              itemsPerPage={itemsPerPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
             />
-          
         </div>
       </div>
 
@@ -130,7 +148,7 @@ const ViewProjects: React.FC = () => {
             <Button key="cancel" onClick={() => setShowDeleteModal(false)}>
               إلغاء
             </Button>,
-            <Button key="confirm" type="primary" onClick={handleDelete} loading={deleting}>
+            <Button key="confirm" type="primary" danger onClick={handleDelete} loading={deleting}>
               تأكيد
             </Button>,
           ]}

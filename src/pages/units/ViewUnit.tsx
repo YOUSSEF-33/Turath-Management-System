@@ -47,7 +47,7 @@ const ViewUnit: React.FC = () => {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(12);
   const [totalPages, setTotalPages] = useState<number>(1);
 
   useEffect(() => {
@@ -74,7 +74,6 @@ const ViewUnit: React.FC = () => {
           setTotalPages(total);
         }
         
-        toast.success('تم تحميل البيانات بنجاح');
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('حدث خطأ أثناء تحميل البيانات');

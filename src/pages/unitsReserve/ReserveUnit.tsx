@@ -278,9 +278,12 @@ const ReverseUnit = () => {
         const fetchBuildings = async () => {
             if (selectedProject) {
                 try {
-                    const buildingsResponse = await axiosInstance.get(`/projects/${selectedProject}`);
-                    setBuildings(buildingsResponse.data.data.buildings);
-                    console.log(buildingsResponse.data.data.buildings)
+                    const buildingsResponse = await axiosInstance.get('/buildings', {
+                        params: {
+                            project_id: selectedProject
+                        }
+                    });
+                    setBuildings(buildingsResponse.data.data);
                 } catch (error) {
                     console.error('Error fetching buildings:', error);
                 }
@@ -290,14 +293,16 @@ const ReverseUnit = () => {
         fetchBuildings();
     }, [selectedProject]);
 
-    //console.log(buildings)
-
     useEffect(() => {
         const fetchUnits = async () => {
             if (selectedBuilding) {
                 try {
-                    const unitsResponse = await axiosInstance.get(`/buildings/${selectedBuilding}`);
-                    setUnits(unitsResponse.data.data.units);
+                    const unitsResponse = await axiosInstance.get('/units', {
+                        params: {
+                            building_id: selectedBuilding
+                        }
+                    });
+                    setUnits(unitsResponse.data.data);
                 } catch (error) {
                     console.error('Error fetching units:', error);
                 }
