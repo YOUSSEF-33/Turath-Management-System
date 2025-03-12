@@ -163,7 +163,7 @@ const ViewUsers: React.FC = () => {
                   header: 'تاريخ الإنشاء', 
                   key: 'created_at',
                   render: (value: unknown) => {
-                    return new Date(value as string).toLocaleDateString('ar-SA');
+                    return new Date(value as string).toLocaleDateString('ar-EG', { timeZone: 'Africa/Cairo' });
                   }
                 },
               ]}
