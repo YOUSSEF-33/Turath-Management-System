@@ -4,6 +4,7 @@ import { Button } from 'antd';
 import toast from 'react-hot-toast';
 import axiosInstance from '../../axiosInstance';
 import UnitForm from '../../components/forms/UnitForm';
+import GenericTable from '../../components/GenericTable';
 import type { UnitFormData } from '../../types/forms';
 
 export const ViewUnitDetails = () => {
@@ -36,6 +37,19 @@ export const ViewUnitDetails = () => {
     );
   }
 
+  const reservations = initialData?.reservations || [];
+
+  const columns = [
+    { header: 'رقم الحجز', key: 'id' },
+    { header: 'رقم العميل', key: 'client_id' },
+    { header: 'الحالة', key: 'status' },
+    { header: 'تاريخ العقد', key: 'contract_date', render: (value: string) => new Date(value).toLocaleDateString() },
+    { header: 'السعر النهائي', key: 'final_price' },
+    { header: 'الدفعة المقدمة', key: 'down_payment' },
+    { header: 'القسط الشهري', key: 'monthly_installment' },
+    { header: 'عدد الأشهر', key: 'months_count' },
+  ];
+
   return (
     <div className="bg-gray-50 min-h-screen" dir="rtl">
       <div className="bg-white shadow-sm sticky top-0 z-10">
@@ -61,13 +75,22 @@ export const ViewUnitDetails = () => {
       </div>
 
       <div className="container mx-auto px-6 py-8">
-        <div className="bg-white rounded-lg shadow-lg">
+        <div className="bg-white rounded-lg shadow-lg mb-8">
           <UnitForm
             initialData={initialData}
             isEdit={false}
             unitId={Number(unitId)}
             buildingId={Number(buildingId)}
             readOnly={true}
+          />
+        </div>
+
+        <div className="bg-white rounded-lg shadow-lg p-4">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">الحجوزات</h2>
+          <GenericTable
+            columns={columns}
+            data={reservations as unknown as Record<string, unknown>[]}
+            loading={loading}
           />
         </div>
       </div>

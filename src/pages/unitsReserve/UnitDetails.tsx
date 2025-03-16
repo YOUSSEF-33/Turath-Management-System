@@ -2,6 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axiosInstance from '../../axiosInstance'; // Adjust the import path as needed
 import { Modal, Input, Button, message } from 'antd'; // Import Modal, Input, and Button from antd
+import { Swiper, SwiperSlide } from 'swiper/react';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
+import { GeneratePDF } from "../../components/PrintPDF"; // Import the GeneratePDF function
+import GenericTable from '../../components/GenericTable';
+
 
 const UnitDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -14,21 +21,38 @@ const UnitDetails = () => {
   const [isRejectModalVisible, setIsRejectModalVisible] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
 
+  // State for image modal
+  const [isImageModalVisible, setIsImageModalVisible] = useState(false);
+  const [modalImages, setModalImages] = useState<any[]>([]);
+  const [modalTitle, setModalTitle] = useState('');
+
+  const [unitData, setUnitData] = useState<any>(null);
+  const [projectName, setProjectName] = useState<string>('');
+  const [buildingName, setBuildingName] = useState<string>('');
+
   useEffect(() => {
-    const fetchReservation = async () => {
+    const fetchData = async () => {
       try {
-        const response = await axiosInstance.get(`/reservations/${id}`);
-        setReservation(response.data.data);
+        
+        const reservationResponse = await axiosInstance.get(`/reservations/${id}`);
+        setReservation(reservationResponse.data.data);
+        
+        const unitResponse = await axiosInstance.get(`/units/${reservationResponse.data.data.unit_id}`);
+        setUnitData(unitResponse.data.data);
+
+
       } catch (err) {
-        setError('فشل في تحميل بيانات الحجز');
+        setError('فشل في تحميل البيانات');
         console.error(err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchReservation();
+    fetchData();
   }, [id]);
+
+
 
   const handleAcceptUnit = async () => {
     try {
@@ -60,6 +84,74 @@ const UnitDetails = () => {
     }
   };
 
+
+  const handleImageClick = (images: any[], title: string) => {
+    setModalImages(images);
+    setModalTitle(title);
+    setIsImageModalVisible(true);
+  };
+
+  const handlePrintPDF = () => {
+    GeneratePDF(
+      {
+        name: reservation.client.name,
+        phone: reservation.client.phone,
+        nationalId: reservation.client.nationalId,
+        address: reservation.client.address,
+        email: reservation.client.email,
+        contractDate: new Date(reservation.contract_date).toLocaleDateString('ar-EG'),
+        reservationDate: new Date(reservation.reservation_date).toLocaleDateString('ar-EG'),
+      },
+      {
+        unit_number: reservation.unit.unit_number,
+        unit_type: reservation.unit.unit_type,
+        price: reservation.unit.price,
+        area: reservation.unit.area,
+        floor: reservation.unit.floor,
+        bedrooms: reservation.unit.bedrooms,
+        bathrooms: reservation.unit.bathrooms,
+        downPayment: reservation.down_payment,
+        monthlyInstallment: reservation.monthly_installment,
+        finalPrice: reservation.final_price,
+        months: reservation.months_count,
+        reservationDeposit: reservation.reservation_deposit,
+        plan_images: reservation.unit.plan_images,
+        gallery: reservation.unit.gallery,
+      },
+      {
+        nationalIdCard: reservation.national_id_images,
+        reservation_deposit_receipt: reservation.reservation_deposit_receipt,
+        attachments: reservation.attachments,
+      }
+    );
+  };
+
+  // Update the approvalsColumns to match the Column interface
+  const approvalsColumns = [
+    {
+      key: 'role',
+      header: 'الدور',
+      render: (value: any, row: any) => row.role?.display_name || row.role?.name,
+    },
+    {
+      key: 'status',
+      header: 'الحالة',
+      render: (value: any, row: any) => {
+        const statusColors: { [key: string]: string } = {
+          'قيد الانتظار': 'text-yellow-500',
+          'تم القبول': 'text-green-500',
+          'تم الرفض': 'text-red-500',
+        };
+        return <span className={statusColors[row.status] || ''}>{row.status}</span>;
+      },
+    },
+    {
+      key: 'rejection_reason',
+      header: 'سبب الرفض',
+      render: (value: any, row: any) => row.rejection_reason || '-',
+    },
+  ];
+
   if (loading) {
     return <div className="p-6 text-center">جاري التحميل...</div>;
   }
@@ -72,13 +164,15 @@ const UnitDetails = () => {
     return <div className="p-6 text-center">لا توجد بيانات متاحة</div>;
   }
 
+  console.log(reservation)
+
   return (
     <div className="p-6 bg-gray-50 md:m-4 md:rounded my-2">
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">تفاصيل الحجز</h2>
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">تفاصيل الحجز</h2>
 
       {/* Client Information */}
-      <div className="mb-6 bg-white p-4 rounded-lg shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-700 mb-2">بيانات العميل</h3>
+      <div className="mb-6 bg-white p-6 rounded-lg shadow-md">
+        <h3 className="text-xl font-semibold text-gray-700 mb-4">بيانات العميل</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <strong>الاسم:</strong> {reservation.client.name}
@@ -96,9 +190,15 @@ const UnitDetails = () => {
       </div>
 
       {/* Unit Information */}
-      <div className="mb-6 bg-white p-4 rounded-lg shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-700 mb-2">بيانات الوحدة</h3>
+      <div className="mb-6 bg-white p-6 rounded-lg shadow-md">
+        <h3 className="text-xl font-semibold text-gray-700 mb-4">بيانات الوحدة</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* <div>
+            <strong>المشروع:</strong> {projectName}
+          </div>
+          <div>
+            <strong>المبنى:</strong> {buildingName}
+          </div> */}
           <div>
             <strong>رقم الوحدة:</strong> {reservation.unit.unit_number}
           </div>
@@ -121,8 +221,8 @@ const UnitDetails = () => {
       </div>
 
       {/* Reservation Details */}
-      <div className="mb-6 bg-white p-4 rounded-lg shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-700 mb-2">تفاصيل الحجز</h3>
+      <div className="mb-6 bg-white p-6 rounded-lg shadow-md">
+        <h3 className="text-xl font-semibold text-gray-700 mb-4">تفاصيل الحجز</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <strong>السعر النهائي:</strong> {reservation.final_price} جنيه
@@ -146,78 +246,133 @@ const UnitDetails = () => {
       </div>
 
       {/* Images Section */}
-      <div className="mb-6 bg-white p-4 rounded-lg shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-700 mb-2">الصور</h3>
+      <div className="mb-6 bg-white p-6 rounded-lg shadow-md">
+        <h3 className="text-xl font-semibold text-gray-700 mb-4">الصور</h3>
 
-        {/* National ID Images */}
-        <div className="mb-4">
-          <h4 className="text-md font-semibold text-gray-700 mb-2">صور البطاقة الشخصية</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {reservation.national_id_images.map((image: any) => (
-              <div key={image.id} className="border p-2 rounded-lg">
-                <img src={image.medium_url} alt={image.name} className="w-full h-auto rounded-lg" />
-              </div>
-            ))}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* National ID Images */}
+          <div className="mb-6">
+            <h4 className="text-lg font-semibold text-gray-700 mb-2">صور البطاقة الشخصية</h4>
+            <Swiper
+              spaceBetween={10}
+              slidesPerView={1}
+              navigation
+              pagination={{ clickable: true }}
+            >
+              {reservation.national_id_images.map((image: any) => (
+                <SwiperSlide key={image.id}>
+                  <img
+                    src={image.medium_url}
+                    alt={image.name}
+                    className="w-full h-48 object-cover rounded-lg cursor-pointer"
+                    onClick={() => handleImageClick(reservation.national_id_images, 'صور البطاقة الشخصية')}
+                  />
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          </div>
+
+          {/* Plan Images */}
+          <div className="mb-6">
+            <h4 className="text-lg font-semibold text-gray-700 mb-2">صور المخطط</h4>
+            <Swiper
+              spaceBetween={10}
+              slidesPerView={1}
+              navigation
+              pagination={{ clickable: true }}
+            >
+              {reservation.unit.plan_images.map((image: any) => (
+                <SwiperSlide key={image.id}>
+                  <img
+                    src={image.url}
+                    alt={image.name}
+                    className="w-full h-48 object-cover rounded-lg cursor-pointer"
+                    onClick={() => handleImageClick(reservation.unit.plan_images, 'صور المخطط')}
+                  />
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          </div>
+
+          {/* Gallery Images */}
+          <div className="mb-6">
+            <h4 className="text-lg font-semibold text-gray-700 mb-2">معرض الصور</h4>
+            <Swiper
+              spaceBetween={10}
+              slidesPerView={1}
+              navigation
+              pagination={{ clickable: true }}
+            >
+              {reservation.unit.gallery.map((image: any) => (
+                <SwiperSlide key={image.id}>
+                  <img
+                    src={image.url}
+                    alt={image.name}
+                    className="w-full h-48 object-cover rounded-lg cursor-pointer"
+                    onClick={() => handleImageClick(reservation.unit.gallery, 'معرض الصور')}
+                  />
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          </div>
+
+          {/* Reservation Deposit Receipt */}
+          <div className="mb-6">
+            <h4 className="text-lg font-semibold text-gray-700 mb-2">إيصال السداد</h4>
+            <div className="border p-2 rounded-lg">
+              {reservation.reservation_deposit_receipt.url.endsWith('.pdf') ? (
+                <a
+                  href={reservation.reservation_deposit_receipt.url}
+                  download={reservation.reservation_deposit_receipt.name}
+                  className="text-blue-600 hover:underline"
+                >
+                  تحميل إيصال السداد
+                </a>
+              ) : (
+                <img
+                  src={reservation.reservation_deposit_receipt.url}
+                  alt={reservation.reservation_deposit_receipt.name}
+                  className="w-full h-48 object-cover rounded-lg cursor-pointer"
+                  onClick={() => handleImageClick([reservation.reservation_deposit_receipt], 'إيصال السداد')}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Attachments */}
+          <div className="mb-6">
+            <h4 className="text-lg font-semibold text-gray-700 mb-2">المرفقات</h4>
+            <Swiper
+              spaceBetween={10}
+              slidesPerView={1}
+              navigation
+              pagination={{ clickable: true }}
+            >
+              {reservation.attachments.map((attachment: any) => (
+                <SwiperSlide key={attachment.id}>
+                  <img
+                    src={attachment.url}
+                    alt={attachment.name}
+                    className="w-full h-48 object-cover rounded-lg cursor-pointer"
+                    onClick={() => handleImageClick(reservation.attachments, 'المرفقات')}
+                  />
+                </SwiperSlide>
+              ))}
+            </Swiper>
           </div>
         </div>
+      </div>
 
-        {/* Plan Images */}
-        <div className="mb-4">
-          <h4 className="text-md font-semibold text-gray-700 mb-2">صور المخطط</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {reservation.unit.plan_images.map((image: any) => (
-              <div key={image.id} className="border p-2 rounded-lg">
-                <img src={image.url} alt={image.name} className="w-full h-auto rounded-lg" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Gallery Images */}
-        <div className="mb-4">
-          <h4 className="text-md font-semibold text-gray-700 mb-2">معرض الصور</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {reservation.unit.gallery.map((image: any) => (
-              <div key={image.id} className="border p-2 rounded-lg">
-                <img src={image.url} alt={image.name} className="w-full h-auto rounded-lg" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Reservation Deposit Receipt */}
-        <div className="mb-4">
-          <h4 className="text-md font-semibold text-gray-700 mb-2">إيصال السداد</h4>
-          <div className="border p-2 rounded-lg">
-            {reservation.reservation_deposit_receipt.url.endsWith('.pdf') ? (
-              <a
-                href={reservation.reservation_deposit_receipt.url}
-                download={reservation.reservation_deposit_receipt.name}
-                className="text-blue-600 hover:underline"
-              >
-                تحميل إيصال السداد
-              </a>
-            ) : (
-              <img
-                src={reservation.reservation_deposit_receipt.url}
-                alt={reservation.reservation_deposit_receipt.name}
-                className=" h-auto rounded-lg"
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Attachments */}
-        <div className="mb-4">
-          <h4 className="text-md font-semibold text-gray-700 mb-2">المرفقات</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {reservation.attachments.map((attachment: any) => (
-              <div key={attachment.id} className="border p-2 rounded-lg">
-                <img src={attachment.url} alt={attachment.name} className="w-full h-auto rounded-lg" />
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Approvals Section */}
+      <div className="mb-6 bg-white p-6 rounded-lg shadow-md">
+        <h3 className="text-xl font-semibold text-gray-700 mb-4">الموافقات</h3>
+        <GenericTable
+          data={reservation.approvals}
+          columns={approvalsColumns}
+          loading={loading}
+          noDataMessage="لا توجد موافقات بعد"
+          totalPages={1}
+        />
       </div>
 
       {/* Actions */}
@@ -234,6 +389,12 @@ const UnitDetails = () => {
             className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
           >
             رفض
+          </button>
+          <button
+            onClick={handlePrintPDF}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            طباعة الاستمارة
           </button>
         </div>
       )}
@@ -258,6 +419,28 @@ const UnitDetails = () => {
           onChange={(e) => setRejectionReason(e.target.value)}
           rows={4}
         />
+      </Modal>
+
+      {/* Image Modal */}
+      <Modal
+        title={modalTitle}
+        visible={isImageModalVisible}
+        onCancel={() => setIsImageModalVisible(false)}
+        footer={null}
+        width={800}
+      >
+        <Swiper
+          spaceBetween={10}
+          slidesPerView={1}
+          navigation
+          pagination={{ clickable: true }}
+        >
+          {modalImages.map((image: any, index: number) => (
+            <SwiperSlide key={index}>
+              <img src={image.url || image.medium_url} alt={image.name} className="w-full h-96 object-cover rounded-lg" />
+            </SwiperSlide>
+          ))}
+        </Swiper>
       </Modal>
     </div>
   );

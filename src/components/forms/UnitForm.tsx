@@ -10,6 +10,10 @@ import { Upload, Button, Modal, message, Form } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import type { UploadFile, RcFile } from 'antd/es/upload/interface';
 import { UnitFormData } from '../../types/forms';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
 
 // Extend UnitFormData to include file status fields with required file arrays
 export type ExtendedUnitFormData = UnitFormData & {
@@ -269,9 +273,8 @@ const UnitForm: React.FC<UnitFormProps> = ({
               id="building_id"
               {...register('building_id')}
               disabled={loadingBuildings || readOnly}
-              className={`mt-1 block w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm ${
-                errors.building_id ? 'border-red-300' : ''
-              }`}
+              className={`mt-1 block w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm ${errors.building_id ? 'border-red-300' : ''
+                }`}
             >
               <option value="">اختر المبنى</option>
               {buildings?.map(building => (
@@ -388,22 +391,25 @@ const UnitForm: React.FC<UnitFormProps> = ({
           )}
         </div>
 
-        {/* Bathrooms */}
-        <div>
-          <label htmlFor="bathrooms" className="block text-sm font-medium text-gray-700">
-            الحمامات
-          </label>
-          <input
-            type="number"
-            id="bathrooms"
-            {...register('bathrooms')}
-            disabled={readOnly}
-            className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm"
-          />
-          {errors.bathrooms && (
-            <p className="mt-1 text-sm text-red-600">{errors.bathrooms.message}</p>
-          )}
-        </div>
+        
+
+      </div>
+
+      {/* Bathrooms */}
+      <div>
+        <label htmlFor="bathrooms" className="block text-sm font-medium text-gray-700">
+          الحمامات
+        </label>
+        <input
+          type="number"
+          id="bathrooms"
+          {...register('bathrooms')}
+          disabled={readOnly}
+          className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm"
+        />
+        {errors.bathrooms && (
+          <p className="mt-1 text-sm text-red-600">{errors.bathrooms.message}</p>
+        )}
       </div>
 
       {/* Description */}
@@ -439,89 +445,129 @@ const UnitForm: React.FC<UnitFormProps> = ({
         </div>
       )}
 
-      {/* Plan Images */}
-      <Form.Item
-        label={<span className="text-sm font-medium text-gray-700">صور المخطط</span>}
-        validateStatus={errors.plan_images ? 'error' : ''}
-        help={errors.plan_images?.message ? String(errors.plan_images.message) : ''}
-        className="mb-4"
-      >
-        <Upload.Dragger
-          style={{
-            border: '2px dashed #d9d9d9',
-            borderRadius: '8px',
-            padding: '24px',
-            backgroundColor: '#fafafa',
-          }}
-          listType="picture-card"
-          fileList={watchPlanImages}
-          onChange={handlePlanImagesChange}
-          onPreview={handlePreview}
-          beforeUpload={beforeUpload}
-          multiple
-          accept="image/*"
-          maxCount={5}
-          disabled={readOnly}
-          className="w-full"
-        >
-          {(watchPlanImages?.length || 0) >= 5 ? null : (
-            <div>
-              <p className="ant-upload-drag-icon">
-                <InboxOutlined className="text-blue-500 text-2xl" />
-              </p>
-              <p className="ant-upload-text">اضغط أو اسحب الصور إلى هذه المنطقة للتحميل</p>
-              <p className="ant-upload-hint text-xs text-gray-500">
-                الصيغ المدعومة: JPG, PNG, GIF. الحد الأقصى للحجم: 2 ميجابايت
-                {watchPlanImages?.length
-                  ? ` (يمكنك تحميل ${5 - watchPlanImages.length} صور أخرى)`
-                  : ' (حد أقصى 5 صور)'}
-              </p>
-            </div>
-          )}
-        </Upload.Dragger>
-      </Form.Item>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Plan Images */}
+        {isEdit ? (
+          <Form.Item
+            label={<span className="text-sm font-medium text-gray-700">صور المخطط</span>}
+            validateStatus={errors.plan_images ? 'error' : ''}
+            help={errors.plan_images?.message ? String(errors.plan_images.message) : ''}
+            className="mb-4"
+          >
+            <Upload.Dragger
+              style={{
+                border: '2px dashed #d9d9d9',
+                borderRadius: '8px',
+                padding: '24px',
+                backgroundColor: '#fafafa',
+              }}
+              listType="picture-card"
+              fileList={watchPlanImages}
+              onChange={handlePlanImagesChange}
+              onPreview={handlePreview}
+              beforeUpload={beforeUpload}
+              multiple
+              accept="image/*"
+              maxCount={5}
+              disabled={readOnly}
+              className="w-full"
+            >
+              {(watchPlanImages?.length || 0) >= 5 ? null : (
+                <div>
+                  <p className="ant-upload-drag-icon">
+                    <InboxOutlined className="text-blue-500 text-2xl" />
+                  </p>
+                  <p className="ant-upload-text">اضغط أو اسحب الصور إلى هذه المنطقة للتحميل</p>
+                  <p className="ant-upload-hint text-xs text-gray-500">
+                    الصيغ المدعومة: JPG, PNG, GIF. الحد الأقصى للحجم: 2 ميجابايت
+                    {watchPlanImages?.length
+                      ? ` (يمكنك تحميل ${5 - watchPlanImages.length} صور أخرى)`
+                      : ' (حد أقصى 5 صور)'}
+                  </p>
+                </div>
+              )}
+            </Upload.Dragger>
+          </Form.Item>
+        ) : (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">صور المخطط</label>
+            <Swiper
+              spaceBetween={10}
+              slidesPerView={1}
+              navigation
+              pagination={{ clickable: true }}
 
-      {/* Gallery */}
-      <Form.Item
-        label={<span className="text-sm font-medium text-gray-700">معرض الصور</span>}
-        validateStatus={errors.gallery ? 'error' : ''}
-        help={errors.gallery?.message ? String(errors.gallery.message) : ''}
-        className="mb-4"
-      >
-        <Upload.Dragger
-          style={{
-            border: '2px dashed #d9d9d9',
-            borderRadius: '8px',
-            padding: '24px',
-            backgroundColor: '#fafafa',
-          }}
-          listType="picture-card"
-          fileList={watchGallery}
-          onChange={handleGalleryChange}
-          onPreview={handlePreview}
-          beforeUpload={beforeUpload}
-          multiple
-          accept="image/*"
-          maxCount={10}
-          disabled={readOnly}
-          className="w-full"
-        >
-          {(watchGallery?.length || 0) >= 10 ? null : (
-            <div>
-              <p className="ant-upload-drag-icon">
-                <InboxOutlined className="text-blue-500 text-2xl" />
-              </p>
-              <p className="ant-upload-text">اضغط أو اسحب الصور إلى هذه المنطقة للتحميل</p>
-              <p className="ant-upload-hint text-xs text-gray-500">
-                الصيغ المدعومة: JPG, PNG, GIF. الحد الأقصى للحجم: 2 ميجابايت
-                {watchGallery?.length
-                  ? ` (يمكنك تحميل ${10 - watchGallery.length} صور أخرى)`
-                  : ' (حد أقصى 10 صور)'}
-              </p>
-            </div>
-          )}
-        </Upload.Dragger>
-      </Form.Item>
+            >
+              {watchPlanImages.map((file, index) => (
+                <SwiperSlide key={index}>
+                  <img src={file.url} alt={file.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          </div>
+        )}
+
+        {/* Gallery */}
+        {isEdit ? (
+          <Form.Item
+            label={<span className="text-sm font-medium text-gray-700">معرض الصور</span>}
+            validateStatus={errors.gallery ? 'error' : ''}
+            help={errors.gallery?.message ? String(errors.gallery.message) : ''}
+            className="mb-4"
+          >
+            <Upload.Dragger
+              style={{
+                border: '2px dashed #d9d9d9',
+                borderRadius: '8px',
+                padding: '24px',
+                backgroundColor: '#fafafa',
+              }}
+              listType="picture-card"
+              fileList={watchGallery}
+              onChange={handleGalleryChange}
+              onPreview={handlePreview}
+              beforeUpload={beforeUpload}
+              multiple
+              accept="image/*"
+              maxCount={10}
+              disabled={readOnly}
+              className="w-full"
+            >
+              {(watchGallery?.length || 0) >= 10 ? null : (
+                <div>
+                  <p className="ant-upload-drag-icon">
+                    <InboxOutlined className="text-blue-500 text-2xl" />
+                  </p>
+                  <p className="ant-upload-text">اضغط أو اسحب الصور إلى هذه المنطقة للتحميل</p>
+                  <p className="ant-upload-hint text-xs text-gray-500">
+                    الصيغ المدعومة: JPG, PNG, GIF. الحد الأقصى للحجم: 2 ميجابايت
+                    {watchGallery?.length
+                      ? ` (يمكنك تحميل ${10 - watchGallery.length} صور أخرى)`
+                      : ' (حد أقصى 10 صور)'}
+                  </p>
+                </div>
+              )}
+            </Upload.Dragger>
+          </Form.Item>
+        ) : (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">معرض الصور</label>
+            <Swiper
+              spaceBetween={10}
+              slidesPerView={1}
+              navigation
+              pagination={{ clickable: true }}
+
+            >
+              {watchGallery.map((file, index) => (
+                <SwiperSlide key={index}>
+                  <img src={file.url} alt={file.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          </div>
+        )}
+      </div>
 
       {/* Submit Button */}
       {!readOnly && (

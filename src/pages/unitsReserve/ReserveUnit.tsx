@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Search, Upload, Trash2, Check, Printer } from "lucide-react";
+import { Search, Upload, Trash2, Check, Printer, XCircle } from "lucide-react"; // Import XCircle icon
 import { InputField } from "../../components/InputField";
 import axiosInstance from "../../axiosInstance";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import { GeneratePDF } from "../../components/PrintPDF"; // Import the PrintPDF component
 
 const ReverseUnit = () => {
     // State for projects, buildings, and units
@@ -16,6 +17,8 @@ const ReverseUnit = () => {
     const [selectedProject, setSelectedProject] = useState<any>(null);
     const [selectedBuilding, setSelectedBuilding] = useState<any>(null);
     const [selectedUnit, setSelectedUnit] = useState<any>(null);
+
+    //console.log(units)
 
     // Client Data State
     const [clientData, setClientData] = useState<any>({
@@ -51,6 +54,8 @@ const ReverseUnit = () => {
         reservationDeposit: 0,
     });
 
+    //console.log(unitDetails)
+
     const [loading, setLoading] = useState<boolean>(false);
 
     const validateInput = (value: string, type: string) => {
@@ -79,8 +84,11 @@ const ReverseUnit = () => {
         }
     };
 
+    // Add submitLoading state
+    const [submitLoading, setSubmitLoading] = useState(false);
 
     const handleSubmit = async () => {
+        setSubmitLoading(true);
         const formData = new FormData();
 
         // Append unit_id
@@ -120,16 +128,19 @@ const ReverseUnit = () => {
         }
 
         try {
-            const response = await axiosInstance.post("/reservations", formData, {
+             const response = await axiosInstance.post("/reservations", formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
-                },
-            });
+                 },
+             });
+             //console.log(response.data)
             toast.success("تم إرسال البيانات بنجاح");
-            navigate("/units-reserve");
+            navigate("/units-reserve/details/" + response.data.data.id);
         } catch (error) {
             console.error("Error submitting form:", error);
-            alert("حدث خطأ أثناء إرسال البيانات");
+            toast.error("حدث خطأ أثناء إرسال البيانات");
+        } finally {
+            setSubmitLoading(false);
         }
     };
 
@@ -199,9 +210,6 @@ const ReverseUnit = () => {
                     [type]: [...prev[type], ...Array.from(files)],
                 }));
             } else {
-                console.log({
-                    [type]: files[0],
-                })
                 setAttachments((prev: any) => ({
                     ...prev,
                     [type]: files[0],
@@ -227,47 +235,23 @@ const ReverseUnit = () => {
 
     const contractRef = useRef<HTMLDivElement>(null);
 
-    const handlePrint = () => {
-        if (contractRef.current) {
-            const printWindow = window.open("", "_blank");
-            if (printWindow) {
-                printWindow.document.write(`
-                    <html>
-                    <head>
-                        <title >.</title>
-                        <style>
-                            body { direction: rtl; font-family: Arial, sans-serif; }
-                            .contract { padding: 20px; }
-                            .contract h1 { text-align: center; margin-bottom: 20px; font-size: 24px; }
-                            .contract p { text-align: right; margin-bottom: 20px; font-size: 18px; }
-                            .contract table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                            .contract table, .contract th, .contract td { border: 1px solid black; }
-                            .contract th, .contract td { padding: 10px; text-align: right; font-size: 16px; }
-                            .contract th { background-color: #f2f2f2; }
-                            .contract .policies { margin-top: 20px; font-size: 16px; }
-                            .contract .signatures { margin-top: 40px; display: flex; justify-content: space-between; }
-                            .contract .signatures div { width: 45%; text-align: center; font-size: 16px; }
-                            .contract .signatures div:after { content: ""; display: block; border-top: 1px solid black; margin-top: 50px; }
-                        </style>
-                    </head>
-                    <body>
-                        ${contractRef.current.innerHTML}
-                    </body>
-                    </html>
-                `);
-                printWindow.document.close();
-                printWindow.print();
-            }
-        }
-    };
+    // Add these loading states
+    const [projectsLoading, setProjectsLoading] = useState(false);
+    const [buildingsLoading, setBuildingsLoading] = useState(false);
+    const [unitsLoading, setUnitsLoading] = useState(false);
 
+    // Update the fetch functions
     useEffect(() => {
         const fetchData = async () => {
+            setProjectsLoading(true);
             try {
                 const projectsResponse = await axiosInstance.get('/projects');
                 setProjects(projectsResponse.data.data);
             } catch (error) {
                 console.error('Error fetching projects:', error);
+                toast.error('فشل في تحميل المشاريع');
+            } finally {
+                setProjectsLoading(false);
             }
         };
 
@@ -277,15 +261,17 @@ const ReverseUnit = () => {
     useEffect(() => {
         const fetchBuildings = async () => {
             if (selectedProject) {
+                setBuildingsLoading(true);
                 try {
                     const buildingsResponse = await axiosInstance.get('/buildings', {
-                        params: {
-                            project_id: selectedProject
-                        }
+                        params: { project_id: selectedProject }
                     });
                     setBuildings(buildingsResponse.data.data);
                 } catch (error) {
                     console.error('Error fetching buildings:', error);
+                    toast.error('فشل في تحميل المباني');
+                } finally {
+                    setBuildingsLoading(false);
                 }
             }
         };
@@ -296,15 +282,17 @@ const ReverseUnit = () => {
     useEffect(() => {
         const fetchUnits = async () => {
             if (selectedBuilding) {
+                setUnitsLoading(true);
                 try {
                     const unitsResponse = await axiosInstance.get('/units', {
-                        params: {
-                            building_id: selectedBuilding
-                        }
+                        params: { building_id: selectedBuilding }
                     });
                     setUnits(unitsResponse.data.data);
                 } catch (error) {
                     console.error('Error fetching units:', error);
+                    toast.error('فشل في تحميل الوحدات');
+                } finally {
+                    setUnitsLoading(false);
                 }
             }
         };
@@ -325,9 +313,10 @@ const ReverseUnit = () => {
                         value={selectedProject || ""}
                         onChange={(e) => setSelectedProject(Number(e.target.value))}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={projectsLoading}
                     >
                         <option value="" disabled>
-                            اختر المشروع
+                            {projectsLoading ? "جاري التحميل..." : "اختر المشروع"}
                         </option>
                         {projects?.map((project) => (
                             <option key={project.id} value={project.id}>
@@ -345,9 +334,10 @@ const ReverseUnit = () => {
                             value={selectedBuilding || ""}
                             onChange={(e) => setSelectedBuilding(Number(e.target.value))}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            disabled={buildingsLoading}
                         >
                             <option value="" disabled>
-                                اختر المبنى
+                                {buildingsLoading ? "جاري التحميل..." : "اختر المبنى"}
                             </option>
                             {filteredBuildings?.map((building) => (
                                 <option key={building.id} value={building.id}>
@@ -366,13 +356,20 @@ const ReverseUnit = () => {
                             value={selectedUnit || ""}
                             onChange={(e) => setSelectedUnit(Number(e.target.value))}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            disabled={unitsLoading}
                         >
                             <option value="" disabled>
-                                اختر الوحدة
+                                {unitsLoading ? "جاري التحميل..." : "اختر الوحدة"}
                             </option>
                             {filteredUnits.map((unit) => (
-                                <option key={unit.id} value={unit.id}>
+                                <option 
+                                    key={unit.id} 
+                                    value={unit.id} 
+                                    disabled={unit.status !== "متاحة"}
+                                    className={unit.status !== "متاحة" ? "text-red-500" : ""}
+                                >
                                     {unit.unit_number} - {unit.unit_type}
+                                    {unit.status !== "متاحة" && " (غير متاحه) ❌"}
                                 </option>
                             ))}
                         </select>
@@ -491,10 +488,17 @@ const ReverseUnit = () => {
             {/* Submit Button */}
             <button
                 onClick={handleSubmit}
+                disabled={submitLoading}
                 className="w-full bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center transition-colors"
             >
-                <Check className="h-5 w-5 mr-2" />
-                إرسال البيانات
+                {submitLoading ? (
+                    <div className="loader"></div>
+                ) : (
+                    <>
+                        <Check className="h-5 w-5 mr-2" />
+                        إرسال البيانات
+                    </>
+                )}
             </button>
 
             {/* CONTRACT FORM */}
