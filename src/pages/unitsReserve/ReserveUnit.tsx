@@ -47,11 +47,11 @@ const ReverseUnit = () => {
         floor: "",
         bedrooms: "",
         bathrooms: "",
-        months: 0,
-        downPayment: 0,
-        finalPrice: 0,
-        monthlyInstallment: 0,
-        reservationDeposit: 0,
+        months: "", // Changed from 0 to ""
+        downPayment: "", // Changed from 0 to ""
+        finalPrice: "", // Changed from 0 to ""
+        monthlyInstallment: "", // Changed from 0 to ""
+        reservationDeposit: "", // Changed from 0 to ""
     });
 
     //console.log(unitDetails)
@@ -80,7 +80,7 @@ const ReverseUnit = () => {
     const handleUnitDetailsChange = (e: React.ChangeEvent<HTMLInputElement>, key: string) => {
         const { value } = e.target;
         if (validateInput(value, "number")) {
-            setUnitDetails((prev: any) => ({ ...prev, [key]: parseFloat(value) }));
+            setUnitDetails((prev: any) => ({ ...prev, [key]: value }));
         }
     };
 
@@ -134,7 +134,7 @@ const ReverseUnit = () => {
                  },
              });
              //console.log(response.data)
-            toast.success("تم إرسال البيانات بنجاح");
+            toast.success("تم ارسال البيانات بنجاح, يمكنك الأن طباعة الاستمارة.");
             navigate("/units-reserve/details/" + response.data.data.id);
         } catch (error) {
             console.error("Error submitting form:", error);
@@ -173,10 +173,10 @@ const ReverseUnit = () => {
                     bedrooms: unit.bedrooms,
                     bathrooms: unit.bathrooms,
                     finalPrice: unit.price,
-                    months: unit.months || 0,
-                    downPayment: unit.downPayment || 0,
-                    monthlyInstallment: unit.monthlyInstallment || 0,
-                    reservationDeposit: unit.reservationDeposit || 0,
+                    months: unit.months || "",
+                    downPayment: unit.downPayment || "",
+                    monthlyInstallment: unit.monthlyInstallment || "",
+                    reservationDeposit: unit.reservationDeposit || "",
                 });
             }
         }
@@ -185,8 +185,8 @@ const ReverseUnit = () => {
     // Calculate final price and monthly installment
     useEffect(() => {
         const price = parseFloat(unitDetails.price);
-        const months = unitDetails.months;
-        const downPayment = unitDetails.downPayment;
+        const months = parseFloat(unitDetails.months);
+        const downPayment = parseFloat(unitDetails.downPayment);
 
         if (!isNaN(price) && !isNaN(months) && !isNaN(downPayment) && months > 0) {
             const remainingAmount = price - downPayment;

@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { 
   LayoutDashboard, 
@@ -10,7 +10,8 @@ import {
   ChevronUp,
   PlusSquare,
   Home,
-  ClipboardList
+  ClipboardList,
+  Loader2 // Import a loading spinner from lucide-react
 } from "lucide-react";
 import { useUserContext } from '../context/UserContext';
 import { usePermissionsContext } from "../context/PermissionsContext";
@@ -25,6 +26,16 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const [projectsExpanded, setProjectsExpanded] = React.useState(
     location.pathname.includes('/projects')
   );
+  const [isLoading, setIsLoading] = useState(true); // Add loading state
+
+  // Simulate permission checking with a delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false); // Set loading to false after permissions are checked
+    }, 1000); // Simulate a 1-second delay
+
+    return () => clearTimeout(timer); // Cleanup timer
+  }, []);
 
   const toggleProjectsMenu = useCallback(() => {
     setProjectsExpanded(prev => !prev);
@@ -33,6 +44,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const handleLogout = useCallback(() => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user_info');
     window.location.href = '/login';
   }, []);
 
@@ -96,98 +108,24 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           
           <div className="flex-1 overflow-y-auto p-4">
             <nav className="space-y-1">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mb-2">الرئيسية</h2>
-              {/* Regular Menu Items */}
-              {mainItems.map((item) => (
-                (!item.permission || hasPermission(item.permission)) && (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    onClick={onClose}
-                    className={({ isActive }) =>
-                      `flex items-center p-3 rounded-lg transition-colors ${
-                        isActive 
-                          ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium" 
-                          : "hover:bg-gray-100 text-gray-700"
-                      }`
-                    }
-                  >
-                    {item.icon}
-                    <span>{item.text}</span>
-                  </NavLink>
-                )
-              ))}
-
-              {/* Units Section */}
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mt-6 mb-2">الوحدات</h2>
-              {unitsItems.map((item) => (
-                (!item.permission || hasPermission(item.permission)) && (
-                  <div key={item.path} className="mb-1">
-                    {item.isExpandable ? (
-                      <>
-                        <button
-                          onClick={item.onToggle}
-                          className={`flex items-center justify-between w-full p-3 rounded-lg transition-colors ${
-                            isRouteActive(item.path) || isAnySubItemActive(item.subItems || [])
-                              ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium"
-                              : "hover:bg-gray-100 text-gray-700"
-                          }`}
-                        >
-                          <div className="flex items-center">
-                            {item.icon}
-                            <span>{item.text}</span>
-                          </div>
-                          {item.isExpanded ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </button>
-                        
-                        {/* Submenu */}
-                        {item.isExpanded && item.subItems && (
-                          <div className="mr-7 mt-1 border-r-2 border-gray-200 pr-3">
-                            {item.subItems.map(subItem => (
-                              (!subItem.permission || hasPermission(subItem.permission)) && (
-                                <NavLink
-                                  key={subItem.path}
-                                  to={subItem.path}
-                                  onClick={onClose}
-                                  className={({ isActive }) =>
-                                    `flex items-center p-2 text-sm rounded-lg mb-1 transition-colors ${
-                                      isActive
-                                        ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium"
-                                        : "hover:bg-gray-100 text-gray-700"
-                                    }`
-                                  }
-                                >
-                                  <span>{subItem.text}</span>
-                                </NavLink>
-                              )
-                            ))}
-                            <NavLink
-                              to={item.path}
-                              onClick={onClose}
-                              className={({ isActive }) =>
-                                `flex items-center p-2 text-sm rounded-lg mb-1 transition-colors ${
-                                  isActive && location.pathname === item.path
-                                    ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium"
-                                    : "hover:bg-gray-100 text-gray-700"
-                                }`
-                              }
-                            >
-                              <span>عرض كل المشاريع</span>
-                            </NavLink>
-                          </div>
-                        )}
-                      </>
-                    ) : (
+              {isLoading ? (
+                // Show loading spinner while permissions are being checked
+                <div className="flex justify-center items-center h-20">
+                  <Loader2 className="animate-spin h-8 w-8 text-[#8884d8]" />
+                </div>
+              ) : (
+                <>
+                  <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mb-2">الرئيسية</h2>
+                  {/* Regular Menu Items */}
+                  {mainItems.map((item) => (
+                    (!item.permission || hasPermission(item.permission)) && (
                       <NavLink
+                        key={item.path}
                         to={item.path}
                         onClick={onClose}
                         className={({ isActive }) =>
                           `flex items-center p-3 rounded-lg transition-colors ${
-                            isActive
+                            isActive 
                               ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium" 
                               : "hover:bg-gray-100 text-gray-700"
                           }`
@@ -196,27 +134,110 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                         {item.icon}
                         <span>{item.text}</span>
                       </NavLink>
-                    )}
-                  </div>
-                )
-              ))}
-              
-              {/* Settings */}
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mt-6 mb-2">الإعدادات</h2>
-                <NavLink
-                  to="/settings"
-                  onClick={onClose}
-                  className={({ isActive }) =>
-                    `flex items-center p-3 rounded-lg transition-colors ${
-                      isActive
-                        ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium" 
-                        : "hover:bg-gray-100 text-gray-700"
-                    }`
-                  }
-                >
-                  <Settings className="ml-2" />
-                  <span>الإعدادات</span>
-                </NavLink>
+                    )
+                  ))}
+
+                  {/* Units Section */}
+                  <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mt-6 mb-2">الوحدات</h2>
+                  {unitsItems.map((item) => (
+                    (!item.permission || hasPermission(item.permission)) && (
+                      <div key={item.path} className="mb-1">
+                        {item.isExpandable ? (
+                          <>
+                            <button
+                              onClick={item.onToggle}
+                              className={`flex items-center justify-between w-full p-3 rounded-lg transition-colors ${
+                                isRouteActive(item.path) || isAnySubItemActive(item.subItems || [])
+                                  ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium"
+                                  : "hover:bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              <div className="flex items-center">
+                                {item.icon}
+                                <span>{item.text}</span>
+                              </div>
+                              {item.isExpanded ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
+                            </button>
+                            
+                            {/* Submenu */}
+                            {item.isExpanded && item.subItems && (
+                              <div className="mr-7 mt-1 border-r-2 border-gray-200 pr-3">
+                                {item.subItems.map(subItem => (
+                                  (!subItem.permission || hasPermission(subItem.permission)) && (
+                                    <NavLink
+                                      key={subItem.path}
+                                      to={subItem.path}
+                                      onClick={onClose}
+                                      className={({ isActive }) =>
+                                        `flex items-center p-2 text-sm rounded-lg mb-1 transition-colors ${
+                                          isActive
+                                            ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium"
+                                            : "hover:bg-gray-100 text-gray-700"
+                                        }`
+                                      }
+                                    >
+                                      <span>{subItem.text}</span>
+                                    </NavLink>
+                                  )
+                                ))}
+                                <NavLink
+                                  to={item.path}
+                                  onClick={onClose}
+                                  className={({ isActive }) =>
+                                    `flex items-center p-2 text-sm rounded-lg mb-1 transition-colors ${
+                                      isActive && location.pathname === item.path
+                                        ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium"
+                                        : "hover:bg-gray-100 text-gray-700"
+                                    }`
+                                  }
+                                >
+                                  <span>عرض كل المشاريع</span>
+                                </NavLink>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <NavLink
+                            to={item.path}
+                            onClick={onClose}
+                            className={({ isActive }) =>
+                              `flex items-center p-3 rounded-lg transition-colors ${
+                                isActive
+                                  ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium" 
+                                  : "hover:bg-gray-100 text-gray-700"
+                              }`
+                            }
+                          >
+                            {item.icon}
+                            <span>{item.text}</span>
+                          </NavLink>
+                        )}
+                      </div>
+                    )
+                  ))}
+                  
+                  {/* Settings */}
+                  <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mt-6 mb-2">الإعدادات</h2>
+                    <NavLink
+                      to="/settings"
+                      onClick={onClose}
+                      className={({ isActive }) =>
+                        `flex items-center p-3 rounded-lg transition-colors ${
+                          isActive
+                            ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium" 
+                            : "hover:bg-gray-100 text-gray-700"
+                        }`
+                      }
+                    >
+                      <Settings className="ml-2" />
+                      <span>الإعدادات</span>
+                    </NavLink>
+                </>
+              )}
             </nav>
           </div>
           

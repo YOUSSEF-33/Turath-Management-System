@@ -262,13 +262,16 @@ const CreateUnit = () => {
             >
               إلغاء
             </button>
-            <button
-              type="submit"
-              className={`px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 ${loading ? 'loader' : ''}`}
-              disabled={loading}
-            >
-              {loading ? '' : 'إضافة'}
-            </button>
+            {loading ?
+              (<span className='loader'></span>)
+              : (<button
+                type="submit"
+                className={`px-4 py-2 ${loading ? 'loader' : 'text-white bg-blue-600 rounded-lg hover:bg-blue-700 '}`}
+                disabled={loading}
+              >
+                {loading ? '' : 'إضافة'}
+              </button>)
+            }
           </div>
         </form>
       </div>

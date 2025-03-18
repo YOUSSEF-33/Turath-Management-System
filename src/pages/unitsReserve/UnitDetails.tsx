@@ -8,6 +8,7 @@ import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import { GeneratePDF } from "../../components/PrintPDF"; // Import the GeneratePDF function
 import GenericTable from '../../components/GenericTable';
+import { usePermissionsContext } from '../../context/PermissionsContext'; // Import the PermissionsContext
 
 
 const UnitDetails = () => {
@@ -29,6 +30,8 @@ const UnitDetails = () => {
   const [unitData, setUnitData] = useState<any>(null);
   const [projectName, setProjectName] = useState<string>('');
   const [buildingName, setBuildingName] = useState<string>('');
+
+  const { hasPermission } = usePermissionsContext(); // Get the hasPermission function from context
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,7 +61,6 @@ const UnitDetails = () => {
     try {
       await axiosInstance.patch(`/reservations/${id}/approve`);
       message.success('تم قبول الحجز بنجاح');
-      navigate('/reservations'); // Redirect to reservations list or another page
     } catch (err) {
       message.error('فشل في قبول الحجز');
       console.error(err);
@@ -77,7 +79,6 @@ const UnitDetails = () => {
       });
       message.success('تم رفض الحجز بنجاح');
       setIsRejectModalVisible(false); // Close the modal
-      navigate('/reservations'); // Redirect to reservations list or another page
     } catch (err) {
       message.error('فشل في رفض الحجز');
       console.error(err);
@@ -164,11 +165,20 @@ const UnitDetails = () => {
     return <div className="p-6 text-center">لا توجد بيانات متاحة</div>;
   }
 
-  console.log(reservation)
 
   return (
     <div className="p-6 bg-gray-50 md:m-4 md:rounded my-2">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">تفاصيل الحجز</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">تفاصيل الحجز</h2>
+        {hasPermission('view_reservations') && (
+          <button
+            onClick={handlePrintPDF}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            طباعة الاستمارة
+          </button>
+        )}
+      </div>
 
       {/* Client Information */}
       <div className="mb-6 bg-white p-6 rounded-lg shadow-md">
@@ -378,24 +388,22 @@ const UnitDetails = () => {
       {/* Actions */}
       {reservation.status === 'معلق' && (
         <div className="flex space-x-4">
-          <button
-            onClick={handleAcceptUnit}
-            className="mx-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-          >
-            قبول
-          </button>
-          <button
-            onClick={() => setIsRejectModalVisible(true)}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-          >
-            رفض
-          </button>
-          <button
-            onClick={handlePrintPDF}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            طباعة الاستمارة
-          </button>
+          {hasPermission('confirm_reservations') && (
+            <button
+              onClick={handleAcceptUnit}
+              className="mx-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+            >
+              قبول
+            </button>
+          )}
+          {hasPermission('cancel_reservations') && (
+            <button
+              onClick={() => setIsRejectModalVisible(true)}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              رفض
+            </button>
+          )}
         </div>
       )}
 
