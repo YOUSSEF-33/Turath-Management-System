@@ -33,6 +33,7 @@ import { PermissionsProvider, usePermissionsContext } from './context/Permission
 import ViewClients from './pages/clients/ViewClients';
 import ViewClient from './pages/clients/ViewClient';
 import { UserProvider } from './context/UserContext';
+import Settings from './pages/settings/Settings';
 
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -91,6 +92,8 @@ function App() {
 
                           <Route path="/clients" element={<ProtectedRoute requiredPermission="view_clients"><ViewClients /></ProtectedRoute>} />
                           <Route path="/clients/:id" element={<ProtectedRoute requiredPermission="view_clients"><ViewClient /></ProtectedRoute>} />
+
+                          <Route path="/settings" element={<Settings />} />
                         </Routes>
                       </main>
                     </div>

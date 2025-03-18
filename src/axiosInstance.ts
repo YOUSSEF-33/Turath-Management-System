@@ -72,7 +72,7 @@ axiosInstance.interceptors.response.use(
       if (refreshToken) {
         try {
           // Attempt to refresh the token
-          const response = await axios.post(refreshURL, { token: refreshToken });
+          const response = await axios.post(refreshURL, { refresh_token: refreshToken });
           const { access_token } = response.data;
           
           // Save new token and update headers
@@ -88,6 +88,7 @@ axiosInstance.interceptors.response.use(
           // Clear tokens and redirect to login
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
+          localStorage.removeItem('user_info');
           
           toast.error('انتهت صلاحية الجلسة. يرجى تسجيل الدخول مرة أخرى.');
           setTimeout(() => {

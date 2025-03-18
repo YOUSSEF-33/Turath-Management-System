@@ -25,6 +25,7 @@ const UnitReserve = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
+
   useEffect(() => {
     const fetchUnits = async () => {
       try {
@@ -40,15 +41,15 @@ const UnitReserve = () => {
         const formattedData = response.data.data.map((unit: Reservation) => ({
           ...unit,
           contract_date: new Date(unit.contract_date).toLocaleDateString('en-GB'),
-          status: (
-            <span className={`px-2 py-1 rounded-full ${unit.status === 'PENDING' ? 'bg-yellow-200 text-yellow-800' :
-              unit.status === 'CONFIRMED' ? 'bg-green-200 text-green-800' :
-                unit.status === 'REJECTED' ? 'bg-red-200 text-red-800' :
-                  unit.status === 'SOLD' ? 'bg-blue-200 text-blue-800' : ''
-              }`}>
-              {unit.status}
-            </span>
-          )
+          // status: (
+          //   <span className={`px-2 py-1 rounded-full ${unit.status === 'PENDING' ? 'bg-yellow-200 text-yellow-800' :
+          //     unit.status === 'CONFIRMED' ? 'bg-green-200 text-green-800' :
+          //       unit.status === 'REJECTED' ? 'bg-red-200 text-red-800' :
+          //         unit.status === 'SOLD' ? 'bg-blue-200 text-blue-800' : ''
+          //     }`}>
+          //     {unit.status}
+          //   </span>
+          // )
         }));
         setUnits(formattedData);
         const totalPages = Math.ceil(response.data.meta.total / itemsPerPage);
