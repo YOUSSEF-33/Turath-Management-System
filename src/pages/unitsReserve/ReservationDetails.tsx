@@ -66,7 +66,7 @@ interface Column {
   render?: (value: unknown, row: Record<string, unknown>) => React.ReactNode;
 }
 
-const UnitDetails = () => {
+const ReservationDetails = () => {
   const { id } = useParams<{ id: string }>();
   const [reservation, setReservation] = useState<ReservationData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -499,4 +499,4 @@ const UnitDetails = () => {
   );
 };
 
-export default UnitDetails;
+export default ReservationDetails;

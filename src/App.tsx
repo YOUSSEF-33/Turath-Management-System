@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Sidebar from './components/Sidebar';
@@ -13,7 +13,7 @@ import CreateUnit from './pages/units/CreateUnit';
 import EditUnit from './pages/units/EditUnit';
 import ViewUnit from './pages/units/ViewUnit';
 import UnitReserve from './pages/unitsReserve/UnitsReserve';
-import ReverseUnit from './pages/unitsReserve/ReserveUnit';
+import ReserveUnit from './pages/unitsReserve/ReserveUnit';
 import { isAuth } from './utils/isAuth';
 import LoginPage from './pages/login/Login';
 import ViewProjects from './pages/projects/ViewProjects';
@@ -23,7 +23,7 @@ import ViewBuildings from './pages/buildings/ViewBuildings';
 import CreateBuilding from './pages/buildings/CreateBuilding';
 import EditBuilding from './pages/buildings/EditBuilding';
 import ViewUnitDetails from './pages/units/ViewUnitDetails';
-import UnitDetails from './pages/unitsReserve/UnitDetails';
+import ReservationDetails from './pages/unitsReserve/ReservationDetails';
 import AcceptUnitSale from './pages/unitsReserve/AcceptUnitSale';
 import ViewUsers from './pages/users/ViewUsers';
 import CreateUser from './pages/users/CreateUser';
@@ -75,8 +75,8 @@ function App() {
 
                           
                           <Route path="/units-reserve" element={<ProtectedRoute requiredPermission="view_reservations"><UnitReserve /></ProtectedRoute>} />
-                          <Route path="/units-reserve/reserve" element={<ProtectedRoute requiredPermission="create_reservations"><ReverseUnit /></ProtectedRoute>} />
-                          <Route path="/units-reserve/details/:id" element={<ProtectedRoute requiredPermission="view_reservations"><UnitDetails /></ProtectedRoute>} />
+                          <Route path="/units-reserve/reserve" element={<ProtectedRoute requiredPermission="create_reservations"><ReserveUnit /></ProtectedRoute>} />
+                          <Route path="/units-reserve/details/:id" element={<ProtectedRoute requiredPermission="view_reservations"><ReservationDetails /></ProtectedRoute>} />
                           <Route path="/units-reserve/details/:id/accept" element={<ProtectedRoute requiredPermission="confirm_reservations"><AcceptUnitSale /></ProtectedRoute>} />
 
                           
@@ -118,8 +118,14 @@ function App() {
   );
 }
 
+// Define interface for ProtectedRoute props
+interface ProtectedRouteProps {
+  children: ReactNode;
+  requiredPermission?: string;
+}
+
 // Move ProtectedRoute and its logic inside the App component
-const ProtectedRoute = ({ children, requiredPermission }: any) => {
+const ProtectedRoute = ({ children, requiredPermission }: ProtectedRouteProps) => {
   const { hasPermission } = usePermissionsContext();
 
   if (!isAuth()) {
