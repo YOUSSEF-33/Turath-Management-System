@@ -447,7 +447,7 @@ const UnitForm: React.FC<UnitFormProps> = ({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Plan Images */}
-        {isEdit ? (
+        {
           <Form.Item
             label={<span className="text-sm font-medium text-gray-700">صور المخطط</span>}
             validateStatus={errors.plan_images ? 'error' : ''}
@@ -488,24 +488,7 @@ const UnitForm: React.FC<UnitFormProps> = ({
               )}
             </Upload.Dragger>
           </Form.Item>
-        ) : (
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">صور المخطط</label>
-            <Swiper
-              spaceBetween={10}
-              slidesPerView={1}
-              navigation
-              pagination={{ clickable: true }}
-
-            >
-              {watchPlanImages.map((file, index) => (
-                <SwiperSlide key={index}>
-                  <img src={file.url} alt={file.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                </SwiperSlide>
-              ))}
-            </Swiper>
-          </div>
-        )}
+        }
 
         {/* Gallery */}
         {isEdit ? (

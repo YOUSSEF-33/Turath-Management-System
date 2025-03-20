@@ -21,11 +21,25 @@ export interface UnitFormData {
   bathrooms?: number;
   description?: string;
   building_id: number;
+  reservations?: Array<{
+    id: number;
+    client_id: number;
+    status: string;
+    contract_date: string;
+    final_price: number;
+    down_payment: number;
+    monthly_installment: number;
+    months_count: number;
+  }>;
+  images?: string[];
+  files?: string[];
 }
 
 export interface ExtendedUnitFormData extends UnitFormData {
-  plan_images?: UploadFile[];
-  gallery?: UploadFile[];
+  status?: string;
+  plan_images: UploadFile[];
+  gallery: UploadFile[];
+  location_in_brochure?: UploadFile[];
 }
 
 export interface UnitFormValidationSchema extends UnitFormData {
