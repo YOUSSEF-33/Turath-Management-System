@@ -2,10 +2,11 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import axiosInstance from '../../axiosInstance';
 import GenericTable from '../../components/GenericTable';
-import { Edit, Eye, Trash } from 'lucide-react';
+import { Edit, Eye, Trash, Upload } from 'lucide-react';
 import { Modal, Button, message } from 'antd'; // Import the Modal, Button, and message components from antd
 import ToggleSwitch from '../../components/ToggleSwitch';
 import toast from 'react-hot-toast';
+import ImportDataModal from '../../components/ImportDataModal';
 
 interface Project {
   id: number;
@@ -29,6 +30,8 @@ const ViewProjects: React.FC = () => {
   const [projectToDelete, setProjectToDelete] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
   const [togglingStatus, setTogglingStatus] = useState<number | null>(null);
+  const [showImportModal, setShowImportModal] = useState<boolean>(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -132,10 +135,16 @@ const ViewProjects: React.FC = () => {
     setCurrentPage(page);
   };
 
+  const handleImportData = (projectId: number) => {
+    setSelectedProjectId(projectId);
+    setShowImportModal(true);
+  };
+
   const actions: Action[] = [
     { key: 'view', icon: <Eye className="h-5 w-5" />, onClick: handleView, color: 'text-blue-600' },
     { key: 'edit', icon: <Edit className="h-5 w-5" />, onClick: handleEdit, color: 'text-yellow-600' },
     { key: 'delete', icon: <Trash className="h-5 w-5" />, onClick: confirmDelete, color: 'text-red-600' },
+    { key: 'import', icon: <Upload className="h-5 w-5" />, onClick: handleImportData, color: 'text-green-600' },
   ];
 
   return (
@@ -203,6 +212,18 @@ const ViewProjects: React.FC = () => {
         >
           <p>هل أنت متأكد أنك تريد حذف هذا المشروع؟</p>
         </Modal>
+      )}
+
+      {/* Import Data Modal */}
+      {selectedProjectId && (
+        <ImportDataModal
+          projectId={selectedProjectId}
+          isOpen={showImportModal}
+          onClose={() => {
+            setShowImportModal(false);
+            setSelectedProjectId(null);
+          }}
+        />
       )}
     </div>
   );
