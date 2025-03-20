@@ -1,19 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Tabs } from 'antd';
-import { Eye, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axiosInstance from '../../axiosInstance';
-import GenericTable from '../../components/GenericTable';
 import MediaViewer from '../../components/MediaViewer';
+import ReservationsTable from '../../components/ReservationsTable';
 import type { ExtendedUnitFormData } from '../../types/forms';
 import type { UploadFile } from 'antd/es/upload/interface';
-
-interface Column {
-  header: string;
-  key: string;
-  render?: (value: unknown, row: Record<string, unknown>) => React.ReactNode;
-}
 
 interface ImageData {
   id?: number;
@@ -78,72 +71,6 @@ export const ViewUnitDetails = () => {
   const planImages = initialData?.plan_images || [];
   const galleryImages = initialData?.gallery || [];
   const locationFiles = initialData?.location_in_brochure || [];
-  
-  // Handle view reservation details
-  const handleViewReservation = (id: number) => {
-    navigate(`/units-reserve/details/${id}`);
-  };
-
-  // Handle reservation addendum
-  const handleReservationAddendum = (id: number) => {
-    navigate(`/units-reserve/details/${id}/accept`);
-  };
-
-  const columns: Column[] = [
-    { header: 'رقم الحجز', key: 'id' },
-    { header: 'رقم العميل', key: 'client_id' },
-    { 
-      header: 'الحالة', 
-      key: 'status',
-      render: (value: unknown) => {
-        const status = value as string;
-        const statusColors: Record<string, string> = {
-          'معلق': 'text-yellow-500',
-          'مؤكد': 'text-green-500',
-          'مرفوض': 'text-red-500',
-          'مباع': 'text-blue-500'
-        };
-        return <span className={statusColors[status] || 'text-gray-500'}>{status}</span>;
-      } 
-    },
-    { 
-      header: 'تاريخ العقد', 
-      key: 'contract_date', 
-      render: (value: unknown) => new Date(value as string).toLocaleDateString('ar-EG') 
-    },
-    { 
-      header: 'السعر النهائي', 
-      key: 'final_price',
-      render: (value: unknown) => `${value} جنيه`
-    },
-    { 
-      header: 'الدفعة المقدمة', 
-      key: 'down_payment',
-      render: (value: unknown) => `${value} جنيه`
-    },
-    { 
-      header: 'القسط الشهري', 
-      key: 'monthly_installment',
-      render: (value: unknown) => `${value} جنيه`
-    },
-    { header: 'عدد الأشهر', key: 'months_count' },
-  ];
-
-  // Define actions for reservations
-  const reservationActions = [
-    { 
-      key: 'view', 
-      icon: <Eye className="h-5 w-5" />, 
-      onClick: handleViewReservation, 
-      color: 'text-blue-600' 
-    },
-    { 
-      key: 'booking', 
-      icon: <Calendar className="h-5 w-5" />, 
-      onClick: handleReservationAddendum, 
-      color: 'text-green-600' 
-    },
-  ];
 
   const items = [
     {
@@ -274,12 +201,11 @@ export const ViewUnitDetails = () => {
       children: (
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-xl font-semibold text-gray-800 mb-5">الحجوزات</h3>
-          <GenericTable
-            columns={columns}
-            data={reservations as unknown as Record<string, unknown>[]}
-            actions={reservationActions}
+          <ReservationsTable 
+            reservations={reservations} 
             loading={loading}
-            noDataMessage="لا توجد حجوزات"
+            showUnitColumn={false} // Hide unit column since we're already in the unit details
+            noDataMessage="لا توجد حجوزات لهذه الوحدة"
           />
         </div>
       ),

@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { Eye, Plus, Calendar } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import GenericTable from '../../components/GenericTable';
 import axiosInstance from '../../axiosInstance';
+import ReservationsTable from '../../components/ReservationsTable';
 
 interface Reservation {
   id: number;
@@ -17,17 +17,18 @@ interface Reservation {
 
 const UnitReserve = () => {
   const navigate = useNavigate();
-  const [units, setUnits] = useState<Array<Record<string, unknown>>>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [itemsPerPage] = useState(10);
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUnits = async () => {
+    const fetchReservations = async () => {
+      setLoading(true);
       try {
         const response = await axiosInstance.get('/reservations', {
           params: {
@@ -38,55 +39,27 @@ const UnitReserve = () => {
             date_to: dateTo,
           },
         });
-        const formattedData = response.data.data.map((unit: Reservation) => ({
-          ...unit,
-          contract_date: new Date(unit.contract_date).toLocaleDateString('en-GB'),
-          // status: (
-          //   <span className={`px-2 py-1 rounded-full ${unit.status === 'PENDING' ? 'bg-yellow-200 text-yellow-800' :
-          //     unit.status === 'CONFIRMED' ? 'bg-green-200 text-green-800' :
-          //       unit.status === 'REJECTED' ? 'bg-red-200 text-red-800' :
-          //         unit.status === 'SOLD' ? 'bg-blue-200 text-blue-800' : ''
-          //     }`}>
-          //     {unit.status}
-          //   </span>
-          // )
+        
+        const formattedData = response.data.data.map((reservation: Reservation) => ({
+          ...reservation,
         }));
-        setUnits(formattedData);
+        
+        setReservations(formattedData);
         const totalPages = Math.ceil(response.data.meta.total / itemsPerPage);
         setTotalPages(totalPages);
       } catch (error) {
-        console.error('Error fetching units:', error);
+        console.error('Error fetching reservations:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchUnits();
+    fetchReservations();
   },  [currentPage, statusFilter, dateFrom, dateTo, itemsPerPage]);
 
   const handleReserveUnit = () => {
     navigate('/units-reserve/reserve');
   };
-
-  const handleViewUnit = (id: number) => {
-    navigate(`/units-reserve/details/${id}`);
-  };
-
-  const handleReserveAddendum = (id: number) => {
-    navigate(`/units-reserve/details/${id}/accept`);
-  };
-
-  const columns = [
-    { header: 'رقم الوحدة', key: 'unit_id' },
-    { header: 'العميل', key: 'client_id' },
-    { header: 'الحالة', key: 'status' },
-    { header: 'تاريخ العقد', key: 'contract_date' },
-    { header: 'السعر النهائي', key: 'final_price' },
-    { header: 'دفعة الحجز', key: 'reservation_deposit' },
-  ];
-
-  const actions = [
-    { key: 'view', icon: <Eye className="h-5 w-5" />, onClick: handleViewUnit, color: 'text-blue-600' },
-    { key: 'booking', icon: <Calendar className="h-5 w-5" />, onClick: handleReserveAddendum, color: 'text-green-600' },
-  ];
 
   const filters = (
     <div className="flex justify-start space-x-4">
@@ -143,10 +116,13 @@ const UnitReserve = () => {
           </button>
         </div>
       </div>
-      <GenericTable
-        columns={columns}
-        data={units}
-        actions={actions}
+      <ReservationsTable 
+        reservations={reservations}
+        loading={loading}
+        showActions={true}
+        showUnitColumn={true}
+        showClientColumn={true}
+        noDataMessage="لا توجد حجوزات"
         itemsPerPage={itemsPerPage}
         totalPages={totalPages}
         onPageChange={setCurrentPage}

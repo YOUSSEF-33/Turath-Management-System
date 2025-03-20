@@ -1,11 +1,12 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import axiosInstance from '../../axiosInstance';
-import { Button, message, Descriptions, Image, Table, Typography } from 'antd';
-import { Eye, Edit, ArrowLeft } from 'lucide-react';
+import { Button, Descriptions, Typography } from 'antd';
+import { ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ReservationsTable from '../../components/ReservationsTable';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 interface Client {
   id: number;
@@ -37,6 +38,7 @@ interface Reservation {
   national_id_images: Image[];
   reservation_deposit_receipt: Image;
   attachments: Image[];
+  [key: string]: unknown;
 }
 
 interface Image {
@@ -78,16 +80,8 @@ const ViewClient: React.FC = () => {
     return `${month}/${day}/${year}`;
   };
 
-  const handleEdit = () => {
-    navigate(`/clients/edit/${id}`);
-  };
-
   const handleBack = () => {
     navigate('/clients');
-  };
-
-  const handleViewReservation = (reservationId: number) => {
-    navigate(`/units-reserve/details/${reservationId}`);
   };
 
   if (loading) {
@@ -97,62 +91,6 @@ const ViewClient: React.FC = () => {
   if (!client) {
     return <div>لم يتم العثور على العميل</div>;
   }
-
-  // Table columns for reservations
-  const reservationColumns = [
-    {
-      title: 'رقم الحجز',
-      dataIndex: 'id',
-      key: 'id',
-    },
-    {
-      title: 'حالة الحجز',
-      dataIndex: 'status',
-      key: 'status',
-    },
-    {
-      title: 'تاريخ العقد',
-      dataIndex: 'contract_date',
-      key: 'contract_date',
-      render: (text: string) => formatDate(text),
-    },
-    {
-      title: 'السعر النهائي',
-      dataIndex: 'final_price',
-      key: 'final_price',
-    },
-    {
-      title: 'عربون الحجز',
-      dataIndex: 'reservation_deposit',
-      key: 'reservation_deposit',
-    },
-    {
-      title: 'الدفعة المقدمة',
-      dataIndex: 'down_payment',
-      key: 'down_payment',
-    },
-    {
-      title: 'القسط الشهري',
-      dataIndex: 'monthly_installment',
-      key: 'monthly_installment',
-    },
-    {
-      title: 'عدد الأشهر',
-      dataIndex: 'months_count',
-      key: 'months_count',
-    },
-    {
-      title: 'الإجراءات',
-      key: 'actions',
-      render: (_: any, record: Reservation) => (
-        <Button
-          type="link"
-          icon={<Eye className="h-4 w-4" />}
-          onClick={() => handleViewReservation(record.id)}
-        />
-      ),
-    },
-  ];
 
   return (
     <div className="bg-gray-100 min-h-screen p-6">
@@ -183,15 +121,6 @@ const ViewClient: React.FC = () => {
             {client.reservations_count}
           </Descriptions.Item>
         </Descriptions>
-
-        {/* <Button
-          type="primary"
-          icon={<Edit className="h-4 w-4" />}
-          onClick={handleEdit}
-          className="mt-4"
-        >
-          تعديل العميل
-        </Button> */}
       </div>
 
       {/* Reservations Table */}
@@ -199,11 +128,12 @@ const ViewClient: React.FC = () => {
         <Title level={4} className="mb-4">
           الحجوزات
         </Title>
-        <Table
-          dataSource={client.reservations}
-          columns={reservationColumns}
-          rowKey="id"
-          pagination={false}
+        <ReservationsTable
+          reservations={client.reservations}
+          loading={loading}
+          showClientColumn={false} // Hide client column since we're already viewing the client
+          showUnitColumn={true}
+          noDataMessage="لا توجد حجوزات لهذا العميل"
         />
       </div>
     </div>
