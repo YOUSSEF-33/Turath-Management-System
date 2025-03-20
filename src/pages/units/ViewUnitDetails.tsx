@@ -230,13 +230,13 @@ export const ViewUnitDetails = () => {
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">تفاصيل الوحدة</h1>
           <div className="space-x-2 space-x-reverse">
-            <Button
+            {/* <Button
               onClick={() => navigate(`/projects/${projectId}/buildings/${buildingId}/units/${unitId}/edit`)}
               type="primary"
               className="bg-blue-600 hover:bg-blue-700 ml-2"
             >
               تعديل
-            </Button>
+            </Button> */}
             <Button
               onClick={() => navigate(`/projects/${projectId}/buildings/${buildingId}`)}
               type="default"
