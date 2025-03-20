@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axiosInstance from '../../axiosInstance';
-import { Modal, Input, Button, message } from 'antd';
+import { Modal, Input, Button, message, Spin, Card, Tag, Descriptions, Empty } from 'antd';
 import { GeneratePDF } from "../../components/PrintPDF";
 import GenericTable from '../../components/GenericTable';
 import { usePermissionsContext } from '../../context/PermissionsContext';
 import MediaViewer from '../../components/MediaViewer';
+import { Check, X, Printer, RefreshCw } from 'lucide-react';
+import { isImageFile } from '../../utils/mediaUtils';
 
 interface ImageData {
   id: number;
@@ -69,6 +71,7 @@ const UnitDetails = () => {
   const [reservation, setReservation] = useState<ReservationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [featuredImage, setFeaturedImage] = useState<string | null>(null);
 
   // State for rejection modal
   const [isRejectModalVisible, setIsRejectModalVisible] = useState(false);
@@ -76,19 +79,37 @@ const UnitDetails = () => {
 
   const { hasPermission } = usePermissionsContext();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const reservationResponse = await axiosInstance.get(`/reservations/${id}`);
-        setReservation(reservationResponse.data.data);
-      } catch (err) {
-        setError('فشل في تحميل البيانات');
-        console.error(err);
-      } finally {
-        setLoading(false);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const reservationResponse = await axiosInstance.get(`/reservations/${id}`);
+      setReservation(reservationResponse.data.data);
+      
+      // Set a featured image (first select from unit gallery, then from attachments)
+      const allImages = [
+        ...(reservationResponse.data.data.unit.gallery || []),
+        ...(reservationResponse.data.data.attachments || []),
+        ...(reservationResponse.data.data.national_id_images || [])
+      ];
+      
+      // Find first image that's not a Google Drive PDF
+      const filteredImages = allImages.filter(img => 
+        isImageFile(img.url) && (img.medium_url || img.url)
+      );
+      
+      if (filteredImages.length > 0) {
+        setFeaturedImage(filteredImages[0].medium_url || filteredImages[0].url);
       }
-    };
+      
+    } catch (err) {
+      setError('فشل في تحميل البيانات');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
   }, [id]);
 
@@ -96,6 +117,7 @@ const UnitDetails = () => {
     try {
       await axiosInstance.patch(`/reservations/${id}/approve`);
       message.success('تم قبول الحجز بنجاح');
+      fetchData(); // Refresh data after approval
     } catch (err) {
       message.error('فشل في قبول الحجز');
       console.error(err);
@@ -114,6 +136,7 @@ const UnitDetails = () => {
       });
       message.success('تم رفض الحجز بنجاح');
       setIsRejectModalVisible(false);
+      fetchData(); // Refresh data after rejection
     } catch (err) {
       message.error('فشل في رفض الحجز');
       console.error(err);
@@ -138,7 +161,7 @@ const UnitDetails = () => {
         unit_type: reservation.unit.unit_type,
         price: Number(reservation.final_price),
         area: Number(reservation.unit.area),
-        floor: 0, // Add if available in your data
+        floor: "0", // Fixed type issue: changed from number to string
         bedrooms: Number(reservation.unit.bedrooms),
         bathrooms: Number(reservation.unit.bathrooms),
         downPayment: Number(reservation.down_payment),
@@ -157,6 +180,10 @@ const UnitDetails = () => {
     );
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('ar-EG').format(amount) + ' جنيه';
+  };
+
   const approvalsColumns: Column[] = [
     {
       key: 'role',
@@ -169,168 +196,250 @@ const UnitDetails = () => {
       key: 'status',
       header: 'الحالة',
       render: (value: unknown, row: Record<string, unknown>) => {
-        const statusColors: { [key: string]: string } = {
-          'قيد الانتظار': 'text-yellow-500',
-          'تم القبول': 'text-green-500',
-          'تم الرفض': 'text-red-500',
-        };
-        return <span className={statusColors[row.status as string] || ''}>{row.status as string}</span>;
+        const status = row.status as string;
+        let color = '';
+        let icon = null;
+        
+        if (status === 'قيد الانتظار') {
+          color = 'gold';
+        } else if (status === 'تم القبول') {
+          color = 'green';
+          icon = <Check size={16} className="inline mr-1" />;
+        } else if (status === 'تم الرفض') {
+          color = 'red';
+          icon = <X size={16} className="inline mr-1" />;
+        }
+        
+        return <Tag color={color}>{icon}{status}</Tag>;
       },
     },
     {
       key: 'rejection_reason',
       header: 'سبب الرفض',
-      render: (value: unknown, row: Record<string, unknown>) => row.rejection_reason as string || '-',
+      render: (value: unknown, row: Record<string, unknown>) => {
+        const reason = row.rejection_reason as string;
+        return reason ? (
+          <div className="text-red-600">{reason}</div>
+        ) : '-';
+      },
     },
   ];
 
   if (loading) {
-    return <div className="p-6 text-center">جاري التحميل...</div>;
+    return (
+      <div className="flex justify-center items-center min-h-[500px]">
+        <Spin size="large" tip="جاري تحميل البيانات..." />
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="p-6 text-center text-red-500">{error}</div>;
+    return (
+      <div className="p-6 text-center">
+        <div className="text-red-500 text-lg mb-4">{error}</div>
+        <Button onClick={fetchData} type="primary" icon={<RefreshCw size={16} />}>
+          إعادة المحاولة
+        </Button>
+      </div>
+    );
   }
 
   if (!reservation) {
-    return <div className="p-6 text-center">لا توجد بيانات متاحة</div>;
+    return <Empty description="لا توجد بيانات متاحة" />;
   }
 
+  const reservationStatusColor = 
+    reservation.status === 'معلق' ? 'gold' : 
+    reservation.status === 'مؤكد' ? 'green' : 
+    reservation.status === 'مرفوض' ? 'red' : 'default';
+
   return (
-    <div className="p-6 bg-gray-50 md:m-4 md:rounded my-2">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">تفاصيل الحجز</h2>
-        {hasPermission('view_reservations') && (
-          <button
-            onClick={handlePrintPDF}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            طباعة الاستمارة
-          </button>
-        )}
-      </div>
-
-      {/* Client Information */}
-      <div className="mb-6 bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-xl font-semibold text-gray-700 mb-4">بيانات العميل</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <strong>الاسم:</strong> {reservation.client.name}
-          </div>
-          <div>
-            <strong>البريد الإلكتروني:</strong> {reservation.client.email}
-          </div>
-          <div>
-            <strong>رقم الهاتف:</strong> {reservation.client.phone}
-          </div>
-          <div>
-            <strong>العنوان:</strong> {reservation.client.address}
-          </div>
-        </div>
-      </div>
-
-      {/* Unit Information */}
-      <div className="mb-6 bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-xl font-semibold text-gray-700 mb-4">بيانات الوحدة</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <strong>رقم الوحدة:</strong> {reservation.unit.unit_number}
-          </div>
-          <div>
-            <strong>النوع:</strong> {reservation.unit.unit_type}
-          </div>
-          <div>
-            <strong>المساحة:</strong> {reservation.unit.area} متر مربع
-          </div>
-          <div>
-            <strong>عدد الغرف:</strong> {reservation.unit.bedrooms}
-          </div>
-          <div>
-            <strong>عدد الحمامات:</strong> {reservation.unit.bathrooms}
-          </div>
-          <div>
-            <strong>الحالة:</strong> {reservation.unit.status}
-          </div>
-        </div>
-      </div>
-
-      {/* Reservation Details */}
-      <div className="mb-6 bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-xl font-semibold text-gray-700 mb-4">تفاصيل الحجز</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <strong>السعر النهائي:</strong> {reservation.final_price} جنيه
-          </div>
-          <div>
-            <strong>عربون الحجز:</strong> {reservation.reservation_deposit} جنيه
-          </div>
-          <div>
-            <strong>الدفعة المقدمة:</strong> {reservation.down_payment} جنيه
-          </div>
-          <div>
-            <strong>القسط الشهري:</strong> {reservation.monthly_installment} جنيه
-          </div>
-          <div>
-            <strong>عدد الشهور:</strong> {reservation.months_count}
-          </div>
-          <div>
-            <strong>تاريخ التعاقد:</strong> {new Date(reservation.contract_date).toLocaleDateString('ar-EG')}
-          </div>
-        </div>
-      </div>
-
-      {/* Images Section */}
-      <div className="mb-6 bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-xl font-semibold text-gray-700 mb-4">الصور والملفات</h3>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* National ID Images */}
-          <div className="mb-6">
-            <h4 className="text-lg font-semibold text-gray-700 mb-4">صور البطاقة الشخصية</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {reservation.national_id_images.map((image, index) => (
-                <MediaViewer
-                  key={image.id}
-                  url={image.medium_url || image.url}
-                  title={`صور البطاقة الشخصية ${index + 1}`}
-                  className="h-48 w-full"
-                />
-              ))}
+    <div className="p-4 bg-gray-50 rounded-lg">
+      <Card 
+        className="mb-6 overflow-hidden" 
+        title={
+          <div className="flex justify-between items-center">
+            <div className="flex items-center">
+              <h2 className="text-2xl font-bold text-gray-800 m-0">تفاصيل الحجز</h2>
+              <Tag className="mr-3" color={reservationStatusColor}>{reservation.status}</Tag>
+            </div>
+            <div className="flex space-x-2 space-x-reverse">
+              {hasPermission('view_reservations') && (
+                <Button 
+                  type="primary"
+                  icon={<Printer size={16} />} 
+                  onClick={handlePrintPDF}
+                  className="flex items-center"
+                >
+                  طباعة الاستمارة
+                </Button>
+              )}
             </div>
           </div>
-
-          {/* Reservation Deposit Receipt */}
-          <div className="mb-6">
-            <h4 className="text-lg font-semibold text-gray-700 mb-4">إيصال السداد</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <MediaViewer
-                url={reservation.reservation_deposit_receipt.medium_url || reservation.reservation_deposit_receipt.url}
-                title="إيصال السداد"
-                className="h-48 w-full"
+        }
+      >
+        {/* Featured Image (if available) */}
+        {featuredImage && (
+          <div className="mb-6 text-center">
+            <div className="relative rounded-lg overflow-hidden h-[300px] mx-auto max-w-2xl bg-gray-100">
+              <img 
+                src={featuredImage} 
+                alt="صورة الوحدة" 
+                className="object-contain h-full w-full" 
               />
             </div>
           </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Client Information */}
+          <Card type="inner" title="بيانات العميل" className="mb-0">
+            <Descriptions column={{ xs: 1, sm: 2 }} layout="vertical" bordered size="small">
+              <Descriptions.Item label="الاسم">{reservation.client.name || '-'}</Descriptions.Item>
+              <Descriptions.Item label="البريد الإلكتروني">{reservation.client.email || '-'}</Descriptions.Item>
+              <Descriptions.Item label="رقم الهاتف">{reservation.client.phone || '-'}</Descriptions.Item>
+              <Descriptions.Item label="العنوان">{reservation.client.address || '-'}</Descriptions.Item>
+              <Descriptions.Item label="رقم البطاقة" span={2}>{reservation.client.nationalId || '-'}</Descriptions.Item>
+            </Descriptions>
+          </Card>
+
+          {/* Unit Information */}
+          <Card type="inner" title="بيانات الوحدة" className="mb-0">
+            <Descriptions column={{ xs: 1, sm: 2 }} layout="vertical" bordered size="small">
+              <Descriptions.Item label="رقم الوحدة">{reservation.unit.unit_number || '-'}</Descriptions.Item>
+              <Descriptions.Item label="النوع">{reservation.unit.unit_type || '-'}</Descriptions.Item>
+              <Descriptions.Item label="المساحة">{reservation.unit.area ? `${reservation.unit.area} متر مربع` : '-'}</Descriptions.Item>
+              <Descriptions.Item label="عدد الغرف">{reservation.unit.bedrooms || '-'}</Descriptions.Item>
+              <Descriptions.Item label="عدد الحمامات">{reservation.unit.bathrooms || '-'}</Descriptions.Item>
+              <Descriptions.Item label="الحالة">
+                <Tag color={reservation.unit.status === 'متاح' ? 'green' : 'red'}>
+                  {reservation.unit.status || '-'}
+                </Tag>
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+        </div>
+
+        {/* Reservation Details */}
+        <Card type="inner" title="تفاصيل الحجز" className="mt-6">
+          <Descriptions column={{ xs: 1, sm: 2, md: 3 }} layout="vertical" bordered size="small">
+            <Descriptions.Item label="السعر النهائي">{formatCurrency(reservation.final_price)}</Descriptions.Item>
+            <Descriptions.Item label="عربون الحجز">{formatCurrency(reservation.reservation_deposit)}</Descriptions.Item>
+            <Descriptions.Item label="الدفعة المقدمة">{formatCurrency(reservation.down_payment)}</Descriptions.Item>
+            <Descriptions.Item label="القسط الشهري">{formatCurrency(reservation.monthly_installment)}</Descriptions.Item>
+            <Descriptions.Item label="عدد الشهور">{reservation.months_count}</Descriptions.Item>
+            <Descriptions.Item label="تاريخ التعاقد">{new Date(reservation.contract_date).toLocaleDateString('ar-EG')}</Descriptions.Item>
+          </Descriptions>
+        </Card>
+      </Card>
+
+      {/* Images Section */}
+      <Card title="الصور والملفات" className="mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Unit Gallery */}
+          {reservation.unit.gallery && reservation.unit.gallery.length > 0 && (
+            <Card type="inner" title="معرض الوحدة" className="mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {reservation.unit.gallery.map((image) => (
+                  <div key={image.id} className="relative group">
+                    <MediaViewer
+                      url={image.medium_url || image.url}
+                      title={image.name || "صورة الوحدة"}
+                      className="h-24 w-full object-cover rounded-lg border border-gray-200"
+                    />
+                    <div className="mt-1 text-xs text-gray-500 truncate">{image.name}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+          
+          {/* Unit Plans */}
+          {reservation.unit.plan_images && reservation.unit.plan_images.length > 0 && (
+            <Card type="inner" title="مخططات الوحدة" className="mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {reservation.unit.plan_images.map((image) => (
+                  <div key={image.id} className="relative group">
+                    <MediaViewer
+                      url={image.medium_url || image.url}
+                      title={image.name || "مخطط الوحدة"}
+                      className="h-24 w-full object-cover rounded-lg border border-gray-200"
+                    />
+                    <div className="mt-1 text-xs text-gray-500 truncate">{image.name}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* National ID Images */}
+          <Card type="inner" title="صور البطاقة الشخصية" className="mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {reservation.national_id_images.length > 0 ? (
+                reservation.national_id_images.map((image) => (
+                  <div key={image.id} className="relative group">
+                    <MediaViewer
+                      url={image.medium_url || image.url}
+                      title={image.name || "صورة البطاقة"}
+                      className="h-24 w-full object-cover rounded-lg border border-gray-200"
+                    />
+                    <div className="mt-1 text-xs text-gray-500 truncate">{image.name}</div>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-full text-center py-4 text-gray-500">
+                  لا توجد صور للبطاقة الشخصية
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Reservation Deposit Receipt */}
+          <Card type="inner" title="إيصال السداد" className="mb-6">
+            {reservation.reservation_deposit_receipt ? (
+              <div className="relative group">
+                <MediaViewer
+                  url={reservation.reservation_deposit_receipt.medium_url || reservation.reservation_deposit_receipt.url}
+                  title={reservation.reservation_deposit_receipt.name || "إيصال السداد"}
+                  className="h-48 w-full object-contain rounded-lg border border-gray-200"
+                />
+                <div className="mt-1 text-xs text-gray-500 truncate">
+                  {reservation.reservation_deposit_receipt.name}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                لا يوجد إيصال سداد
+              </div>
+            )}
+          </Card>
 
           {/* Attachments */}
-          <div className="mb-6">
-            <h4 className="text-lg font-semibold text-gray-700 mb-4">المرفقات</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {reservation.attachments.map((attachment, index) => (
-                <MediaViewer
-                  key={attachment.id}
-                  url={attachment.medium_url || attachment.url}
-                  title={`المرفق ${index + 1}`}
-                  className="h-48 w-full"
-                />
-              ))}
+          <Card type="inner" title="المرفقات" className="mb-6 col-span-full">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {reservation.attachments.length > 0 ? (
+                reservation.attachments.map((attachment) => (
+                  <div key={attachment.id} className="relative group">
+                    <MediaViewer
+                      url={attachment.medium_url || attachment.url}
+                      title={attachment.name || "مرفق"}
+                      className="h-24 w-full object-cover rounded-lg border border-gray-200"
+                    />
+                    <div className="mt-1 text-xs text-gray-500 truncate">{attachment.name}</div>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-full text-center py-4 text-gray-500">
+                  لا توجد مرفقات
+                </div>
+              )}
             </div>
-          </div>
+          </Card>
         </div>
-      </div>
+      </Card>
 
       {/* Approvals Section */}
-      <div className="mb-6 bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-xl font-semibold text-gray-700 mb-4">الموافقات</h3>
+      <Card title="الموافقات" className="mb-6">
         <GenericTable
           data={reservation.approvals}
           columns={approvalsColumns}
@@ -338,26 +447,29 @@ const UnitDetails = () => {
           noDataMessage="لا توجد موافقات بعد"
           totalPages={1}
         />
-      </div>
+      </Card>
 
       {/* Actions */}
       {reservation.status === 'معلق' && (
-        <div className="flex space-x-4">
+        <div className="flex justify-end">
           {hasPermission('confirm_reservations') && (
-            <button
+            <Button
+              type="primary"
               onClick={handleAcceptUnit}
-              className="mx-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              icon={<Check size={16} />}
+              className="mx-2 bg-green-600 hover:bg-green-700"
             >
-              قبول
-            </button>
+              قبول الحجز
+            </Button>
           )}
           {hasPermission('cancel_reservations') && (
-            <button
+            <Button
+              danger
               onClick={() => setIsRejectModalVisible(true)}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              icon={<X size={16} />}
             >
-              رفض
-            </button>
+              رفض الحجز
+            </Button>
           )}
         </div>
       )}
@@ -371,7 +483,7 @@ const UnitDetails = () => {
           <Button key="cancel" onClick={() => setIsRejectModalVisible(false)}>
             إلغاء
           </Button>,
-          <Button key="submit" type="primary" onClick={handleRejectUnit}>
+          <Button key="submit" danger type="primary" onClick={handleRejectUnit}>
             تأكيد الرفض
           </Button>,
         ]}
