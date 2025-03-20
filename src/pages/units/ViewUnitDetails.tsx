@@ -131,12 +131,16 @@ export const ViewUnitDetails = () => {
           <h3 className="text-xl font-semibold text-gray-800 mb-5">مخططات الوحدة</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {planImages.map((image, index) => (
-              <MediaViewer
-                key={`plan-${index}`}
-                url={image.url || ''}
-                title={image.name || `مخطط ${index + 1}`}
-                className="h-60 w-full"
-              />
+              <div key={`plan-${index}`} className="flex flex-col">
+                <MediaViewer
+                  url={image.url || ''}
+                  title={image.name || `مخطط ${index + 1}`}
+                  className="h-60 w-full"
+                />
+                <p className="mt-2 text-center font-medium text-gray-700 truncate px-2">
+                  {image.name || `مخطط ${index + 1}`}
+                </p>
+              </div>
             ))}
             {planImages.length === 0 && (
               <div className="col-span-full text-center py-10 text-gray-500">
@@ -155,12 +159,16 @@ export const ViewUnitDetails = () => {
           <h3 className="text-xl font-semibold text-gray-800 mb-5">الموقع على المخطط</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {locationFiles.map((file: UploadFile, index: number) => (
-              <MediaViewer
-                key={`location-${index}`}
-                url={file.url || ''}
-                title={file.name || `موقع الوحدة ${index + 1}`}
-                className="h-60 w-full"
-              />
+              <div key={`location-${index}`} className="flex flex-col">
+                <MediaViewer
+                  url={file.url || ''}
+                  title={file.name || `موقع الوحدة ${index + 1}`}
+                  className="h-60 w-full"
+                />
+                <p className="mt-2 text-center font-medium text-gray-700 truncate px-2">
+                  {file.name || `موقع الوحدة ${index + 1}`}
+                </p>
+              </div>
             ))}
             {locationFiles.length === 0 && (
               <div className="col-span-full text-center py-10 text-gray-500">
@@ -179,12 +187,16 @@ export const ViewUnitDetails = () => {
           <h3 className="text-xl font-semibold text-gray-800 mb-5">مرفقات أخرى</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {galleryImages.map((image, index) => (
-              <MediaViewer
-                key={`gallery-${index}`}
-                url={image.url || ''}
-                title={image.name || `مرفق ${index + 1}`}
-                className="h-60 w-full"
-              />
+              <div key={`gallery-${index}`} className="flex flex-col">
+                <MediaViewer
+                  url={image.url || ''}
+                  title={image.name || `مرفق ${index + 1}`}
+                  className="h-60 w-full"
+                />
+                <p className="mt-2 text-center font-medium text-gray-700 truncate px-2">
+                  {image.name || `مرفق ${index + 1}`}
+                </p>
+              </div>
             ))}
             {galleryImages.length === 0 && (
               <div className="col-span-full text-center py-10 text-gray-500">
