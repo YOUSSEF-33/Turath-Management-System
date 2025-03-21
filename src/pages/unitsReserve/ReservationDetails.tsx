@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axiosInstance from '../../axiosInstance';
 import { Modal, Input, Button, message, Spin, Card, Tag, Empty, Tabs, Typography, Statistic, Badge } from 'antd';
-import { GeneratePDF } from "../../components/PrintPDF";
 import GenericTable from '../../components/GenericTable';
 import { usePermissionsContext } from '../../context/PermissionsContext';
 import { Check, X, Printer, RefreshCw, Download, FileText, Image as ImageIcon, File, ExternalLink, Calendar, CreditCard, Building, User, Phone, Mail, MapPin, Clock, Edit3 } from 'lucide-react';
@@ -85,6 +84,8 @@ const ReservationDetails = () => {
   const { hasPermission } = usePermissionsContext();
   const { TabPane } = Tabs;
 
+  const [pdfLoading, setPdfLoading] = useState(false);
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -132,41 +133,33 @@ const ReservationDetails = () => {
     }
   };
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = async () => {
     if (!reservation) return;
     
-    GeneratePDF(
-      {
-        name: reservation.client.name,
-        phone: reservation.client.phone,
-        nationalId: reservation.client.nationalId,
-        address: reservation.client.address,
-        email: reservation.client.email,
-        contractDate: new Date(reservation.contract_date).toLocaleDateString('ar-EG'),
-        reservationDate: new Date(reservation.contract_date).toLocaleDateString('ar-EG'),
-      },
-      {
-        unit_number: reservation.unit.unit_number,
-        unit_type: reservation.unit.unit_type,
-        price: Number(reservation.final_price),
-        area: Number(reservation.unit.area),
-        floor: "0", // Fixed type issue: changed from number to string
-        bedrooms: Number(reservation.unit.bedrooms),
-        bathrooms: Number(reservation.unit.bathrooms),
-        downPayment: Number(reservation.down_payment),
-        monthlyInstallment: Number(reservation.monthly_installment),
-        finalPrice: Number(reservation.final_price),
-        months: Number(reservation.months_count),
-        reservationDeposit: Number(reservation.reservation_deposit),
-        plan_images: reservation.unit.plan_images,
-        gallery: reservation.unit.gallery,
-      },
-      {
-        nationalIdCard: reservation.national_id_images,
-        reservation_deposit_receipt: reservation.reservation_deposit_receipt,
-        attachments: reservation.attachments,
-      }
-    );
+    setPdfLoading(true);
+    try {
+      const response = await axiosInstance.get(`/reservations/${reservation.id}/pdf`, {
+        responseType: 'blob'
+      });
+      
+      // Create a blob from the PDF stream
+      const file = new Blob([response.data], { type: 'application/pdf' });
+      
+      // Create a link and trigger download
+      const fileURL = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = fileURL;
+      link.target = '_blank';
+      link.click();
+      
+      // Clean up
+      URL.revokeObjectURL(fileURL);
+    } catch (err) {
+      console.error('Error fetching PDF:', err);
+      message.error('فشل في تحميل ملف PDF');
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   const isPdfFile = (url: string): boolean => {
@@ -360,8 +353,10 @@ const ReservationDetails = () => {
                 onClick={handlePrintPDF}
                 size="middle"
                 className="bg-blue-500 hover:bg-blue-600"
+                loading={pdfLoading}
+                disabled={pdfLoading}
               >
-                طباعة الاستمارة
+                {pdfLoading ? 'جاري التحميل...' : 'طباعة الاستمارة'}
               </Button>
             )}
           </div>

@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Search, Upload, Trash2, Check, Printer, XCircle } from "lucide-react"; // Import XCircle icon
+import { Upload, Trash2, Check } from "lucide-react";
 import { InputField } from "../../components/InputField";
 import axiosInstance from "../../axiosInstance";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { GeneratePDF } from "../../components/PrintPDF"; // Import the PrintPDF component
 
 const ReverseUnit = () => {
     // State for projects, buildings, and units
