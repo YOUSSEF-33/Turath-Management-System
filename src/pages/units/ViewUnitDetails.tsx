@@ -66,7 +66,7 @@ export const ViewUnitDetails = () => {
   }
 
   const reservations = initialData?.reservations || [];
-  
+
   // Get files from UploadFile[] format
   const planImages = initialData?.plan_images || [];
   const galleryImages = initialData?.gallery || [];
