@@ -85,6 +85,8 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
     try {
       const response = await axiosInstance.get('/notifications/unread-count');
       setUnreadCount(response.data.count);
+      // Also fetch the full list when count changes
+      fetchNotifications();
     } catch (error) {
       console.error('Error fetching unread count:', error);
     }
@@ -150,9 +152,9 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
   // Fetch notifications on mount and set up polling
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchUnreadCount, 30000); // Poll every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000); // Poll every 30 seconds for both count and list
     return () => clearInterval(interval);
-  }, [fetchNotifications, fetchUnreadCount]);
+  }, [fetchNotifications]);
 
   // Toggle search overlay for mobile
   const toggleSearch = useCallback(() => {

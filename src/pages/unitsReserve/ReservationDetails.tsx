@@ -76,6 +76,8 @@ const ReservationDetails = () => {
   const [previewImage, setPreviewImage] = useState<{url: string, title: string, isPdf?: boolean} | null>(null);
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [selectedAttachmentType, setSelectedAttachmentType] = useState<string | null>(null);
+  const [approveLoading, setApproveLoading] = useState(false);
+  const [rejectLoading, setRejectLoading] = useState(false);
 
   // State for rejection modal
   const [isRejectModalVisible, setIsRejectModalVisible] = useState(false);
@@ -104,6 +106,7 @@ const ReservationDetails = () => {
   }, [id]);
 
   const handleAcceptUnit = async () => {
+    setApproveLoading(true);
     try {
       await axiosInstance.patch(`/reservations/${id}/approve`);
       message.success('تم قبول الحجز بنجاح');
@@ -111,6 +114,8 @@ const ReservationDetails = () => {
     } catch (err) {
       message.error('فشل في قبول الحجز');
       console.error(err);
+    } finally {
+      setApproveLoading(false);
     }
   };
 
@@ -120,6 +125,7 @@ const ReservationDetails = () => {
       return;
     }
 
+    setRejectLoading(true);
     try {
       await axiosInstance.post(`/reservations/${id}/reject`, {
         rejection_reason: rejectionReason,
@@ -130,6 +136,8 @@ const ReservationDetails = () => {
     } catch (err) {
       message.error('فشل في رفض الحجز');
       console.error(err);
+    } finally {
+      setRejectLoading(false);
     }
   };
 
@@ -242,15 +250,44 @@ const ReservationDetails = () => {
         
         if (status === 'قيد الانتظار') {
           color = 'gold';
-        } else if (status === 'تم القبول') {
+        } else if (status === 'موافق' || status === 'تم القبول') {
           color = 'green';
           icon = <Check size={16} className="inline mr-1" />;
-        } else if (status === 'تم الرفض') {
+        } else if (status === 'مرفوض' || status === 'تم الرفض') {
           color = 'red';
           icon = <X size={16} className="inline mr-1" />;
         }
         
         return <Tag color={color}>{icon}{status}</Tag>;
+      },
+    },
+    {
+      key: 'user',
+      header: 'تم بواسطة',
+      render: (value: unknown, row: Record<string, unknown>) => {
+        const user = row.user as { email?: string; first_name?: string; last_name?: string } | null;
+        if (!user) return '-';
+        return (
+          <div className="text-sm">
+            <div>{user.first_name} {user.last_name}</div>
+            <div className="text-gray-500 text-xs">{user.email}</div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'action_at',
+      header: 'تاريخ الإجراء',
+      render: (value: unknown, row: Record<string, unknown>) => {
+        const actionAt = row.action_at as string;
+        return actionAt ? new Date(actionAt).toLocaleString('ar-EG', {
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        }) : '-';
       },
     },
     {
@@ -702,6 +739,8 @@ const ReservationDetails = () => {
               icon={<Check size={14} className="mr-3" />}
               size="middle"
               className="mx-2 bg-emerald-500 hover:bg-emerald-600 border-emerald-500"
+              loading={approveLoading}
+              disabled={approveLoading}
             >
               قبول الحجز
             </Button>
@@ -712,6 +751,8 @@ const ReservationDetails = () => {
               onClick={() => setIsRejectModalVisible(true)}
               icon={<X size={14} className="mr-3" />}
               size="middle"
+              loading={rejectLoading}
+              disabled={rejectLoading}
             >
               رفض الحجز
             </Button>
@@ -724,11 +765,12 @@ const ReservationDetails = () => {
         title="سبب الرفض"
         visible={isRejectModalVisible}
         onCancel={() => setIsRejectModalVisible(false)}
+        confirmLoading={rejectLoading}
         footer={[
-          <Button key="cancel" onClick={() => setIsRejectModalVisible(false)}>
+          <Button key="cancel" onClick={() => setIsRejectModalVisible(false)} disabled={rejectLoading}>
             إلغاء
           </Button>,
-          <Button key="submit" danger type="primary" onClick={handleRejectUnit}>
+          <Button key="submit" danger type="primary" onClick={handleRejectUnit} loading={rejectLoading}>
             تأكيد الرفض
           </Button>,
         ]}
