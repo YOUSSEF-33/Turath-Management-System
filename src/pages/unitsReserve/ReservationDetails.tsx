@@ -603,6 +603,7 @@ const ReservationDetails = () => {
                   {filteredAttachments.map((attachment) => {
                     const isImage = isImageFile(attachment.url);
                     const isPdf = isPdfFile(attachment.url);
+                    const isGoogleDrive = attachment.url.includes('drive.google.com');
                     
                     return (
                       <div key={attachment.id} className="border border-gray-100 rounded-lg overflow-hidden flex flex-col h-full shadow-sm hover:shadow-md transition-all hover:border-blue-200">
@@ -624,6 +625,16 @@ const ReservationDetails = () => {
                                 <Text className="text-xs">عرض PDF</Text>
                               </div>
                             </div>
+                          ) : isGoogleDrive ? (
+                            <div 
+                              className="flex items-center justify-center h-full cursor-pointer hover:bg-gray-100 transition-colors"
+                              onClick={() => window.open(attachment.url, '_blank')}
+                            >
+                              <div className="flex flex-col items-center">
+                                <ExternalLink size={48} className="text-gray-500 mb-2" strokeWidth={1.5} />
+                                <Text className="text-xs">فتح في Google Drive</Text>
+                              </div>
+                            </div>
                           ) : (
                             <div className="flex items-center justify-center h-full">
                               <File size={48} className="text-gray-400" strokeWidth={1.5} />
@@ -643,22 +654,29 @@ const ReservationDetails = () => {
                           </Text>
                           
                           <div className="mt-auto flex justify-end pt-2">
-                            <Button 
-                              type="text" 
-                              size="small" 
-                              className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
-                              icon={<Download size={16} />}
-                              onClick={() => handleDownloadAttachment(attachment.url, attachment.name || `file-${attachment.id}`)}
-                            />
+                            {!isGoogleDrive && (
+                              <Button 
+                                type="text" 
+                                size="small" 
+                                className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                                icon={<Download size={16} />}
+                                onClick={() => handleDownloadAttachment(attachment.url, attachment.name || `file-${attachment.id}`)}
+                                title="تحميل الملف"
+                              />
+                            )}
                             <Button 
                               type="text" 
                               size="small" 
                               className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
                               icon={isImage ? <ImageIcon size={16} /> : <ExternalLink size={16} />}
-                              onClick={() => isPdf 
-                                ? window.open(attachment.url, '_blank')
-                                : handlePreviewImage(attachment.url, attachment.name || "Image")
-                              }
+                              onClick={() => {
+                                if (isImage) {
+                                  handlePreviewImage(attachment.url, attachment.name || "Image");
+                                } else {
+                                  window.open(attachment.url, '_blank');
+                                }
+                              }}
+                              title={isImage ? "معاينة الصورة" : "فتح في نافذة جديدة"}
                             />
                           </div>
                         </div>

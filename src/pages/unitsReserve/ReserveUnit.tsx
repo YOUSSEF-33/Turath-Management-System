@@ -134,7 +134,7 @@ const ReverseUnit = () => {
              });
              //console.log(response.data)
             toast.success("تم ارسال البيانات بنجاح, يمكنك الأن طباعة الاستمارة.");
-            navigate("/units-reserve/details/" + response.data.data.id);
+            navigate("/reservations/" + response.data.data.id);
         } catch (error) {
             console.error("Error submitting form:", error);
             toast.error("حدث خطأ أثناء إرسال البيانات");

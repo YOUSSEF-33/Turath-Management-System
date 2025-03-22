@@ -140,10 +140,10 @@ const ViewClients: React.FC = () => {
                 <Input placeholder="البريد الإلكتروني" className="w-full" />
               </Form.Item>
               <Form.Item name="reserved_from" className="mb-0">
-                <DatePicker placeholder="من تاريخ" format="YYYY-MM-DD" className="w-full" />
+                <DatePicker placeholder="ناريخ الحجز (من)" format="YYYY-MM-DD" className="w-full" />
               </Form.Item>
               <Form.Item name="reserved_to" className="mb-0">
-                <DatePicker placeholder="إلى تاريخ" format="YYYY-MM-DD" className="w-full" />
+                <DatePicker placeholder="ناريخ الحجز (إلى)" format="YYYY-MM-DD" className="w-full" />
               </Form.Item>
             </div>
             <div className="mt-4">
@@ -161,7 +161,7 @@ const ViewClients: React.FC = () => {
               { header: 'البريد الإلكتروني', key: 'email' },
               { header: 'العنوان', key: 'address' },
               {
-                header: 'التاريخ',
+                header: 'أول اضافة في',
                 key: 'created_at',
                 render: (value) => formatDate(value as string), // Format the date
               },

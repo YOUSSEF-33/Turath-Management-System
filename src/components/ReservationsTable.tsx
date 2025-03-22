@@ -65,12 +65,12 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({
 
   // Handle view reservation details
   const handleViewReservation = (id: number) => {
-    navigate(`/units-reserve/details/${id}`);
+    navigate(`/reservations/${id}`);
   };
 
   // Handle reservation addendum
   const handleReservationAddendum = (id: number) => {
-    navigate(`/units-reserve/details/${id}/accept`);
+    navigate(`/reservations/${id}/accept`);
   };
 
   // Base columns that will always be included

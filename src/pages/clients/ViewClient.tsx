@@ -114,7 +114,7 @@ const ViewClient: React.FC = () => {
           <Descriptions.Item label="الهاتف">{client.phone}</Descriptions.Item>
           <Descriptions.Item label="البريد الإلكتروني">{client.email}</Descriptions.Item>
           <Descriptions.Item label="العنوان">{client.address}</Descriptions.Item>
-          <Descriptions.Item label="تاريخ الإنشاء">
+          <Descriptions.Item label="أول اضافة في">
             {formatDate(client.created_at)}
           </Descriptions.Item>
           <Descriptions.Item label="عدد الحجوزات">

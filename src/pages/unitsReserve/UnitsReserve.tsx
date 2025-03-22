@@ -58,7 +58,7 @@ const UnitReserve = () => {
   },  [currentPage, statusFilter, dateFrom, dateTo, itemsPerPage]);
 
   const handleReserveUnit = () => {
-    navigate('/units-reserve/reserve');
+    navigate('/reservations/reserve');
   };
 
   const filters = (

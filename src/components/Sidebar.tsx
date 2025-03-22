@@ -65,7 +65,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       ]
     },
     { 
-      path: "/units-reserve", 
+      path: "/reservations", 
       icon: <ClipboardList className="ml-2" />, 
       text: "حجز الوحدات",
       permission: "view_reservations"

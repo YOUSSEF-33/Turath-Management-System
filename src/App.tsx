@@ -74,10 +74,10 @@ function App() {
                           <Route path="/projects/:projectId/buildings/:buildingId/units/:unitId" element={<ProtectedRoute requiredPermission="view_units"><ViewUnitDetails /></ProtectedRoute>} />
 
                           
-                          <Route path="/units-reserve" element={<ProtectedRoute requiredPermission="view_reservations"><UnitReserve /></ProtectedRoute>} />
-                          <Route path="/units-reserve/reserve" element={<ProtectedRoute requiredPermission="create_reservations"><ReserveUnit /></ProtectedRoute>} />
-                          <Route path="/units-reserve/:id" element={<ProtectedRoute requiredPermission="view_reservations"><ReservationDetails /></ProtectedRoute>} />
-                          <Route path="/units-reserve/details/:id/accept" element={<ProtectedRoute requiredPermission="confirm_reservations"><AcceptUnitSale /></ProtectedRoute>} />
+                          <Route path="/reservations" element={<ProtectedRoute requiredPermission="view_reservations"><UnitReserve /></ProtectedRoute>} />
+                          <Route path="/reservations/reserve" element={<ProtectedRoute requiredPermission="create_reservations"><ReserveUnit /></ProtectedRoute>} />
+                          <Route path="/reservations/:id" element={<ProtectedRoute requiredPermission="view_reservations"><ReservationDetails /></ProtectedRoute>} />
+                          <Route path="/reservations/:id/accept" element={<ProtectedRoute requiredPermission="confirm_reservations"><AcceptUnitSale /></ProtectedRoute>} />
 
                           
                           <Route path="/projects" element={<ProtectedRoute requiredPermission="view_projects"><ViewProjects /></ProtectedRoute>} />
