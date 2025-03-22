@@ -1,6 +1,17 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Search, UserCircle, X, Menu, Settings, LogOut, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import axiosInstance from '../axiosInstance';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import 'dayjs/locale/ar';
+import { useParams } from 'react-router-dom';
+import { message } from 'antd';
+import { Button, Tag, Modal } from 'antd';
+import { Check } from 'lucide-react';
+
+dayjs.extend(relativeTime);
+dayjs.locale('ar');
 
 interface NavbarProps {
   title: string;
@@ -8,15 +19,116 @@ interface NavbarProps {
   onMenuToggle: () => void;
 }
 
+interface NotificationData {
+  title: string;
+  message: string;
+  unit_id?: number;
+  client_id?: number;
+  unit_name?: string | null;
+  client_name?: string;
+  final_price?: string;
+  cancelled_at?: string;
+  confirmed_at?: string;
+  created_at?: string;
+  contentable_id?: number;
+  reservation_id?: number;
+  contentable_type?: string;
+}
+
+interface Notification {
+  id: string;
+  data: NotificationData;
+  created_at: string;
+  updated_at: string;
+  is_read: boolean;
+  read_at: string | null;
+  content_type: string;
+  content_route: string;
+  title: string;
+  message: string;
+}
+
 const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const [reservation, setReservation] = useState<ReservationData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [activeTabKey, setActiveTabKey] = useState<string>('details');
+  const [previewImage, setPreviewImage] = useState<{url: string, title: string, isPdf?: boolean} | null>(null);
+  const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [selectedAttachmentType, setSelectedAttachmentType] = useState<string | null>(null);
+  const [approveLoading, setApproveLoading] = useState(false);
+  const [rejectLoading, setRejectLoading] = useState(false);
   
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const response = await axiosInstance.get('/notifications');
+      setNotifications(response.data.data);
+      const unreadNotifications = response.data.data.filter((n: Notification) => !n.is_read);
+      setUnreadCount(unreadNotifications.length);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  }, []);
+
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const response = await axiosInstance.get('/notifications/unread-count');
+      setUnreadCount(response.data.count);
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  }, []);
+
+  const markAsRead = useCallback(async (notificationId: string) => {
+    try {
+      await axiosInstance.patch(`/notifications/${notificationId}/mark-as-read`);
+      setNotifications(prevNotifications =>
+        prevNotifications.map(notification =>
+          notification.id === notificationId
+            ? { ...notification, is_read: true, read_at: new Date().toISOString() }
+            : notification
+        )
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  }, []);
+
+  const markAllAsRead = useCallback(async () => {
+    try {
+      await axiosInstance.patch('/notifications/mark-all-as-read');
+      setNotifications(prevNotifications =>
+        prevNotifications.map(notification => ({
+          ...notification,
+          is_read: true,
+          read_at: new Date().toISOString()
+        }))
+      );
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  }, []);
+
+  const handleNotificationClick = useCallback(async (notification: Notification) => {
+    if (!notification.is_read) {
+      await markAsRead(notification.id);
+    }
+    setIsNotificationsOpen(false);
+    navigate(notification.content_route);
+  }, [markAsRead, navigate]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -34,6 +146,13 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Fetch notifications on mount and set up polling
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchUnreadCount, 30000); // Poll every 30 seconds
+    return () => clearInterval(interval);
+  }, [fetchNotifications, fetchUnreadCount]);
 
   // Toggle search overlay for mobile
   const toggleSearch = useCallback(() => {
@@ -66,6 +185,105 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
     localStorage.removeItem('refresh_token');
     navigate('/login');
   }, [navigate]);
+
+  const handleAcceptUnit = async () => {
+    setApproveLoading(true);
+    try {
+      await axiosInstance.patch(`/reservations/${id}/approve`);
+      message.success('تم قبول الحجز بنجاح');
+      fetchData(); // Refresh data after approval
+    } catch (err) {
+      message.error('فشل في قبول الحجز');
+      console.error(err);
+    } finally {
+      setApproveLoading(false);
+    }
+  };
+
+  const handleRejectUnit = async () => {
+    if (!rejectionReason) {
+      message.warning('يرجى إدخال سبب الرفض');
+      return;
+    }
+
+    setRejectLoading(true);
+    try {
+      await axiosInstance.post(`/reservations/${id}/reject`, {
+        rejection_reason: rejectionReason,
+      });
+      message.success('تم رفض الحجز بنجاح');
+      setIsRejectModalVisible(false);
+      fetchData(); // Refresh data after rejection
+    } catch (err) {
+      message.error('فشل في رفض الحجز');
+      console.error(err);
+    } finally {
+      setRejectLoading(false);
+    }
+  };
+
+  const approvalsColumns: Column[] = [
+    {
+      key: 'role',
+      header: 'الدور',
+      render: (value: unknown, row: Record<string, unknown>) => 
+        (row.role as { readable_name?: string; name?: string })?.readable_name || 
+        (row.role as { readable_name?: string; name?: string })?.name || '-',
+    },
+    {
+      key: 'status',
+      header: 'الحالة',
+      render: (value: unknown, row: Record<string, unknown>) => {
+        const status = row.status as string;
+        let color = '';
+        let icon = null;
+        
+        if (status === 'قيد الانتظار') {
+          color = 'gold';
+        } else if (status === 'موافق' || status === 'تم القبول') {
+          color = 'green';
+          icon = <Check size={16} className="inline mr-1" />;
+        } else if (status === 'مرفوض' || status === 'تم الرفض') {
+          color = 'red';
+          icon = <X size={16} className="inline mr-1" />;
+        }
+        
+        return <Tag color={color}>{icon}{status}</Tag>;
+      },
+    },
+    {
+      key: 'user',
+      header: 'تم بواسطة',
+      render: (value: unknown, row: Record<string, unknown>) => {
+        const user = row.user as { email?: string; first_name?: string; last_name?: string } | null;
+        if (!user) return '-';
+        return (
+          <div className="text-sm">
+            <div>{user.first_name} {user.last_name}</div>
+            <div className="text-gray-500 text-xs">{user.email}</div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'action_at',
+      header: 'تاريخ الإجراء',
+      render: (value: unknown, row: Record<string, unknown>) => {
+        const actionAt = row.action_at as string;
+        return actionAt ? new Date(actionAt).toLocaleDateString('ar-EG') : '-';
+      },
+    },
+    {
+      key: 'rejection_reason',
+      header: 'سبب الرفض',
+      render: (value: unknown, row: Record<string, unknown>) => {
+        const reason = row.rejection_reason as string;
+        return reason ? (
+          <div className="text-red-600">{reason}</div>
+        ) : '-';
+      },
+    },
+  ];
 
   return (
     <div className="bg-white shadow-sm fixed w-full top-0 z-20 md:relative">
@@ -147,36 +365,54 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
               >
                 <div className="relative">
                   <Bell className="h-6 w-6" />
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                    3
-                  </span>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                      {unreadCount}
+                    </span>
+                  )}
                 </div>
               </button>
 
               {/* Notifications Dropdown */}
               {isNotificationsOpen && (
-                <div className="absolute left-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden animate-fade-in">
-                  <div className="px-4 py-3 border-b border-gray-200">
+                <div className="absolute left-0 mt-2 w-96 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden animate-fade-in">
+                  <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
                     <h3 className="text-lg font-medium text-gray-900">الإشعارات</h3>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-sm text-[#8884d8] hover:underline"
+                      >
+                        تحديد الكل كمقروء
+                      </button>
+                    )}
                   </div>
                   <div className="max-h-96 overflow-y-auto">
-                    <div className="py-2 px-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer">
-                      <p className="text-sm font-medium text-gray-900">تم إضافة وحدة جديدة</p>
-                      <p className="text-xs text-gray-500">منذ 5 دقائق</p>
-                    </div>
-                    <div className="py-2 px-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer">
-                      <p className="text-sm font-medium text-gray-900">تم حجز وحدة رقم 301</p>
-                      <p className="text-xs text-gray-500">منذ ساعة</p>
-                    </div>
-                    <div className="py-2 px-4 hover:bg-gray-50 cursor-pointer">
-                      <p className="text-sm font-medium text-gray-900">تم تعديل بيانات موظف</p>
-                      <p className="text-xs text-gray-500">منذ 3 ساعات</p>
-                    </div>
-                  </div>
-                  <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
-                    <button className="text-sm text-[#8884d8] hover:underline w-full text-center">
-                      عرض كل الإشعارات
-                    </button>
+                    {notifications.length === 0 ? (
+                      <div className="py-4 px-4 text-center text-gray-500">
+                        لا توجد إشعارات
+                      </div>
+                    ) : (
+                      notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          onClick={() => handleNotificationClick(notification)}
+                          className={`py-3 px-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
+                            !notification.is_read ? 'bg-blue-50' : ''
+                          }`}
+                        >
+                          <p className="text-sm font-medium text-gray-900 mb-1">
+                            {notification.title}
+                          </p>
+                          <p className="text-sm text-gray-600 mb-1">
+                            {notification.message}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {dayjs(notification.created_at).fromNow()}
+                          </p>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
