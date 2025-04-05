@@ -257,7 +257,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       {/* Overlay for mobile */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+          className="fixed top-20 bg-black bg-opacity-50 z-20 md:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
