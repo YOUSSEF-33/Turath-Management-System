@@ -258,6 +258,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       {isOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+          style={{zIndex: 1}}
           onClick={onClose}
           aria-hidden="true"
         />
