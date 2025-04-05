@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
-  PieChart, Pie, Cell, ResponsiveContainer,
-  AreaChart, Area
-} from 'recharts';
 import { Building, Settings, DollarSign, UserPlus } from 'lucide-react';
+import { Chart as ChartJS, registerables } from 'chart.js';
+import { Bar, Pie, Line } from 'react-chartjs-2';
+import 'chartjs-plugin-datalabels';
+
+// Register Chart.js components
+ChartJS.register(...registerables);
 
 // Stat Card Component
 const StatCard = ({ title, value, icon, color, change }: { 
@@ -14,18 +15,27 @@ const StatCard = ({ title, value, icon, color, change }: {
   color: string;
   change?: { value: number; isPositive: boolean };
 }) => (
-  <div className="bg-white p-6 rounded-lg shadow-sm transition-all hover:shadow-md">
+  <div className={`bg-white p-4 md:p-6 rounded-lg shadow-sm transition-all hover:shadow-md border-l-4 ${color} border-opacity-50`}>
     <div className="flex justify-between items-start">
       <div>
-        <h3 className="text-sm font-medium text-gray-500 mb-1">{title}</h3>
-        <p className="text-2xl font-bold">{value}</p>
+        <h3 className="text-xs md:text-sm font-medium text-gray-500 mb-1">{title}</h3>
+        <p className="text-xl md:text-2xl font-bold text-gray-800">{value}</p>
         {change && (
-          <p className={`text-xs mt-2 ${change.isPositive ? 'text-green-600' : 'text-red-600'}`}>
-            {change.isPositive ? '▲' : '▼'} {Math.abs(change.value)}% من الشهر الماضي
+          <p className={`text-xs mt-1 md:mt-2 flex items-center ${change.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+            {change.isPositive ? (
+              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M12 7a1 1 0 01-1 1H9v1h2a1 1 0 110 2H9v1h2a1 1 0 110 2H9v1a1 1 0 11-2 0v-1H5a1 1 0 110-2h2v-1H5a1 1 0 110-2h2V8H5a1 1 0 010-2h2V5a1 1 0 112 0v1h2a1 1 0 011 1z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
+              </svg>
+            )}
+            {Math.abs(change.value)}% من الشهر الماضي
           </p>
         )}
       </div>
-      <div className={`p-3 rounded-lg ${color}`}>
+      <div className={`p-2 md:p-3 rounded-lg ${color} bg-opacity-10 text-${color.replace('bg-', '')}`}>
         {icon}
       </div>
     </div>
@@ -34,12 +44,9 @@ const StatCard = ({ title, value, icon, color, change }: {
 
 // Dashboard Component
 const Dashboard = () => {
-  // Fallback data for summary
+  // Data for summary cards
   const summary = {
     totalUnits: 74,
-    availableUnits: 45,
-    reservedUnits: 20,
-    soldUnits: 35,
     totalProjects: 5,
     totalEmployees: 120,
     totalRevenue: 1200000,
@@ -51,146 +58,212 @@ const Dashboard = () => {
     }
   };
 
-  // Fallback data for charts
-  const [unitsByType] = useState([
-    { name: 'فيلا', count: 12 },
-    { name: 'دوبلكس', count: 24 },
-    { name: 'شقة', count: 38 }
-  ]);
-  
-  const [statusData] = useState([
-    { name: 'متاح', value: 45 },
-    { name: 'محجوز', value: 20 },
-    { name: 'مباع', value: 35 }
-  ]);
-  
-  const [revenueData] = useState([
-    { month: 'يناير', revenue: 120000 },
-    { month: 'فبراير', revenue: 150000 },
-    { month: 'مارس', revenue: 180000 },
-    { month: 'أبريل', revenue: 220000 },
-    { month: 'مايو', revenue: 200000 },
-    { month: 'يونيو', revenue: 250000 }
-  ]);
+  // Chart data configuration
+  const [chartData] = useState({
+    unitsByType: {
+      labels: ['فيلا', 'دوبلكس', 'شقة'],
+      datasets: [{
+        label: 'عدد الوحدات',
+        data: [12, 24, 38],
+        backgroundColor: [
+          'rgba(99, 102, 241, 0.8)',
+          'rgba(139, 92, 246, 0.8)',
+          'rgba(236, 72, 153, 0.8)'
+        ],
+        borderColor: [
+          'rgba(99, 102, 241, 1)',
+          'rgba(139, 92, 246, 1)',
+          'rgba(236, 72, 153, 1)'
+        ],
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    unitsStatus: {
+      labels: ['متاح', 'محجوز', 'مباع'],
+      datasets: [{
+        data: [45, 20, 35],
+        backgroundColor: [
+          'rgba(16, 185, 129, 0.8)',
+          'rgba(245, 158, 11, 0.8)',
+          'rgba(239, 68, 68, 0.8)'
+        ],
+        borderColor: [
+          'rgba(16, 185, 129, 1)',
+          'rgba(245, 158, 11, 1)',
+          'rgba(239, 68, 68, 1)'
+        ],
+        borderWidth: 1
+      }]
+    },
+    revenueTrend: {
+      labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'],
+      datasets: [{
+        label: 'الإيرادات',
+        data: [120000, 150000, 180000, 220000, 200000, 250000],
+        fill: true,
+        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+        borderColor: 'rgba(99, 102, 241, 1)',
+        tension: 0.4,
+        borderWidth: 2
+      }]
+    }
+  });
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+  // Common chart options
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+        rtl: true,
+        labels: {
+          usePointStyle: true,
+          padding: 20,
+          font: {
+            family: 'Tajawal, sans-serif'
+          }
+        }
+      },
+      tooltip: {
+        rtl: true,
+        bodyFont: {
+          family: 'Tajawal, sans-serif'
+        },
+        callbacks: {
+          label: (context: any) => {
+            let label = context.dataset.label || '';
+            if (label) label += ': ';
+            if (context.parsed.y !== undefined) {
+              label += context.parsed.y.toLocaleString('ar-EG');
+            } else if (context.raw !== undefined) {
+              label += context.raw.toLocaleString('ar-EG');
+            }
+            return label;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: {
+          font: {
+            family: 'Tajawal, sans-serif'
+          }
+        }
+      },
+      y: {
+        ticks: {
+          font: {
+            family: 'Tajawal, sans-serif'
+          },
+          callback: (value: any) => value.toLocaleString('ar-EG')
+        }
+      }
+    }
+  };
 
   return (
-    <div className="p-6 animate-fade-in">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">لوحة التحكم</h1>
+    <div className="p-4 sm:p-6 bg-gray-50 min-h-screen">
+      <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">لوحة التحكم</h1>
       
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard 
           title="إجمالي الوحدات" 
           value={summary.totalUnits} 
-          icon={<Building className="h-6 w-6 text-white" />} 
-          color="bg-blue-500"
+          icon={<Building className="h-5 w-5" />} 
+          color="border-indigo-500 text-indigo-500"
           change={{ value: summary.monthlyChange.units, isPositive: summary.monthlyChange.units > 0 }}
         />
         <StatCard 
           title="المشاريع" 
           value={summary.totalProjects} 
-          icon={<Settings className="h-6 w-6 text-white" />} 
-          color="bg-purple-500"
+          icon={<Settings className="h-5 w-5" />} 
+          color="border-purple-500 text-purple-500"
           change={{ value: summary.monthlyChange.projects, isPositive: summary.monthlyChange.projects >= 0 }}
         />
         <StatCard 
           title="الإيرادات" 
-          value={`${(summary.totalRevenue / 1000).toFixed(0)}K ريال`} 
-          icon={<DollarSign className="h-6 w-6 text-white" />} 
-          color="bg-green-500"
+          value={`${(summary.totalRevenue / 1000).toLocaleString('ar-EG')} ألف ريال`} 
+          icon={<DollarSign className="h-5 w-5" />} 
+          color="border-emerald-500 text-emerald-500"
           change={{ value: summary.monthlyChange.revenue, isPositive: summary.monthlyChange.revenue > 0 }}
         />
         <StatCard 
           title="الموظفون" 
           value={summary.totalEmployees} 
-          icon={<UserPlus className="h-6 w-6 text-white" />} 
-          color="bg-orange-500"
+          icon={<UserPlus className="h-5 w-5" />} 
+          color="border-amber-500 text-amber-500"
           change={{ value: summary.monthlyChange.employees, isPositive: summary.monthlyChange.employees > 0 }}
         />
       </div>
       
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         {/* Units by Type Chart */}
-        <div className="bg-white p-6 rounded-lg shadow-sm animate-slide-in-left">
-          <h2 className="text-lg font-semibold mb-4">توزيع أنواع الوحدات</h2>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={unitsByType}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip 
-                  formatter={(value) => [`${value} وحدة`, 'العدد']}
-                  labelStyle={{ color: '#333' }}
-                />
-                <Legend />
-                <Bar dataKey="count" fill="#8884d8" name="العدد" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+        <div className="bg-white p-4 rounded-lg shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">توزيع أنواع الوحدات</h2>
+          <div className="h-[300px]">
+            <Bar 
+              data={chartData.unitsByType}
+              options={{
+                ...chartOptions,
+                indexAxis: 'x',
+                plugins: {
+                  ...chartOptions.plugins,
+                  datalabels: {
+                    display: false
+                  }
+                }
+              }}
+            />
           </div>
         </div>
         
         {/* Units Status Chart */}
-        <div className="bg-white p-6 rounded-lg shadow-sm animate-slide-in-right">
-          <h2 className="text-lg font-semibold mb-4">حالة الوحدات</h2>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={statusData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                >
-                  {statusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value) => [`${value} وحدة`, 'العدد']}
-                />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+        <div className="bg-white p-4 rounded-lg shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">حالة الوحدات</h2>
+          <div className="h-[300px]">
+            <Pie 
+              data={chartData.unitsStatus}
+              options={{
+                ...chartOptions,
+                plugins: {
+                  ...chartOptions.plugins,
+                  datalabels: {
+                    display: true,
+                    formatter: (value: any) => `${value} وحدة`,
+                    font: {
+                      family: 'Tajawal, sans-serif',
+                      weight: 'bold'
+                    },
+                    color: '#fff'
+                  }
+                }
+              }}
+            />
           </div>
         </div>
       </div>
       
-      {/* Revenue Chart */}
-      <div className="bg-white p-6 rounded-lg shadow-sm mb-8 animate-slide-in-up">
-        <h2 className="text-lg font-semibold mb-4">الإيرادات الشهرية</h2>
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={revenueData}>
-              <defs>
-                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="month" />
-              <YAxis />
-              <CartesianGrid strokeDasharray="3 3" />
-              <Tooltip 
-                formatter={(value) => [`${value.toLocaleString()} ريال`, 'الإيرادات']} 
-              />
-              <Area 
-                type="monotone" 
-                dataKey="revenue" 
-                stroke="#8884d8" 
-                fillOpacity={1} 
-                fill="url(#colorRevenue)" 
-                name="الإيرادات"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+      {/* Revenue Trend Chart */}
+      <div className="bg-white p-4 rounded-lg shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">الإيرادات الشهرية</h2>
+        <div className="h-[300px]">
+          <Line 
+            data={chartData.revenueTrend}
+            options={{
+              ...chartOptions,
+              plugins: {
+                ...chartOptions.plugins,
+                datalabels: {
+                  display: false
+                }
+              }
+            }}
+          />
         </div>
       </div>
     </div>
