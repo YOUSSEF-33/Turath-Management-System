@@ -97,9 +97,9 @@ const CreateProject = () => {
       formData.append('description', description);
       formData.append('is_active', isActive ? '1' : '0');
       
-      // Only append the documents_background_id if we have one
+      // Only append the documents_background if we have one
       if (mediaId) {
-        formData.append('documents_background_id', String(mediaId));
+        formData.append('documents_background', String(mediaId));
       }
       
       if (depositPercentage !== '') {
