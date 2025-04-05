@@ -82,6 +82,7 @@ const CreateProject = () => {
             onError: () => toast.error('حدث خطأ أثناء رفع الملف')
           });
         } catch (error) {
+          console.error('File upload error:', error);
           setLoading(false);
           setUploading(false);
           return; // Stop the process if media upload fails
@@ -104,11 +105,20 @@ const CreateProject = () => {
       if (depositPercentage !== '') {
         formData.append('deposit_percentage', String(depositPercentage));
       }
+
+      // Send arrays directly without JSON.stringify
       if (installmentOptions.length > 0) {
-        formData.append('installment_options', JSON.stringify(installmentOptions));
+        installmentOptions.forEach((option, index) => {
+          formData.append(`installment_options[${index}]`, option);
+        });
       }
+
       if (additionalExpenses.length > 0) {
-        formData.append('additional_expenses', JSON.stringify(additionalExpenses));
+        additionalExpenses.forEach((expense, index) => {
+          formData.append(`additional_expenses[${index}][name]`, expense.name);
+          formData.append(`additional_expenses[${index}][type]`, expense.type);
+          formData.append(`additional_expenses[${index}][value]`, String(expense.value));
+        });
       }
 
       await axiosInstance.post('/projects', formData);
