@@ -3,6 +3,8 @@ import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import axiosInstance from '../../axiosInstance';
 import ReservationsTable from '../../components/ReservationsTable';
+import { DatePicker, Form, Button } from 'antd';
+import dayjs from 'dayjs';
 
 interface Reservation {
   id: number;
@@ -25,6 +27,7 @@ const UnitReserve = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [loading, setLoading] = useState(true);
+  const [form] = Form.useForm();
 
   useEffect(() => {
     const fetchReservations = async () => {
@@ -61,44 +64,55 @@ const UnitReserve = () => {
     navigate('/reservations/reserve');
   };
 
+  const handleFilterSubmit = (values: {
+    status?: string;
+    date_from?: dayjs.Dayjs;
+    date_to?: dayjs.Dayjs;
+  }) => {
+    setStatusFilter(values.status || '');
+    setDateFrom(values.date_from?.format('YYYY-MM-DD') || '');
+    setDateTo(values.date_to?.format('YYYY-MM-DD') || '');
+    setCurrentPage(1); // Reset to first page when applying filters
+  };
+
+  const resetFilters = () => {
+    form.resetFields();
+    setStatusFilter('');
+    setDateFrom('');
+    setDateTo('');
+    setCurrentPage(1);
+  };
+
   const filters = (
-    <div className="flex justify-start space-x-4">
-      <div className="flex flex-col">
-        <label htmlFor="statusFilter" className="mb-1 text-gray-700">الحالة</label>
-        <select
-          id="statusFilter"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="mx-4 bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg"
-        >
-          <option value="">كل الحالات</option>
-          <option value="PENDING">معلق </option>
-          <option value="CONFIRMED">مؤكد</option>
-          <option value="REJECTED">مرفوض</option>
-          <option value="SOLD">مباع</option>
-        </select>
+    <Form form={form} onFinish={handleFilterSubmit} layout="vertical" className="mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Form.Item name="status" label="الحالة" className="mb-0">
+          <select
+            className="w-full bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg"
+          >
+            <option value="">كل الحالات</option>
+            <option value="PENDING">معلق </option>
+            <option value="CONFIRMED">مؤكد</option>
+            <option value="REJECTED">مرفوض</option>
+            <option value="SOLD">مباع</option>
+          </select>
+        </Form.Item>
+        <Form.Item name="date_from" label="التاريخ من" className="mb-0">
+          <DatePicker placeholder="التاريخ من" format="YYYY-MM-DD" className="w-full" />
+        </Form.Item>
+        <Form.Item name="date_to" label="التاريخ إلى" className="mb-0">
+          <DatePicker placeholder="التاريخ إلى" format="YYYY-MM-DD" className="w-full" />
+        </Form.Item>
       </div>
-      <div className="flex flex-col">
-        <label htmlFor="dateFrom" className="mb-1 text-gray-700">التاريخ من</label>
-        <input
-          id="dateFrom"
-          type="date"
-          value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
-          className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg"
-        />
+      <div className="mt-4 flex space-x-4">
+        <Button type="primary" htmlType="submit">
+          بحث
+        </Button>
+        <Button onClick={resetFilters}>
+          إعادة تعيين
+        </Button>
       </div>
-      <div className="flex flex-col">
-        <label htmlFor="dateTo" className="mb-1 text-gray-700">التاريخ إلى</label>
-        <input
-          id="dateTo"
-          type="date"
-          value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
-          className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg"
-        />
-      </div>
-    </div>
+    </Form>
   );
 
   return (
