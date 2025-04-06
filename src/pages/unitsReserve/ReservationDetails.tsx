@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../axiosInstance';
 import { Modal, Input, Button, message, Spin, Card, Tag, Empty, Tabs, Typography, Statistic, Badge } from 'antd';
 import GenericTable from '../../components/GenericTable';
 import { usePermissionsContext } from '../../context/PermissionsContext';
-import { Check, X, Printer, RefreshCw, Download, FileText, Image as ImageIcon, File, ExternalLink, Calendar, CreditCard, Building, User, Phone, Mail, MapPin, Edit3, Home } from 'lucide-react';
+import { Check, X, Printer, RefreshCw, Download, FileText, Image as ImageIcon, File, ExternalLink, Calendar, CreditCard, Building, User, Phone, Mail, MapPin, Edit3, Home, Trash2 } from 'lucide-react';
 import { isImageFile } from '../../utils/mediaUtils';
 
 const { Title, Text } = Typography;
@@ -81,6 +81,7 @@ const INSTALLMENT_TYPE_TRANSLATIONS: Record<string, string> = {
 
 const ReservationDetails = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [reservation, setReservation] = useState<ReservationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -102,6 +103,9 @@ const ReservationDetails = () => {
   const { TabPane } = Tabs;
 
   const [pdfLoading, setPdfLoading] = useState(false);
+
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -334,6 +338,21 @@ const ReservationDetails = () => {
     );
   };
 
+  const handleDeleteReservation = async () => {
+    setDeleteLoading(true);
+    try {
+      await axiosInstance.delete(`/reservations/${id}`);
+      message.success('تم حذف الحجز بنجاح');
+      navigate('/reservations');
+    } catch (err) {
+      message.error('فشل في حذف الحجز');
+      console.error(err);
+    } finally {
+      setDeleteLoading(false);
+      setIsDeleteModalVisible(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[500px]">
@@ -444,17 +463,17 @@ const ReservationDetails = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Statistic 
             title={<div className="flex items-center text-sm"><CreditCard size={16} className="mr-3 mx-1 text-blue-500/70" /> <span>السعر النهائي</span></div>}
-            value={formatCurrency(reservation.final_price)} 
+            value={parseFloat(reservation.final_price.toString())} 
             className="bg-blue-50/50 p-3 rounded-lg hover:bg-blue-50 transition-colors" 
           />
           <Statistic 
             title={<div className="flex items-center text-sm"><CreditCard size={16} className="mr-3 mx-1 text-emerald-500/70" /> <span>الدفعة المقدمة</span></div>}
-            value={formatCurrency(reservation.down_payment)} 
+            value={parseFloat(reservation.down_payment.toString())} 
             className="bg-emerald-50/50 p-3 rounded-lg hover:bg-emerald-50 transition-colors" 
           />
           <Statistic 
             title={<div className="flex items-center text-sm"><CreditCard size={16} className="mr-3 mx-1 text-amber-500/70" /> <span>عربون الحجز</span></div>}
-            value={formatCurrency(reservation.reservation_deposit)} 
+            value={parseFloat(reservation.reservation_deposit.toString())} 
             className="bg-amber-50/50 p-3 rounded-lg hover:bg-amber-50 transition-colors" 
           />
           <Statistic 
@@ -830,8 +849,19 @@ const ReservationDetails = () => {
               onClick={() => setIsRejectModalVisible(true)}
               icon={<X size={14} className="mr-3" />}
               size="middle"
+              className="mx-2"
             >
               رفض الحجز
+            </Button>
+          )}
+          {hasPermission('delete_reservations') && (
+            <Button
+            color='geekblue'
+              onClick={() => setIsDeleteModalVisible(true)}
+              icon={<Trash2 size={14} className="mr-3" />}
+              size="middle"
+            >
+              حذف الحجز
             </Button>
           )}
         </div>
@@ -936,6 +966,32 @@ const ReservationDetails = () => {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        title="تأكيد حذف الحجز"
+        visible={isDeleteModalVisible}
+        onCancel={() => setIsDeleteModalVisible(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setIsDeleteModalVisible(false)}>
+            إلغاء
+          </Button>,
+          <Button 
+            key="submit" 
+            danger 
+            type="primary" 
+            onClick={handleDeleteReservation} 
+            loading={deleteLoading}
+          >
+            تأكيد الحذف
+          </Button>,
+        ]}
+      >
+        <div className="p-4">
+          <p>هل أنت متأكد من حذف هذا الحجز؟</p>
+          <p className="mt-2 text-red-600">هذا الإجراء لا يمكن التراجع عنه.</p>
+        </div>
       </Modal>
     </div>
   );
