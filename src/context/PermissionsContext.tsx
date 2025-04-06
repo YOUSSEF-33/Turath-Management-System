@@ -10,6 +10,7 @@ interface Permission {
 interface PermissionsContextProps {
   permissions: Permission[];
   hasPermission: (permissionName: string) => boolean;
+  userRole: string | null;
 }
 
 const PermissionsContext = createContext<PermissionsContextProps | undefined>(undefined);
@@ -17,6 +18,7 @@ const PermissionsContext = createContext<PermissionsContextProps | undefined>(un
 export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { userInfo } = useUserContext();
   const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPermissions = async () => {
@@ -24,6 +26,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         try {
           const response = await axiosInstance.get(`/roles/${userInfo.role.id}`);
           setPermissions(response.data.data.permissions);
+          setUserRole(userInfo.role.name);
         } catch (error) {
           console.error('Error fetching permissions:', error);
         }
@@ -38,7 +41,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   return (
-    <PermissionsContext.Provider value={{ permissions, hasPermission }}>
+    <PermissionsContext.Provider value={{ permissions, hasPermission, userRole }}>
       {children}
     </PermissionsContext.Provider>
   );

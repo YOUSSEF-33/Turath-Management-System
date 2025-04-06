@@ -95,7 +95,10 @@ const ReservationDetails = () => {
   const [isRejectModalVisible, setIsRejectModalVisible] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  const { hasPermission } = usePermissionsContext();
+  // Add these state variables near the other state declarations
+  const [isApproveModalVisible, setIsApproveModalVisible] = useState(false);
+
+  const { hasPermission, userRole } = usePermissionsContext();
   const { TabPane } = Tabs;
 
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -122,6 +125,7 @@ const ReservationDetails = () => {
     try {
       await axiosInstance.patch(`/reservations/${id}/approve`);
       message.success('تم قبول الحجز بنجاح');
+      setIsApproveModalVisible(false);
       fetchData(); // Refresh data after approval
     } catch (err) {
       message.error('فشل في قبول الحجز');
@@ -144,6 +148,7 @@ const ReservationDetails = () => {
       });
       message.success('تم رفض الحجز بنجاح');
       setIsRejectModalVisible(false);
+      setRejectionReason('');
       fetchData(); // Refresh data after rejection
     } catch (err) {
       message.error('فشل في رفض الحجز');
@@ -314,6 +319,21 @@ const ReservationDetails = () => {
     },
   ];
 
+  // Check if the current user's role has already approved or rejected
+  const hasUserRoleApproved = () => {
+    if (!reservation || !userRole) return false;
+    return reservation.approvals.some(
+      approval => approval.role.name === userRole && approval.status === 'موافق'
+    );
+  };
+
+  const hasUserRoleRejected = () => {
+    if (!reservation || !userRole) return false;
+    return reservation.approvals.some(
+      approval => approval.role.name === userRole && approval.status === 'مرفوض'
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[500px]">
@@ -388,7 +408,7 @@ const ReservationDetails = () => {
               <div className="flex items-center mt-2">
                 <Calendar size={16} className="text-blue-500/70 mr-3" />
                 <Text strong className="mr-2 mx-3" style={{ fontSize: '14px' }}>تاريخ الحجز:</Text>
-                <Text style={{ fontSize: '16px' }}>{new Date(reservation.reservation_date).toLocaleDateString('ar-EG')}</Text>
+                <Text style={{ fontSize: '16px' }}>{new Date(reservation.contract_date).toLocaleDateString('ar-EG')}</Text>
                 <Tag className="mr-4 ml-4" color={reservationStatusColor} style={{ fontSize: '13px', padding: '1px 8px' }}>{reservation.status}</Tag>
               </div>
             </div>
@@ -791,29 +811,25 @@ const ReservationDetails = () => {
       </Tabs>
 
       {/* Actions */}
-      {reservation.status === 'معلق' && (
+      {reservation.status !== 'مباعة' && (
         <div className="flex justify-end mt-4">
-          {hasPermission('confirm_reservations') && (
+          {hasPermission('confirm_reservations') && !hasUserRoleApproved() && (
             <Button
               type="primary"
-              onClick={handleAcceptUnit}
+              onClick={() => setIsApproveModalVisible(true)}
               icon={<Check size={14} className="mr-3" />}
               size="middle"
               className="mx-2 bg-emerald-500 hover:bg-emerald-600 border-emerald-500"
-              loading={approveLoading}
-              disabled={approveLoading}
             >
               قبول الحجز
             </Button>
           )}
-          {hasPermission('cancel_reservations') && (
+          {hasPermission('cancel_reservations') && !hasUserRoleRejected() && (
             <Button
               danger
               onClick={() => setIsRejectModalVisible(true)}
               icon={<X size={14} className="mr-3" />}
               size="middle"
-              loading={rejectLoading}
-              disabled={rejectLoading}
             >
               رفض الحجز
             </Button>
@@ -821,27 +837,61 @@ const ReservationDetails = () => {
         </div>
       )}
 
+      {/* Approve Confirmation Modal */}
+      <Modal
+        title="تأكيد قبول الحجز"
+        visible={isApproveModalVisible}
+        onCancel={() => setIsApproveModalVisible(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setIsApproveModalVisible(false)}>
+            إلغاء
+          </Button>,
+          <Button 
+            key="submit" 
+            type="primary" 
+            onClick={handleAcceptUnit} 
+            loading={approveLoading}
+            className="bg-emerald-500 hover:bg-emerald-600 border-emerald-500"
+          >
+            تأكيد القبول
+          </Button>,
+        ]}
+      >
+        <div className="p-4">
+          <p>هل أنت متأكد من قبول هذا الحجز؟</p>
+          <p className="mt-2 text-gray-600">سيتم إرسال إشعار بقبول الحجز.</p>
+        </div>
+      </Modal>
+
       {/* Reject Modal */}
       <Modal
         title="سبب الرفض"
         visible={isRejectModalVisible}
         onCancel={() => setIsRejectModalVisible(false)}
-        confirmLoading={rejectLoading}
         footer={[
-          <Button key="cancel" onClick={() => setIsRejectModalVisible(false)} disabled={rejectLoading}>
+          <Button key="cancel" onClick={() => setIsRejectModalVisible(false)}>
             إلغاء
           </Button>,
-          <Button key="submit" danger type="primary" onClick={handleRejectUnit} loading={rejectLoading}>
+          <Button 
+            key="submit" 
+            danger 
+            type="primary" 
+            onClick={handleRejectUnit} 
+            loading={rejectLoading}
+          >
             تأكيد الرفض
           </Button>,
         ]}
       >
-        <Input.TextArea
-          placeholder="أدخل سبب الرفض"
-          value={rejectionReason}
-          onChange={(e) => setRejectionReason(e.target.value)}
-          rows={4}
-        />
+        <div className="p-4">
+          <p className="mb-4">يرجى إدخال سبب رفض الحجز:</p>
+          <Input.TextArea
+            placeholder="أدخل سبب الرفض"
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            rows={4}
+          />
+        </div>
       </Modal>
 
       {/* Image Preview Modal */}
