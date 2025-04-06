@@ -1,11 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Search, UserCircle, X, Menu, Settings, LogOut, Bell } from 'lucide-react';
+import { UserCircle, X, Menu, Settings, LogOut, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../axiosInstance';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/ar';
-import { Tag } from 'antd';
 
 dayjs.extend(relativeTime);
 dayjs.locale('ar');
@@ -46,10 +45,10 @@ interface Notification {
 }
 
 const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  // const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  // const [searchTerm, setSearchTerm] = useState('');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const navigate = useNavigate();
@@ -65,17 +64,6 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
       setUnreadCount(unreadNotifications.length);
     } catch (error) {
       console.error('Error fetching notifications:', error);
-    }
-  }, []);
-
-  const fetchUnreadCount = useCallback(async () => {
-    try {
-      const response = await axiosInstance.get('/notifications/unread-count');
-      setUnreadCount(response.data.count);
-      // Also fetch the full list when count changes
-      fetchNotifications();
-    } catch (error) {
-      console.error('Error fetching unread count:', error);
     }
   }, []);
 
@@ -144,9 +132,9 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
   }, [fetchNotifications]);
 
   // Toggle search overlay for mobile
-  const toggleSearch = useCallback(() => {
+  /*const toggleSearch = useCallback(() => {
     setIsSearchOpen(prev => !prev);
-  }, []);
+  }, []);*/
 
   // Toggle profile dropdown
   const toggleProfile = useCallback(() => {
@@ -161,12 +149,13 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
   }, [isProfileOpen]);
 
   // Handle search
-  const handleSearch = useCallback((e: React.FormEvent) => {
+  /*const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // Implement search functionality
-    console.log('Searching for:', searchTerm);
-    setIsSearchOpen(false);
-  }, [searchTerm]);
+    if (searchTerm.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchTerm.trim())}`);
+      setIsSearchOpen(false); // Close mobile search overlay
+    }
+  };*/
   
   // Handle logout
   const handleLogout = useCallback(() => {
@@ -197,7 +186,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
   return (
     <div className="bg-white shadow-sm fixed w-full top-0 z-20 md:relative">
       {/* Mobile Search Overlay */}
-      {isSearchOpen && (
+      {/*isSearchOpen && (
         <div className="fixed inset-0 bg-white bg-opacity-95 z-50 p-4 md:hidden animate-fade-in">
           <form onSubmit={handleSearch} className="flex items-center">
             <input
@@ -218,7 +207,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
             </button>
           </form>
         </div>
-      )}
+      )*/}
 
       {/* Main Navbar Content */}
       <div className="px-4 md:px-6 py-3 max-w-7xl mx-auto">
@@ -241,7 +230,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
           {/* Right Side: Search, Notifications and Profile */}
           <div className="flex items-center space-x-1 rtl:space-x-reverse">
             {/* Desktop Search */}
-            <div className="hidden md:block w-64 lg:w-80">
+            {/*<div className="hidden md:block w-64 lg:w-80">
               <form onSubmit={handleSearch} className="relative">
                 <input
                   type="text"
@@ -254,16 +243,16 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
                   <Search className="h-5 w-5 text-gray-400" />
                 </button>
               </form>
-            </div>
+            </div>*/}
 
             {/* Mobile Search Button */}
-            <button
+            {/*<button
               onClick={toggleSearch}
               className="md:hidden p-2 text-gray-500 hover:text-gray-700 transition-colors"
               aria-label="فتح البحث"
             >
               <Search className="h-6 w-6" />
-            </button>
+            </button>*/}
 
             {/* Notifications Section */}
             <div ref={notificationsRef} className="relative">

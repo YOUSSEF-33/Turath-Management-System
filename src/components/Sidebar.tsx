@@ -49,7 +49,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   }, []);
 
   const mainItems = [
-    { path: "/", icon: <LayoutDashboard className="ml-2" />, text: "لوحة التحكم"},
+    { path: "/reservations", icon: <LayoutDashboard className="ml-2" />, text: "الرئيسية", permission: "view_reservations" },
     { path: "/users", icon: <Users className="ml-2" />, text: "المستخدمين", permission: "view_users" },
   ];
 
@@ -66,12 +66,12 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         { path: "/projects/create", text: "إضافة مشروع جديد", permission: "create_projects" },
       ]
     },
-    { 
+    /*{ 
       path: "/reservations", 
       icon: <ClipboardList className="ml-2" />, 
       text: "حجز الوحدات",
       permission: "view_reservations"
-    },
+    },*/
     { 
       path: "/showprice", 
       icon: <Home className="ml-2" />, 

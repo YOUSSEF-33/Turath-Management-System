@@ -36,6 +36,7 @@ import Settings from './pages/settings/Settings';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import ShowPrice from './pages/unitsReserve/ShowPrice';
+import SearchResults from './pages/search/SearchResults';
 
 // Protected Route wrapper component
 const ProtectedRoute = ({ children, requiredPermission }: { children: React.ReactNode; requiredPermission?: string }) => {
@@ -45,37 +46,33 @@ const ProtectedRoute = ({ children, requiredPermission }: { children: React.Reac
   if (isLoading) {
     return <LoadingSpinner />;
   }
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
+
   if (requiredPermission && !hasPermission(requiredPermission)) {
     return <Navigate to="/" />;
   }
-  
+
   return <>{children}</>;
 };
 
 // Public Route wrapper component (redirects to dashboard if already authenticated)
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isLoading } = useAuth();
 
   if (isLoading) {
     return <LoadingSpinner />;
   }
-  
-  // if (isAuthenticated) {
-  //   return <Navigate to="/" replace />;
-  // }
-  
+
   return <>{children}</>;
 };
 
 // Layout component for protected routes
 const ProtectedLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
@@ -123,7 +120,7 @@ function AppContent() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Dashboard />} />
+          {/* <Route index element={<Dashboard />} /> */}
           <Route path="users" element={<ProtectedRoute requiredPermission="view_users"><ViewUsers /></ProtectedRoute>} />
           <Route path="users/create" element={<ProtectedRoute requiredPermission="create_users"><CreateUser /></ProtectedRoute>} />
           <Route path="users/edit/:id" element={<ProtectedRoute requiredPermission="edit_users"><EditUser /></ProtectedRoute>} />
@@ -151,8 +148,9 @@ function AppContent() {
           <Route path="clients" element={<ProtectedRoute requiredPermission="view_clients"><ViewClients /></ProtectedRoute>} />
           <Route path="clients/:id" element={<ProtectedRoute requiredPermission="view_clients"><ViewClient /></ProtectedRoute>} />
           <Route path="settings" element={<Settings />} />
+          <Route path="search" element={<SearchResults />} />
         </Route>
-        
+
         {/* Catch all route */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

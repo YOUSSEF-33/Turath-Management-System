@@ -55,7 +55,7 @@ const LoginPage = () => {
       toast.success('تم تسجيل الدخول بنجاح!', {
         position: 'top-center',
       });
-      navigate('/'); 
+      navigate('/reservations'); 
     } catch (error) {
       toast.error('البريد الإلكتروني أو كلمة المرور غير صحيحة');
     } finally {
