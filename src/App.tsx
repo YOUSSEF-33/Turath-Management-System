@@ -64,9 +64,9 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
     return <LoadingSpinner />;
   }
   
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
+  // if (isAuthenticated) {
+  //   return <Navigate to="/" replace />;
+  // }
   
   return <>{children}</>;
 };
