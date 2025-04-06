@@ -4,7 +4,7 @@ import axiosInstance from '../../axiosInstance';
 import { Modal, Input, Button, message, Spin, Card, Tag, Empty, Tabs, Typography, Statistic, Badge } from 'antd';
 import GenericTable from '../../components/GenericTable';
 import { usePermissionsContext } from '../../context/PermissionsContext';
-import { Check, X, Printer, RefreshCw, Download, FileText, Image as ImageIcon, File, ExternalLink, Calendar, CreditCard, Building, User, Phone, Mail, MapPin, Clock, Edit3 } from 'lucide-react';
+import { Check, X, Printer, RefreshCw, Download, FileText, Image as ImageIcon, File, ExternalLink, Calendar, CreditCard, Building, User, Phone, Mail, MapPin, Edit3, Home } from 'lucide-react';
 import { isImageFile } from '../../utils/mediaUtils';
 
 const { Title, Text } = Typography;
@@ -35,6 +35,7 @@ interface UnitData {
   status: string;
   plan_images: ImageData[];
   gallery: ImageData[];
+  price?: number;
 }
 
 interface ReservationData {
@@ -59,6 +60,11 @@ interface ReservationData {
     status: string;
     rejection_reason?: string;
   }>;
+  installments_details: Array<{
+    type: string;
+    amount: number;
+    count: number;
+  }>;
 }
 
 interface Column {
@@ -66,6 +72,12 @@ interface Column {
   header: string;
   render?: (value: unknown, row: Record<string, unknown>) => React.ReactNode;
 }
+
+const INSTALLMENT_TYPE_TRANSLATIONS: Record<string, string> = {
+  'MONTHLY': 'شهري',
+  'QUARTERLY': 'ربع سنوي',
+  'ANNUAL': 'سنوي'
+};
 
 const ReservationDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -229,7 +241,7 @@ const ReservationDetails = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('ar-EG').format(amount) + ' جنيه';
+    return new Intl.NumberFormat().format(amount) + ' جنيه';
   };
 
   const approvalsColumns: Column[] = [
@@ -371,13 +383,12 @@ const ReservationDetails = () => {
       <Card className="mb-6 shadow-sm border-t-4 border-t-blue-500/70">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center">
           <div className="flex items-center mb-4 md:mb-0">
-            <FileText size={24} className="text-blue-500/80 mr-4" strokeWidth={1.5} />
             <div>
               <Title level={4} className="!mb-0">تفاصيل الحجز <span className="text-blue-500/80 mr-2">#{reservation.id}</span></Title>
               <div className="flex items-center mt-2">
                 <Calendar size={16} className="text-blue-500/70 mr-3" />
-                <Text strong className="mr-2" style={{ fontSize: '14px' }}>تاريخ التعاقد:</Text>
-                <Text style={{ fontSize: '14px' }}>{new Date(reservation.contract_date).toLocaleDateString('ar-EG')}</Text>
+                <Text strong className="mr-2 mx-3" style={{ fontSize: '14px' }}>تاريخ الحجز:</Text>
+                <Text style={{ fontSize: '16px' }}>{new Date(reservation.reservation_date).toLocaleDateString('ar-EG')}</Text>
                 <Tag className="mr-4 ml-4" color={reservationStatusColor} style={{ fontSize: '13px', padding: '1px 8px' }}>{reservation.status}</Tag>
               </div>
             </div>
@@ -412,23 +423,23 @@ const ReservationDetails = () => {
       >
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Statistic 
-            title={<div className="flex items-center text-sm"><CreditCard size={16} className="mr-3 text-blue-500/70" /> <span>السعر النهائي</span></div>}
+            title={<div className="flex items-center text-sm"><CreditCard size={16} className="mr-3 mx-1 text-blue-500/70" /> <span>السعر النهائي</span></div>}
             value={formatCurrency(reservation.final_price)} 
             className="bg-blue-50/50 p-3 rounded-lg hover:bg-blue-50 transition-colors" 
           />
           <Statistic 
-            title={<div className="flex items-center text-sm"><CreditCard size={16} className="mr-3 text-emerald-500/70" /> <span>الدفعة المقدمة</span></div>}
+            title={<div className="flex items-center text-sm"><CreditCard size={16} className="mr-3 mx-1 text-emerald-500/70" /> <span>الدفعة المقدمة</span></div>}
             value={formatCurrency(reservation.down_payment)} 
             className="bg-emerald-50/50 p-3 rounded-lg hover:bg-emerald-50 transition-colors" 
           />
           <Statistic 
-            title={<div className="flex items-center text-sm"><Clock size={16} className="mr-3 text-amber-500/70" /> <span>عدد الشهور</span></div>}
-            value={`${reservation.months_count} شهر`} 
+            title={<div className="flex items-center text-sm"><CreditCard size={16} className="mr-3 mx-1 text-amber-500/70" /> <span>عربون الحجز</span></div>}
+            value={formatCurrency(reservation.reservation_deposit)} 
             className="bg-amber-50/50 p-3 rounded-lg hover:bg-amber-50 transition-colors" 
           />
           <Statistic 
-            title={<div className="flex items-center text-sm"><CreditCard size={16} className="mr-3 text-purple-500/70" /> <span>القسط الشهري</span></div>}
-            value={formatCurrency(reservation.monthly_installment)} 
+            title={<div className="flex items-center text-sm"><Home size={16} className="mr-3 mx-1 text-purple-500/70" /> <span>رقم الوحدة</span></div>}
+            value={reservation.unit.unit_number} 
             className="bg-purple-50/50 p-3 rounded-lg hover:bg-purple-50 transition-colors" 
           />
         </div>
@@ -547,32 +558,82 @@ const ReservationDetails = () => {
               } 
               className="mb-4 shadow-sm hover:shadow-md transition-shadow"
             >
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <div className="bg-blue-50/50 p-3 rounded-lg hover:bg-blue-50 transition-colors">
-                  <Text type="secondary" className="text-xs">السعر النهائي</Text>
-                  <Title level={5} className="text-gray-800 !mt-1">{formatCurrency(reservation.final_price)}</Title>
-                </div>
-                <div className="bg-amber-50/50 p-3 rounded-lg hover:bg-amber-50 transition-colors">
-                  <Text type="secondary" className="text-xs">عربون الحجز</Text>
-                  <Title level={5} className="text-gray-800 !mt-1">{formatCurrency(reservation.reservation_deposit)}</Title>
-                </div>
-                <div className="bg-emerald-50/50 p-3 rounded-lg hover:bg-emerald-50 transition-colors">
-                  <Text type="secondary" className="text-xs">الدفعة المقدمة</Text>
-                  <Title level={5} className="text-gray-800 !mt-1">{formatCurrency(reservation.down_payment)}</Title>
-                </div>
-                <div className="bg-purple-50/50 p-3 rounded-lg hover:bg-purple-50 transition-colors">
-                  <Text type="secondary" className="text-xs">القسط الشهري</Text>
-                  <Title level={5} className="text-gray-800 !mt-1">{formatCurrency(reservation.monthly_installment)}</Title>
-                </div>
-                <div className="bg-gray-50/80 p-3 rounded-lg hover:bg-gray-100/80 transition-colors">
-                  <Text type="secondary" className="text-xs">عدد الشهور</Text>
-                  <Title level={5} className="text-gray-800 !mt-1">{reservation.months_count} شهر</Title>
-                </div>
-                <div className="bg-gray-50/80 p-3 rounded-lg hover:bg-gray-100/80 transition-colors">
-                  <Text type="secondary" className="text-xs">تاريخ التعاقد</Text>
-                  <Title level={5} className="text-gray-800 !mt-1">{new Date(reservation.contract_date).toLocaleDateString('ar-EG')}</Title>
+              {/* Basic Financial Information */}
+              <div className="mb-6">
+                <Title level={5} className="mb-4 text-gray-700 border-b pb-2">المعلومات الأساسية</Title>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
+                    <Text className="text-gray-600">السعر النهائي:</Text>
+                    <Text  className="text-lg">{formatCurrency(reservation.final_price)}</Text>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
+                    <Text className="text-gray-600">عربون الحجز:</Text>
+                    <Text  className="text-lg">{formatCurrency(reservation.reservation_deposit)}</Text>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
+                    <Text className="text-gray-600">الدفعة المقدمة:</Text>
+                    <Text  className="text-lg">{formatCurrency(reservation.down_payment)}</Text>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
+                    <Text className="text-gray-600">تاريخ التعاقد:</Text>
+                    <Text style={{ fontSize: '16px' }} >{new Date(reservation.contract_date).toLocaleDateString('ar-EG')}</Text>
+                  </div>
                 </div>
               </div>
+              
+              {/* Installment Details */}
+              {reservation.installments_details && reservation.installments_details.length > 0 && (
+                <div className="mb-6">
+                  <Title level={5} className="mb-4 text-gray-700 border-b pb-2">تفاصيل التقسيط</Title>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="p-3 text-right border border-gray-200">نوع التقسيط</th>
+                          <th className="p-3 text-right border border-gray-200">عدد الأقساط</th>
+                          <th className="p-3 text-right border border-gray-200">قيمة القسط</th>
+                          <th className="p-3 text-right border border-gray-200">إجمالي التقسيط</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reservation.installments_details.map((installment, index) => (
+                          <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="p-3 border border-gray-200">{INSTALLMENT_TYPE_TRANSLATIONS[installment.type] || installment.type}</td>
+                            <td className="p-3 border border-gray-200 text-center">{installment.count}</td>
+                            <td className="p-3 border border-gray-200 text-left">{formatCurrency(installment.amount)}</td>
+                            <td className="p-3 border border-gray-200 text-left">{formatCurrency(installment.amount * installment.count)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              
+              {/* Additional Expenses */}
+              {reservation.unit.price && reservation.final_price > reservation.unit.price && (
+                <div>
+                  <Title level={5} className="mb-4 text-gray-700 border-b pb-2">المصروفات الإضافية</Title>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <tbody>
+                        <tr className="bg-white">
+                          <td className="p-3 border border-gray-200 text-right">سعر الوحدة الأساسي:</td>
+                          <td className="p-3 border border-gray-200 text-left">{formatCurrency(reservation.unit.price)}</td>
+                        </tr>
+                        <tr className="bg-gray-50">
+                          <td className="p-3 border border-gray-200 text-right">المصروفات الإضافية:</td>
+                          <td className="p-3 border border-gray-200 text-left">{formatCurrency(reservation.final_price - reservation.unit.price)}</td>
+                        </tr>
+                        <tr className="bg-white">
+                          <td className="p-3 border border-gray-200 text-right font-medium">السعر النهائي:</td>
+                          <td className="p-3 border border-gray-200 text-left font-medium">{formatCurrency(reservation.final_price)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </Card>
 
             {/* Approvals Section */}
