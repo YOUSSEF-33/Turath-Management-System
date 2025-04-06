@@ -35,6 +35,7 @@ import { UserProvider } from './context/UserContext';
 import Settings from './pages/settings/Settings';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
+import ShowPrice from './pages/unitsReserve/ShowPrice';
 
 // Protected Route wrapper component
 const ProtectedRoute = ({ children, requiredPermission }: { children: React.ReactNode; requiredPermission?: string }) => {
@@ -140,6 +141,7 @@ function AppContent() {
           <Route path="reservations/reserve" element={<ProtectedRoute requiredPermission="create_reservations"><ReserveUnit /></ProtectedRoute>} />
           <Route path="reservations/:id" element={<ProtectedRoute requiredPermission="view_reservations"><ReservationDetails /></ProtectedRoute>} />
           <Route path="reservations/:id/accept" element={<ProtectedRoute requiredPermission="confirm_reservations"><AcceptUnitSale /></ProtectedRoute>} />
+          <Route path="showprice" element={<ProtectedRoute requiredPermission="view_units"><ShowPrice /></ProtectedRoute>} />
           <Route path="projects" element={<ProtectedRoute requiredPermission="view_projects"><ViewProjects /></ProtectedRoute>} />
           <Route path="projects/create" element={<ProtectedRoute requiredPermission="create_projects"><CreateProject /></ProtectedRoute>} />
           <Route path="projects/edit/:id" element={<ProtectedRoute requiredPermission="edit_projects"><EditProject /></ProtectedRoute>} />

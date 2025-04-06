@@ -60,8 +60,10 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       text: "ادارة المشاريع",
       onToggle: toggleProjectsMenu,
       permission: "view_projects",
+      isExpandable: true,
+      isExpanded: projectsExpanded,
       subItems: [
-        { path: "/projects/create", icon: <PlusSquare className="ml-2" />, text: "إضافة مشروع جديد", permission: "create_projects" },
+        { path: "/projects/create", text: "إضافة مشروع جديد", permission: "create_projects" },
       ]
     },
     { 
@@ -69,6 +71,12 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       icon: <ClipboardList className="ml-2" />, 
       text: "حجز الوحدات",
       permission: "view_reservations"
+    },
+    { 
+      path: "/showprice", 
+      icon: <Home className="ml-2" />, 
+      text: "عرض تفاصيل السعر",
+      permission: "view_units"
     },
     { 
       path: "/clients", 

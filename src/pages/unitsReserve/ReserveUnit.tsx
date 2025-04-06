@@ -168,6 +168,10 @@ const ReserveUnit = () => {
         installment_details: {}
     });
 
+    // Add new state for installment types
+    const [availableInstallmentTypes, setAvailableInstallmentTypes] = useState<string[]>([]);
+    const [selectedInstallmentType, setSelectedInstallmentType] = useState<string | null>(null);
+
     //console.log(unitDetails)
 
     // Loading and validation states
@@ -660,6 +664,32 @@ const ReserveUnit = () => {
         }
     }, [selectedUnit, units, selectedProject, projects, unitDetails.down_payment, unitDetails.selected_installment_types]);
 
+    // Update useEffect for project selection
+    useEffect(() => {
+        if (selectedProject) {
+            const project = projects.find(p => p.id === selectedProject);
+            if (project) {
+                setAvailableInstallmentTypes(project.installment_options);
+                // Select the first installment type by default
+                if (project.installment_options.length > 0) {
+                    setSelectedInstallmentType(project.installment_options[0]);
+                    // Add the first installment type to the installments array
+                    setUnitDetails(prev => ({
+                        ...prev,
+                        selected_installment_types: [project.installment_options[0]],
+                        installment_details: {
+                            [project.installment_options[0]]: {
+                                type: project.installment_options[0],
+                                count: 0,
+                                amount: 0
+                            }
+                        }
+                    }));
+                }
+            }
+        }
+    }, [selectedProject, projects]);
+
     // Handle form submission
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -789,6 +819,41 @@ const ReserveUnit = () => {
             }
         });
         return total;
+    };
+
+    // Update handleInstallmentTypeSelect function
+    const handleInstallmentTypeSelect = (type: string) => {
+        const existingInstallment = unitDetails.selected_installment_types.includes(type);
+
+        if (existingInstallment) {
+            // Remove the installment type if it exists
+            setUnitDetails(prev => ({
+                ...prev,
+                selected_installment_types: prev.selected_installment_types.filter(inst => inst !== type),
+                installment_details: Object.fromEntries(
+                    Object.entries(prev.installment_details).filter(([key]) => key !== type)
+                )
+            }));
+            // If this was the selected type, clear selection
+            if (selectedInstallmentType === type) {
+                setSelectedInstallmentType(null);
+            }
+        } else {
+            // Add the new installment type
+            setUnitDetails(prev => ({
+                ...prev,
+                selected_installment_types: [...prev.selected_installment_types, type],
+                installment_details: {
+                    ...prev.installment_details,
+                    [type]: {
+                        type,
+                        count: 0,
+                        amount: 0
+                    }
+                }
+            }));
+            setSelectedInstallmentType(type);
+        }
     };
 
     if (loading) {
@@ -1319,6 +1384,31 @@ const ReserveUnit = () => {
                                             <div className="border-t border-gray-200 pt-6">
                                                 <h3 className="text-lg font-medium text-gray-900 mb-4">تفاصيل التقسيط</h3>
                                                 <div className="space-y-4">
+                                                    {/* Installment Type Selection */}
+                                                    <div className="form-group">
+                                                        <label className="block text-sm font-medium text-gray-700 mb-2">نوع التقسيط</label>
+                                                        <div className="installment-types-container">
+                                                            {availableInstallmentTypes.map((type) => (
+                                                                <button
+                                                                    key={type}
+                                                                    className={`installment-type-button ${unitDetails.selected_installment_types.includes(type) ? 'selected' : ''}`}
+                                                                    onClick={() => handleInstallmentTypeSelect(type)}
+                                                                    style={{
+                                                                        backgroundColor: unitDetails.selected_installment_types.includes(type) ? 'rgba(0, 123, 255, 0.1)' : 'transparent',
+                                                                        border: '1px solid rgba(0, 123, 255, 0.5)',
+                                                                        color: unitDetails.selected_installment_types.includes(type) ? '#007BFF' : '#333',
+                                                                        padding: '8px 16px',
+                                                                        borderRadius: '4px',
+                                                                        cursor: 'pointer',
+                                                                        transition: 'background-color 0.3s ease, color 0.3s ease'
+                                                                    }}
+                                                                >
+                                                                    {INSTALLMENT_TYPE_TRANSLATIONS[type] || type}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
                                                     {unitDetails.selected_installment_types.map((type) => (
                                                         <div key={type} className="bg-gray-50 rounded-lg p-5 border border-gray-200">
                                                             <div className="flex items-center justify-between mb-4">
