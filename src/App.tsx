@@ -72,7 +72,6 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 // Layout component for protected routes
 const ProtectedLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
@@ -120,7 +119,7 @@ function AppContent() {
             </ProtectedRoute>
           }
         >
-          {/* <Route index element={<Dashboard />} /> */}
+          <Route index element={<UnitReserve />} />
           <Route path="users" element={<ProtectedRoute requiredPermission="view_users"><ViewUsers /></ProtectedRoute>} />
           <Route path="users/create" element={<ProtectedRoute requiredPermission="create_users"><CreateUser /></ProtectedRoute>} />
           <Route path="users/edit/:id" element={<ProtectedRoute requiredPermission="edit_users"><EditUser /></ProtectedRoute>} />

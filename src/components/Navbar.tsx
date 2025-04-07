@@ -5,6 +5,7 @@ import axiosInstance from '../axiosInstance';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/ar';
+import { useAuth } from '../context/AuthContext';
 
 dayjs.extend(relativeTime);
 dayjs.locale('ar');
@@ -52,6 +53,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const navigate = useNavigate();
+  const { logout } = useAuth();
   
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
@@ -159,10 +161,9 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
   
   // Handle logout
   const handleLogout = useCallback(() => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    logout();
     navigate('/login');
-  }, [navigate]);
+  }, [navigate, logout]);
 
   // First, add these styles to handle responsive widths
   const notificationDropdownStyles = `

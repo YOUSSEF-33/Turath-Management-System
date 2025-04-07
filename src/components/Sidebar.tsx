@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useUserContext } from '../context/UserContext';
 import { usePermissionsContext } from "../context/PermissionsContext";
+import { useAuth } from "../context/AuthContext";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ interface SidebarProps {
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const { hasPermission } = usePermissionsContext();
+  const { logout } = useAuth();
   const [projectsExpanded, setProjectsExpanded] = React.useState(
     location.pathname.includes('/projects')
   );
@@ -42,17 +44,22 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   }, []);
 
   const handleLogout = useCallback(() => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user_info');
+    logout();
     window.location.href = '/login';
-  }, []);
+  }, [logout]);
 
   const mainItems = [
-    { path: "/reservations", icon: <LayoutDashboard className="ml-2" />, text: "الرئيسية", permission: "view_reservations" },
+    { path: "/reservations", icon: <ClipboardList className="ml-2" />, text: "الحجوزات", permission: "view_reservations" },
+    { 
+      path: "/showprice", 
+      icon: <Home className="ml-2" />, 
+      text: "عرض تفاصيل السعر",
+      permission: "view_units"
+    },
+  ];
+  const usersItems = [
     { path: "/users", icon: <Users className="ml-2" />, text: "المستخدمين", permission: "view_users" },
   ];
-
   const unitsItems = [
     { 
       path: "/projects", 
@@ -72,12 +79,6 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       text: "حجز الوحدات",
       permission: "view_reservations"
     },*/
-    { 
-      path: "/showprice", 
-      icon: <Home className="ml-2" />, 
-      text: "عرض تفاصيل السعر",
-      permission: "view_units"
-    },
     { 
       path: "/clients", 
       icon: <Users className="ml-2" />, 
@@ -144,7 +145,6 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                       </NavLink>
                     )
                   ))}
-
                   {/* Units Section */}
                   <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mt-6 mb-2">الوحدات</h2>
                   {unitsItems.map((item) => (
@@ -227,23 +227,27 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                       </div>
                     )
                   ))}
-                  
-                  {/* Settings */}
-                  <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mt-6 mb-2">الإعدادات</h2>
-                    <NavLink
-                      to="/settings"
-                      onClick={onClose}
-                      className={({ isActive }) =>
-                        `flex items-center p-3 rounded-lg transition-colors ${
-                          isActive
-                            ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium" 
-                            : "hover:bg-gray-100 text-gray-700"
-                        }`
-                      }
-                    >
-                      <Settings className="ml-2" />
-                      <span>الإعدادات</span>
-                    </NavLink>
+
+                  <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mt-6 mb-2">الموظفون</h2>
+                  {usersItems.map((item) => (
+                    (!item.permission || hasPermission(item.permission)) && (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        onClick={onClose}
+                        className={({ isActive }) =>
+                          `flex items-center p-3 rounded-lg transition-colors ${
+                            isActive
+                              ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium"
+                              : "hover:bg-gray-100 text-gray-700"
+                          }`
+                        }
+                      >
+                        {item.icon}
+                        <span>{item.text}</span>
+                      </NavLink>
+                    )
+                  ))}
                 </>
               )}
             </nav>

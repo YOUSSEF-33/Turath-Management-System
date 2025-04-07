@@ -2,7 +2,32 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom'; // If you're using react-router for navigation
 import toast from 'react-hot-toast'; // Import react-hot-toast
 import { useUserContext } from '../../context/UserContext'; // Import useUserContext
+import { useAuth } from '../../context/AuthContext'; // Import useAuth
 import axiosInstance from '../../axiosInstance';
+
+// Define proper types for the API response
+interface UserRole {
+  id: number;
+  name: string;
+  readable_name: string;
+}
+
+interface User {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  created_at: string;
+  updated_at: string;
+  role: UserRole;
+}
+
+interface LoginResponse {
+  user: User;
+  access_token: string;
+  refresh_token: string;
+}
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -12,6 +37,7 @@ const LoginPage = () => {
   const [passwordError, setPasswordError] = useState('');
   const navigate = useNavigate(); // For navigation after successful login
   const { setAccessToken, setRefreshToken, setUserInfo } = useUserContext(); // Use useUserContext
+  const { login } = useAuth(); // Use useAuth for login
 
   const validateEmail = (email: string) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -40,24 +66,28 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      const response = await axiosInstance.post<{ access_token: string; refresh_token: string; user: any }>('/login', {
+      const response = await axiosInstance.post<LoginResponse>('/login', {
         email,
         password,
       });
 
       const { access_token, refresh_token, user } = response.data;
 
-      // Save tokens separately
-       setAccessToken(access_token);
-       setRefreshToken(refresh_token);
-       setUserInfo(user);
+      // Save tokens and user info
+      setAccessToken(access_token);
+      setRefreshToken(refresh_token);
+      setUserInfo(user);
+      
+      // Update Auth context with access token
+      login(access_token);
 
       toast.success('تم تسجيل الدخول بنجاح!', {
         position: 'top-center',
       });
       navigate('/reservations'); 
-    } catch (error) {
+    } catch (err) {
       toast.error('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
