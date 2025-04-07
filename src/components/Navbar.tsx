@@ -165,14 +165,13 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
     navigate('/login');
   }, [navigate, logout]);
 
-  // First, add these styles to handle responsive widths
+  // Notification dropdown styles
   const notificationDropdownStyles = `
     absolute 
     left-2
     mt-2 
     w-[calc(100vw-2rem)] 
     md:w-[450px] 
-    lg:w-[500px] 
     bg-white 
     rounded-lg 
     shadow-lg 
@@ -181,11 +180,10 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
     overflow-hidden 
     animate-fade-in
     max-h-[80vh]
-    md:max-h-[600px]
   `;
 
   return (
-    <div className="bg-white shadow-sm fixed w-full top-0 z-20 md:relative overflow-x-hidden">
+    <div className="bg-white shadow-sm fixed w-full top-0 z-20 md:relative">
       {/* Mobile Search Overlay */}
       {/*isSearchOpen && (
         <div className="fixed inset-0 bg-white bg-opacity-95 z-50 p-4 md:hidden animate-fade-in">
@@ -211,7 +209,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
       )*/}
 
       {/* Main Navbar Content */}
-      <div className="px-3 sm:px-4 md:px-6 py-3 max-w-7xl mx-auto">
+      <div className="px-4 py-3 max-w-7xl mx-auto">
         <div className="flex items-center justify-between">
           {/* Left Side: Menu Toggle and Logo */}
           <div className="flex items-center">
@@ -224,7 +222,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
             </button>
             <div className="flex items-center">
               <img src="/images/output-onlinepngtools.png" alt="Logo" className="h-7 mr-2 block md:hidden" />
-              <h1 className="text-lg sm:text-xl font-semibold text-gray-800 hidden sm:block truncate">{title}</h1>
+              <h1 className="text-lg font-semibold text-gray-800 hidden sm:block truncate">{title}</h1>
             </div>
           </div>
 
@@ -238,7 +236,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
                 aria-label="الإشعارات"
               >
                 <div className="relative">
-                  <Bell className="h-5 w-5 sm:h-6 sm:w-6" />
+                  <Bell className="h-6 w-6" />
                   {unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
                       {unreadCount}
@@ -255,7 +253,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
                 className="flex items-center space-x-2 rtl:space-x-reverse p-2 hover:bg-gray-100 rounded-full transition-colors"
                 aria-label="فتح قائمة الملف الشخصي"
               >
-                <UserCircle className="h-5 w-5 sm:h-6 sm:w-6 text-gray-700" />
+                <UserCircle className="h-6 w-6 text-gray-700" />
               </button>
 
               {/* Profile Dropdown */}
@@ -295,12 +293,12 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
       {isNotificationsOpen && (
         <div className={notificationDropdownStyles}>
           {/* Header */}
-          <div className="sticky top-0 px-3 sm:px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-white z-10">
-            <h3 className="text-base sm:text-lg font-medium text-gray-900">الإشعارات</h3>
+          <div className="sticky top-0 px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-white z-10">
+            <h3 className="text-base font-medium text-gray-900">الإشعارات</h3>
             {unreadCount > 0 && (
               <button
                 onClick={markAllAsRead}
-                className="text-xs sm:text-sm text-[#8884d8] hover:underline"
+                className="text-sm text-[#8884d8] hover:underline"
               >
                 تحديد الكل كمقروء
               </button>
@@ -320,8 +318,8 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={`
-                      py-2 sm:py-3 
-                      px-3 sm:px-4 
+                      py-3 
+                      px-4 
                       hover:bg-gray-50 
                       cursor-pointer 
                       transition-colors
@@ -331,7 +329,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
                     <p className="text-sm font-medium text-gray-900 mb-1">
                       {notification.title}
                     </p>
-                    <p className="text-xs sm:text-sm text-gray-600 mb-1 line-clamp-2">
+                    <p className="text-sm text-gray-600 mb-1 line-clamp-2">
                       {notification.message}
                     </p>
                     <p className="text-xs text-gray-500">
