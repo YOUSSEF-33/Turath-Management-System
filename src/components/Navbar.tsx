@@ -185,7 +185,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
   `;
 
   return (
-    <div className="bg-white shadow-sm fixed w-full top-0 z-20 md:relative">
+    <div className="bg-white shadow-sm fixed w-full top-0 z-20 md:relative overflow-x-hidden">
       {/* Mobile Search Overlay */}
       {/*isSearchOpen && (
         <div className="fixed inset-0 bg-white bg-opacity-95 z-50 p-4 md:hidden animate-fade-in">
@@ -211,50 +211,25 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
       )*/}
 
       {/* Main Navbar Content */}
-      <div className="px-4 md:px-6 py-3 max-w-7xl mx-auto">
+      <div className="px-3 sm:px-4 md:px-6 py-3 max-w-7xl mx-auto">
         <div className="flex items-center justify-between">
           {/* Left Side: Menu Toggle and Logo */}
           <div className="flex items-center">
             <button
-              className="md:hidden p-2 -mr-2 text-gray-700 hover:text-gray-900 transition-colors"
+              className="md:hidden p-2 -mr-1 text-gray-700 hover:text-gray-900 transition-colors"
               onClick={onMenuToggle}
               aria-label={isMenuOpen ? 'إغلاق القائمة' : 'فتح القائمة'}
             >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              {isMenuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
             <div className="flex items-center">
-              <img src="/images/output-onlinepngtools.png" alt="Logo" className="h-8 mr-3 block md:hidden" />
-              <h1 className="text-xl font-semibold text-gray-800 hidden sm:block">{title}</h1>
+              <img src="/images/output-onlinepngtools.png" alt="Logo" className="h-7 mr-2 block md:hidden" />
+              <h1 className="text-lg sm:text-xl font-semibold text-gray-800 hidden sm:block truncate">{title}</h1>
             </div>
           </div>
 
-          {/* Right Side: Search, Notifications and Profile */}
+          {/* Right Side: Notifications and Profile */}
           <div className="flex items-center space-x-1 rtl:space-x-reverse">
-            {/* Desktop Search */}
-            {/*<div className="hidden md:block w-64 lg:w-80">
-              <form onSubmit={handleSearch} className="relative">
-                <input
-                  type="text"
-                  placeholder="بحث..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-4 py-2 pr-10 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#8884d8] focus:border-transparent transition-all text-sm"
-                />
-                <button type="submit" className="absolute left-3 top-2.5">
-                  <Search className="h-5 w-5 text-gray-400" />
-                </button>
-              </form>
-            </div>*/}
-
-            {/* Mobile Search Button */}
-            {/*<button
-              onClick={toggleSearch}
-              className="md:hidden p-2 text-gray-500 hover:text-gray-700 transition-colors"
-              aria-label="فتح البحث"
-            >
-              <Search className="h-6 w-6" />
-            </button>*/}
-
             {/* Notifications Section */}
             <div ref={notificationsRef} className="relative">
               <button
@@ -263,7 +238,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
                 aria-label="الإشعارات"
               >
                 <div className="relative">
-                  <Bell className="h-6 w-6" />
+                  <Bell className="h-5 w-5 sm:h-6 sm:w-6" />
                   {unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
                       {unreadCount}
@@ -280,7 +255,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
                 className="flex items-center space-x-2 rtl:space-x-reverse p-2 hover:bg-gray-100 rounded-full transition-colors"
                 aria-label="فتح قائمة الملف الشخصي"
               >
-                <UserCircle className="h-6 w-6 text-gray-700" />
+                <UserCircle className="h-5 w-5 sm:h-6 sm:w-6 text-gray-700" />
               </button>
 
               {/* Profile Dropdown */}
@@ -288,7 +263,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
                 <div className="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden animate-fade-in">
                   <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
                     <p className="text-sm font-medium text-gray-900">المستخدم الحالي</p>
-                    <p className="text-sm text-gray-500">admin@example.com</p>
+                    <p className="text-sm text-gray-500 truncate">admin@example.com</p>
                   </div>
                   <div className="py-1">
                     <button
@@ -320,12 +295,12 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
       {isNotificationsOpen && (
         <div className={notificationDropdownStyles}>
           {/* Header */}
-          <div className="sticky top-0 px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-white z-10">
-            <h3 className="text-lg font-medium text-gray-900">الإشعارات</h3>
+          <div className="sticky top-0 px-3 sm:px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-white z-10">
+            <h3 className="text-base sm:text-lg font-medium text-gray-900">الإشعارات</h3>
             {unreadCount > 0 && (
               <button
                 onClick={markAllAsRead}
-                className="text-sm text-[#8884d8] hover:underline"
+                className="text-xs sm:text-sm text-[#8884d8] hover:underline"
               >
                 تحديد الكل كمقروء
               </button>
@@ -345,8 +320,8 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={`
-                      py-3 
-                      px-4 
+                      py-2 sm:py-3 
+                      px-3 sm:px-4 
                       hover:bg-gray-50 
                       cursor-pointer 
                       transition-colors
@@ -356,7 +331,7 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle }: NavbarProps) => {
                     <p className="text-sm font-medium text-gray-900 mb-1">
                       {notification.title}
                     </p>
-                    <p className="text-sm text-gray-600 mb-1 line-clamp-2">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1 line-clamp-2">
                       {notification.message}
                     </p>
                     <p className="text-xs text-gray-500">

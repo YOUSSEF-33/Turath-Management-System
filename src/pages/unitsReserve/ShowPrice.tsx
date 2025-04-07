@@ -415,11 +415,11 @@ const ShowPrice = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="page-container bg-gray-50">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">عرض تفاصيل السعر</h1>
-          <p className="mt-2 text-sm text-gray-600">قم باختيار الوحدة لعرض تفاصيل السعر والتقسيط</p>
+        <div className="text-center mobile-margin">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">عرض تفاصيل السعر</h1>
+          <p className="mt-2 text-xs sm:text-sm text-gray-600">قم باختيار الوحدة لعرض تفاصيل السعر والتقسيط</p>
         </div>
 
         <div className="bg-white shadow rounded-lg overflow-hidden">

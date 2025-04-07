@@ -59,7 +59,40 @@ export default {
         'card': '0 2px 8px 0 rgba(0, 0, 0, 0.04)',
         'card-hover': '0 4px 12px 0 rgba(0, 0, 0, 0.08)',
       },
+      spacing: {
+        'mobile': '0.75rem',
+        'tablet': '1rem',
+        'desktop': '1.5rem',
+      },
+      screens: {
+        'xs': '380px',
+      },
+    },
+    container: {
+      center: true,
+      padding: {
+        DEFAULT: '1rem',
+        sm: '1.5rem',
+        md: '2rem',
+      },
     },
   },
-  plugins: [],
+  plugins: [
+    function ({ addComponents }) {
+      addComponents({
+        '.responsive-container': {
+          width: '100%',
+          maxWidth: '100%',
+          overflowX: 'hidden',
+          padding: '0.75rem',
+          '@screen sm': {
+            padding: '1rem',
+          },
+          '@screen md': {
+            padding: '1.5rem',
+          },
+        },
+      });
+    },
+  ],
 }
