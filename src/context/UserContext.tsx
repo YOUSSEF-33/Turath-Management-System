@@ -1,9 +1,15 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 
+interface Permission {
+  id: number;
+  name: string;
+}
+
 interface Role {
   id: number;
   name: string;
   readable_name: string;
+  permissions: Permission[];
 }
 
 interface User {
@@ -24,6 +30,7 @@ interface UserContextProps {
   setAccessToken: (token: string) => void;
   setRefreshToken: (token: string) => void;
   setUserInfo: (info: User) => void;
+  getUserInfo: () => User | null;
 }
 
 const UserContext = createContext<UserContextProps | undefined>(undefined);

@@ -1,19 +1,15 @@
 import React, { useCallback, useState, useEffect } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { 
-  LayoutDashboard, 
   Users, 
-  Settings, 
   Building, 
   LogOut,
   ChevronDown,
   ChevronUp,
-  PlusSquare,
   Home,
   ClipboardList,
-  Loader2 // Import a loading spinner from lucide-react
+  Loader2
 } from "lucide-react";
-import { useUserContext } from '../context/UserContext';
 import { usePermissionsContext } from "../context/PermissionsContext";
 import { useAuth } from "../context/AuthContext";
 
@@ -104,8 +100,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     <>
       {/* Sidebar/Mobile Menu */}
       <aside
-        style={{zIndex: "none"}}
-        className={`fixed md:sticky top-0 right-0 h-screen w-64 bg-white shadow-lg text-gray-800 transform transition-transform duration-300 ease-in-out z-30 overflow-y-auto ${
+        className={`fixed md:sticky top-0 right-0 h-screen w-64 bg-white shadow-lg text-gray-800 transform transition-transform duration-300 ease-in-out z-30 md:z-10 overflow-y-auto ${
           isOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"
         }`}
       >
@@ -177,6 +172,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                             {item.isExpanded && item.subItems && (
                               <div className="mr-5 sm:mr-7 mt-1 border-r-2 border-gray-200 pr-2 sm:pr-3">
                                 {item.subItems.map(subItem => (
+                                  console.log(subItem.permission),
+                                  console.log(hasPermission(subItem.permission)),
                                   (!subItem.permission || hasPermission(subItem.permission)) && (
                                     <NavLink
                                       key={subItem.path}
@@ -194,8 +191,9 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                                     </NavLink>
                                   )
                                 ))}
-                                <NavLink
-                                  to={item.path}
+                                {hasPermission("view_projects") && (
+                                  <NavLink
+                                    to={item.path}
                                   onClick={onClose}
                                   className={({ isActive }) =>
                                     `flex items-center p-2 text-xs sm:text-sm rounded-lg mb-1 transition-colors ${
@@ -205,8 +203,9 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                                     }`
                                   }
                                 >
-                                  <span>عرض كل المشاريع</span>
-                                </NavLink>
+                                    <span>عرض كل المشاريع</span>
+                                  </NavLink>
+                                )}
                               </div>
                             )}
                           </>
@@ -231,7 +230,9 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   ))}
                   
                   {/* Employees Section */}
-                  <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mt-5 sm:mt-6 mb-2">الموظفون</h2>
+                  {hasPermission("view_users") && (
+                    <>
+                      <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mt-5 sm:mt-6 mb-2">الموظفون</h2>
                   {usersItems.map((item) => (
                     (!item.permission || hasPermission(item.permission)) && (
                       <NavLink
@@ -249,8 +250,10 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                         {item.icon}
                         <span className="text-sm sm:text-base">{item.text}</span>
                       </NavLink>
-                    )
-                  ))}
+                      )
+                    ))}
+                    </>
+                  )}
                 </>
               )}
             </nav>

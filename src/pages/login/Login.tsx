@@ -10,6 +10,12 @@ interface UserRole {
   id: number;
   name: string;
   readable_name: string;
+  permissions: Permission[];
+}
+
+interface Permission {
+  id: number;
+  name: string;
 }
 
 interface User {
@@ -27,6 +33,10 @@ interface LoginResponse {
   user: User;
   access_token: string;
   refresh_token: string;
+}
+
+interface MeResponse {
+  data: User;
 }
 
 const LoginPage = () => {
@@ -66,25 +76,38 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      const response = await axiosInstance.post<LoginResponse>('/login', {
+      // First, authenticate with email/password
+      const loginResponse = await axiosInstance.post<LoginResponse>('/login', {
         email,
         password,
       });
 
-      const { access_token, refresh_token, user } = response.data;
+      const { access_token, refresh_token } = loginResponse.data;
 
-      // Save tokens and user info
+      // Save tokens
       setAccessToken(access_token);
       setRefreshToken(refresh_token);
-      setUserInfo(user);
       
       // Update Auth context with access token
       login(access_token);
-
-      toast.success('تم تسجيل الدخول بنجاح!', {
-        position: 'top-center',
-      });
-      navigate('/reservations'); 
+      
+      // Now fetch user data with permissions from /me endpoint
+      try {
+        const meResponse = await axiosInstance.get<MeResponse>('/me');
+        const userData = meResponse.data.data;
+        
+        // Save user info with complete permissions
+        setUserInfo(userData);
+        
+        toast.success('تم تسجيل الدخول بنجاح!', {
+          position: 'top-center',
+        });
+        navigate('/reservations');
+      } catch (meError) {
+        console.error('Error fetching user data:', meError);
+        toast.error('تم تسجيل الدخول ولكن حدث خطأ في جلب بيانات المستخدم');
+        navigate('/reservations');
+      }
     } catch (err) {
       toast.error('البريد الإلكتروني أو كلمة المرور غير صحيحة');
       console.error('Login error:', err);

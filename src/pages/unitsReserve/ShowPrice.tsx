@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Select } from 'antd';
 import type { SelectProps } from 'antd';
-import { Check, Trash2, Upload } from 'lucide-react';
 import { toast } from "react-hot-toast";
-import dayjs from "dayjs";
 import axiosInstance from "../../axiosInstance";
 
 interface Project {

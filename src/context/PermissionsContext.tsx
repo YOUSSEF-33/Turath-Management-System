@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import axiosInstance from '../axiosInstance';
 import { useUserContext } from './UserContext';
 
 interface Permission {
@@ -21,19 +20,19 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchPermissions = async () => {
-      if (userInfo) {
-        try {
-          const response = await axiosInstance.get(`/roles/${userInfo.role.id}`);
-          setPermissions(response.data.data.permissions);
-          setUserRole(userInfo.role.name);
-        } catch (error) {
-          console.error('Error fetching permissions:', error);
-        }
-      }
-    };
-
-    fetchPermissions();
+    if (userInfo && userInfo.role && userInfo.role.permissions) {
+      console.log("userInfo");
+      console.log(userInfo);
+      console.log("userInfo.role");
+      console.log(userInfo.role);
+      console.log("userInfo.role.permissions");
+      console.log(userInfo.role.permissions);
+      setPermissions(userInfo.role.permissions);
+      setUserRole(userInfo.role.name);
+    } else {
+      setPermissions([]);
+      setUserRole(null);
+    }
   }, [userInfo]);
 
   const hasPermission = (permissionName: string) => {

@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-
 import { Toaster } from 'react-hot-toast';
 import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
-import Dashboard from './pages/Dashboard';
 import Employees from './pages/Employees';
 import Units from './pages/Units';
 import CreateEmployee from './pages/employees/CreateEmployee';
