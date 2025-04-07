@@ -128,6 +128,16 @@ const ShowPrice = () => {
     return option.label?.toString().toLowerCase().includes(input.toLowerCase()) ?? false;
   };
 
+  const filterBuildings: SelectProps['filterOption'] = (input, option) => {
+    if (!option) return false;
+    return option.label?.toString().toLowerCase().includes(input.toLowerCase()) ?? false;
+  };
+
+  const filterUnits: SelectProps['filterOption'] = (input, option) => {
+    if (!option) return false;
+    return option.label?.toString().toLowerCase().includes(input.toLowerCase()) ?? false;
+  };
+
   // Fetch projects
   useEffect(() => {
     const fetchData = async () => {
@@ -376,7 +386,6 @@ const ShowPrice = () => {
   // Calculate final price based on down payment and installments
   const calculateFinalPrice = () => {
     const downPayment = parseFloat(unitDetails.downPayment || '0');
-    const unitPrice = parseFloat(unitDetails.price || '0');
     
     // Calculate total installments amount
     const totalInstallmentsAmount = unitDetails.installments.reduce((total, installment) => {
@@ -488,6 +497,7 @@ const ShowPrice = () => {
                   placeholder="اختر المبنى"
                   className="w-full"
                   showSearch
+                  filterOption={filterBuildings}
                 />
               </div>
             )}
@@ -508,6 +518,7 @@ const ShowPrice = () => {
                   placeholder="اختر الوحدة"
                   className="w-full"
                   showSearch
+                  filterOption={filterUnits}
                 />
               </div>
             )}
