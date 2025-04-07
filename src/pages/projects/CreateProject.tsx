@@ -11,21 +11,11 @@ interface AdditionalExpense {
   value: number;
 }
 
-interface MediaResponse {
-  id: number;
-  name: string;
-  small_url: string;
-  medium_url: string;
-  url: string;
-  disk: string;
-}
-
 const CreateProject = () => {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [documentsBackground, setDocumentsBackground] = useState<File | null>(null);
-  const [documentsBackgroundId, setDocumentsBackgroundId] = useState<number | null>(null);
   const [isActive, setIsActive] = useState(true);
   const [installmentOptions, setInstallmentOptions] = useState<string[]>([]);
   const [depositPercentage, setDepositPercentage] = useState<number | ''>('');
@@ -39,7 +29,7 @@ const CreateProject = () => {
     if (file) {
       const validation = validateMediaFile(file);
       if (!validation.isValid) {
-        toast.error(validation.error);
+        toast.error(validation.error || 'خطأ في الملف');
         e.target.value = '';
         return;
       }
@@ -184,7 +174,7 @@ const CreateProject = () => {
                 label="اسم المشروع *"
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                 placeholder="أدخل اسم المشروع"
               />
               {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
@@ -272,6 +262,7 @@ const CreateProject = () => {
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                   min="0"
                   max="100"
+                  step="0.01"
                   placeholder="أدخل النسبة المئوية"
                 />
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

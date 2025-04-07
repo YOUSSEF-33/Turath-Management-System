@@ -233,7 +233,7 @@ const ShowPrice = () => {
             amount: ''
           }] : [],
           additional_expenses: {},
-          finalPrice: unit.price.toString()
+          finalPrice: defaultDownPayment || unit.price.toString()
         });
       }
     }
@@ -262,6 +262,9 @@ const ShowPrice = () => {
           return newErrors;
         });
       }
+      
+      // Calculate final price when down payment changes
+      calculateFinalPrice();
     }
   };
 
@@ -317,6 +320,9 @@ const ShowPrice = () => {
       }));
       setSelectedInstallmentType(type);
     }
+    
+    // Calculate final price when installment types change
+    calculateFinalPrice();
   };
 
   // Handle installment updates
@@ -362,7 +368,36 @@ const ShowPrice = () => {
         }));
       }
     }
+    
+    // Calculate final price after updating installments
+    calculateFinalPrice();
   };
+
+  // Calculate final price based on down payment and installments
+  const calculateFinalPrice = () => {
+    const downPayment = parseFloat(unitDetails.downPayment || '0');
+    const unitPrice = parseFloat(unitDetails.price || '0');
+    
+    // Calculate total installments amount
+    const totalInstallmentsAmount = unitDetails.installments.reduce((total, installment) => {
+      const count = parseInt(installment.count || '0', 10);
+      const amount = parseFloat(installment.amount || '0');
+      return total + (count * amount);
+    }, 0);
+    
+    // Final price = down payment + total installments amount
+    const finalPrice = downPayment + totalInstallmentsAmount;
+    
+    setUnitDetails(prev => ({
+      ...prev,
+      finalPrice: finalPrice.toString()
+    }));
+  };
+
+  // Update final price when down payment changes
+  useEffect(() => {
+    calculateFinalPrice();
+  }, [unitDetails.downPayment, unitDetails.installments]);
 
   // Generate PDF function
   const generatePDF = async () => {
@@ -621,6 +656,52 @@ const ShowPrice = () => {
                     ))}
                   </div>
                 )}
+
+                {/* Additional Expenses */}
+                {selectedProject && (() => {
+                  const project = projects.find(p => p.id === selectedProject);
+                  if (!project || !project.additional_expenses || project.additional_expenses.length === 0) {
+                    return null;
+                  }
+                  
+                  return (
+                    <div className="mt-6">
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">المصروفات الإضافية</h3>
+                      <div className="space-y-4">
+                        {project.additional_expenses.map((expense) => {
+                          if (!expense.is_active) return null;
+                          
+                          const unitPrice = parseFloat(unitDetails.price || '0');
+                          let expenseValue = 0;
+                          
+                          if (expense.type === 'FIXED_VALUE') {
+                            expenseValue = parseFloat(expense.value || '0');
+                          } else if (expense.type === 'PERCENTAGE') {
+                            expenseValue = (unitPrice * parseFloat(expense.value || '0')) / 100;
+                          }
+                          
+                          return (
+                            <div key={expense.id} className="bg-gray-50 p-4 rounded-lg">
+                              <div className="grid grid-cols-1 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    {expense.name}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={`${expenseValue.toLocaleString()} جنيه`}
+                                    disabled
+                                    className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 text-gray-700 sm:text-sm"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Final Price */}
                 <div className="mt-8 p-4 bg-gray-50 rounded-lg">
