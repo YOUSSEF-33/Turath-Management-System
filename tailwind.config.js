@@ -66,6 +66,11 @@ export default {
       },
       screens: {
         'xs': '380px',
+        'sm': '640px',
+        'md': '768px',
+        'lg': '1024px',
+        'xl': '1280px',
+        '2xl': '1536px',
       },
     },
     container: {
@@ -75,6 +80,13 @@ export default {
         sm: '1.5rem',
         md: '2rem',
       },
+      screens: {
+        sm: '640px',
+        md: '768px',
+        lg: '1024px',
+        xl: '1280px',
+        '2xl': '1536px',
+      },
     },
   },
   plugins: [
@@ -83,14 +95,23 @@ export default {
         '.responsive-container': {
           width: '100%',
           maxWidth: '100%',
+          margin: '0 auto',
+          paddingLeft: '1rem',
+          paddingRight: '1rem',
           overflowX: 'hidden',
-          padding: '0.75rem',
           '@screen sm': {
-            padding: '1rem',
+            paddingLeft: '1.5rem',
+            paddingRight: '1.5rem',
           },
           '@screen md': {
-            padding: '1.5rem',
+            paddingLeft: '2rem',
+            paddingRight: '2rem',
           },
+        },
+        '.content-wrapper': {
+          width: '100%',
+          maxWidth: '100%',
+          overflowX: 'hidden',
         },
       });
     },

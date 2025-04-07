@@ -9,7 +9,10 @@ import {
   Home,
   ClipboardList,
   Settings,
-  Loader2
+  Loader2,
+  X,
+  ChevronRight,
+  ChevronLeft
 } from "lucide-react";
 import { usePermissionsContext } from "../context/PermissionsContext";
 import { useAuth } from "../context/AuthContext";
@@ -17,15 +20,22 @@ import { useAuth } from "../context/AuthContext";
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  onCollapse?: (collapsed: boolean) => void;
 }
 
-const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
+const Sidebar = ({ isOpen, onClose, onCollapse }: SidebarProps) => {
   const { hasPermission } = usePermissionsContext();
   const { logout } = useAuth();
   const [projectsExpanded, setProjectsExpanded] = React.useState(
     location.pathname.includes('/projects')
   );
-  const [isLoading, setIsLoading] = useState(true); // Add loading state
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Notify parent component when sidebar is collapsed/expanded
+  useEffect(() => {
+    onCollapse?.(isCollapsed);
+  }, [isCollapsed, onCollapse]);
 
   // Simulate permission checking with a delay
   useEffect(() => {
@@ -97,30 +107,69 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
   return (
     <>
-      {/* Sidebar/Mobile Menu */}
+      {/* Mobile overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden" 
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Sidebar */}
       <aside
-        className={`fixed md:sticky top-0 right-0 h-screen w-64 bg-white shadow-lg text-gray-800 transform transition-transform duration-300 ease-in-out z-30 ${
-          isOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"
-        }`}
+        className={`fixed md:sticky top-0 right-0 h-screen bg-white shadow-xl transform duration-300 ease-in-out z-100 
+          ${isOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"}
+          ${isCollapsed ? "md:w-20" : "w-[280px] sm:w-72"}
+        `}
       >
-        <div className="flex flex-col h-full">
-          <div className="p-4 border-b border-gray-100">
-            <div className="flex items-center justify-center mb-6">
-              <img src="/images/output-onlinepngtools.png" alt="Logo" className="h-10" />
+        <div className="flex flex-col h-full w-full relative">
+          {/* Collapse toggle button (visible only on md and above) */}
+          <button
+            onClick={() => setIsCollapsed(prev => !prev)}
+            className="hidden md:flex absolute left-3 top-6 h-6 w-6 bg-white rounded-full shadow-md items-center justify-center hover:bg-gray-50 z-50"
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? (
+              <ChevronLeft className="h-4 w-4 text-gray-600" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-gray-600 z-[999999]" />
+            )}
+          </button>
+
+          {/* Header */}
+          <div className="p-3 sm:p-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+            <div className="flex-1 flex justify-center">
+              {!isCollapsed && (
+                <img 
+                  src="/images/output-onlinepngtools.png" 
+                  alt="Logo" 
+                  className="h-10 sm:h-12 transition-all duration-300" 
+                />
+              )}
             </div>
+            <button 
+              onClick={onClose}
+              className="md:hidden absolute right-3 top-3 p-2 rounded-lg hover:bg-gray-100"
+              aria-label="Close sidebar"
+            >
+              <X className="h-5 w-5 text-gray-600" />
+            </button>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4">
-            <nav className="space-y-1">
+          {/* Navigation */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 sm:py-6 px-3 sm:px-4">
+            <nav className="space-y-1.5 sm:space-y-2 w-full">
               {isLoading ? (
-                // Show loading spinner while permissions are being checked
                 <div className="flex justify-center items-center h-20">
                   <Loader2 className="animate-spin h-8 w-8 text-[#8884d8]" />
                 </div>
               ) : (
                 <>
-                  <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mb-2">الرئيسية</h2>
-                  {/* Regular Menu Items */}
+                  {!isCollapsed && (
+                    <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 sm:px-3 mb-2 sm:mb-3">الرئيسية</h2>
+                  )}
+                  {/* Menu Items */}
                   {mainItems.map((item) => (
                     (!item.permission || hasPermission(item.permission)) && (
                       <NavLink
@@ -128,119 +177,131 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                         to={item.path}
                         onClick={onClose}
                         className={({ isActive }) =>
-                          `flex items-center p-3 rounded-lg transition-colors ${
+                          `flex items-center ${isCollapsed ? "justify-center" : ""} p-2.5 sm:p-3 text-sm sm:text-base rounded-lg transition-colors ${
                             isActive 
-                              ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium" 
-                              : "hover:bg-gray-100 text-gray-700"
+                              ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium shadow-sm" 
+                              : "hover:bg-gray-50 text-gray-700 hover:shadow-sm"
                           }`
                         }
+                        title={isCollapsed ? item.text : undefined}
                       >
                         {item.icon}
-                        <span>{item.text}</span>
+                        {!isCollapsed && <span className="truncate">{item.text}</span>}
                       </NavLink>
                     )
                   ))}
 
                   {/* Units Section */}
-                  <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mt-6 mb-2">الوحدات</h2>
-                  {unitsItems.map((item) => (
-                    (!item.permission || hasPermission(item.permission)) && (
-                      <div key={item.path} className="mb-1">
-                        {item.isExpandable ? (
-                          <>
-                            <button
-                              onClick={item.onToggle}
-                              className={`flex items-center justify-between w-full p-3 rounded-lg transition-colors ${
-                                isRouteActive(item.path) || isAnySubItemActive(item.subItems || [])
-                                  ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium"
-                                  : "hover:bg-gray-100 text-gray-700"
-                              }`}
-                            >
-                              <div className="flex items-center">
-                                {item.icon}
-                                <span>{item.text}</span>
-                              </div>
-                              {item.isExpanded ? (
-                                <ChevronUp className="h-4 w-4" />
-                              ) : (
-                                <ChevronDown className="h-4 w-4" />
-                              )}
-                            </button>
-                            
-                            {/* Submenu */}
-                            {item.isExpanded && item.subItems && (
-                              <div className="mr-7 mt-1 border-r-2 border-gray-200 pr-3">
-                                {item.subItems.map(subItem => (
-                                  (!subItem.permission || hasPermission(subItem.permission)) && (
+                  {!isCollapsed && (
+                    <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 sm:px-3 mt-6 sm:mt-8 mb-2 sm:mb-3">الوحدات</h2>
+                  )}
+                  <div className={`space-y-1.5 sm:space-y-2 w-full ${isCollapsed ? "mt-6" : ""}`}>
+                    {unitsItems.map((item) => (
+                      (!item.permission || hasPermission(item.permission)) && (
+                        <div key={item.path} className="w-full">
+                          {item.isExpandable ? (
+                            <>
+                              <button
+                                onClick={item.onToggle}
+                                className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} w-full p-2.5 sm:p-3 text-sm sm:text-base rounded-lg transition-colors ${
+                                  isRouteActive(item.path) || isAnySubItemActive(item.subItems || [])
+                                    ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium shadow-sm"
+                                    : "hover:bg-gray-50 text-gray-700 hover:shadow-sm"
+                                }`}
+                                title={isCollapsed ? item.text : undefined}
+                              >
+                                <div className="flex items-center min-w-0">
+                                  {item.icon}
+                                  {!isCollapsed && <span className="truncate">{item.text}</span>}
+                                </div>
+                                {!isCollapsed && (
+                                  item.isExpanded ? (
+                                    <ChevronUp className="h-4 w-4 shrink-0" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4 shrink-0" />
+                                  )
+                                )}
+                              </button>
+                              
+                              {/* Submenu - Only show when not collapsed */}
+                              {item.isExpanded && !isCollapsed && item.subItems && (
+                                <div className="mr-6 sm:mr-7 mt-1.5 sm:mt-2 border-r-2 border-gray-200 pr-2 sm:pr-3">
+                                  {item.subItems.map(subItem => (
+                                    (!subItem.permission || hasPermission(subItem.permission)) && (
+                                      <NavLink
+                                        key={subItem.path}
+                                        to={subItem.path}
+                                        onClick={onClose}
+                                        className={({ isActive }) =>
+                                          `flex items-center p-2.5 text-sm rounded-lg mb-1.5 transition-colors ${
+                                            isActive
+                                              ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium shadow-sm"
+                                              : "hover:bg-gray-50 text-gray-700 hover:shadow-sm"
+                                          }`
+                                        }
+                                      >
+                                        <span className="truncate">{subItem.text}</span>
+                                      </NavLink>
+                                    )
+                                  ))}
+                                  {item.path === '/projects' && hasPermission('view_projects') && (
                                     <NavLink
-                                      key={subItem.path}
-                                      to={subItem.path}
+                                      to={item.path}
                                       onClick={onClose}
                                       className={({ isActive }) =>
-                                        `flex items-center p-2 text-sm rounded-lg mb-1 transition-colors ${
-                                          isActive
-                                            ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium"
-                                            : "hover:bg-gray-100 text-gray-700"
+                                        `flex items-center p-2.5 text-sm rounded-lg mb-1.5 transition-colors ${
+                                          isActive && location.pathname === item.path
+                                            ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium shadow-sm"
+                                            : "hover:bg-gray-50 text-gray-700 hover:shadow-sm"
                                         }`
                                       }
                                     >
-                                      <span>{subItem.text}</span>
+                                      <span className="truncate">عرض كل المشاريع</span>
                                     </NavLink>
-                                  )
-                                ))}
-                                {hasPermission("view_projects") && (
-                                  <NavLink
-                                    to={item.path}
-                                    onClick={onClose}
-                                    className={({ isActive }) =>
-                                      `flex items-center p-2 text-sm rounded-lg mb-1 transition-colors ${
-                                        isActive && location.pathname === item.path
-                                          ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium"
-                                          : "hover:bg-gray-100 text-gray-700"
-                                      }`
-                                    }
-                                  >
-                                    <span>عرض كل المشاريع</span>
-                                  </NavLink>
-                                )}
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <NavLink
-                            to={item.path}
-                            onClick={onClose}
-                            className={({ isActive }) =>
-                              `flex items-center p-3 rounded-lg transition-colors ${
-                                isActive
-                                  ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium" 
-                                  : "hover:bg-gray-100 text-gray-700"
-                              }`
-                            }
-                          >
-                            {item.icon}
-                            <span>{item.text}</span>
-                          </NavLink>
-                        )}
-                      </div>
-                    )
-                  ))}
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <NavLink
+                              to={item.path}
+                              onClick={onClose}
+                              className={({ isActive }) =>
+                                `flex items-center ${isCollapsed ? "justify-center" : ""} p-2.5 sm:p-3 text-sm sm:text-base rounded-lg transition-colors ${
+                                  isActive
+                                    ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium shadow-sm" 
+                                    : "hover:bg-gray-50 text-gray-700 hover:shadow-sm"
+                                }`
+                              }
+                              title={isCollapsed ? item.text : undefined}
+                            >
+                              {item.icon}
+                              {!isCollapsed && <span className="truncate">{item.text}</span>}
+                            </NavLink>
+                          )}
+                        </div>
+                      )
+                    ))}
+                  </div>
                   
-                  {/* Settings Section */}
-                  <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mt-6 mb-2">الإعدادات</h2>
+                  {/* Settings */}
+                  {!isCollapsed && (
+                    <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 sm:px-3 mt-6 sm:mt-8 mb-2 sm:mb-3">الإعدادات</h2>
+                  )}
                   <NavLink
                     to="/settings"
                     onClick={onClose}
                     className={({ isActive }) =>
-                      `flex items-center p-3 rounded-lg transition-colors ${
+                      `flex items-center ${isCollapsed ? "justify-center" : ""} p-2.5 sm:p-3 text-sm sm:text-base rounded-lg transition-colors ${
                         isActive
-                          ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium" 
-                          : "hover:bg-gray-100 text-gray-700"
+                          ? "bg-[#8884d8] bg-opacity-10 text-[#8884d8] font-medium shadow-sm" 
+                          : "hover:bg-gray-50 text-gray-700 hover:shadow-sm"
                       }`
                     }
+                    title={isCollapsed ? "الإعدادات" : undefined}
                   >
-                    <Settings className="ml-2" />
-                    <span>الإعدادات</span>
+                    <Settings className="ml-2 shrink-0" />
+                    {!isCollapsed && <span className="truncate">الإعدادات</span>}
                   </NavLink>
                 </>
               )}
@@ -248,26 +309,18 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           </div>
           
           {/* Logout Button */}
-          <div className="p-4 border-t border-gray-100">
+          <div className="p-3 sm:p-4 border-t border-gray-100 sticky bottom-0 bg-white">
             <button
               onClick={handleLogout}
-              className="flex items-center p-3 w-full rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+              className={`flex items-center ${isCollapsed ? "justify-center" : ""} w-full p-2.5 sm:p-3 text-sm sm:text-base rounded-lg text-red-600 hover:bg-red-50`}
+              title={isCollapsed ? "تسجيل الخروج" : undefined}
             >
               <LogOut className="ml-2" />
-              <span>تسجيل الخروج</span>
+              {!isCollapsed && <span className="truncate">تسجيل الخروج</span>}
             </button>
           </div>
         </div>
       </aside>
-
-      {/* Overlay for mobile */}
-      {isOpen && (
-        <div
-          className="fixed top-20 bg-black bg-opacity-50 z-20 md:hidden"
-          onClick={onClose}
-          aria-hidden="true"
-        />
-      )}
     </>
   );
 };

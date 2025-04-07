@@ -71,17 +71,26 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 // Layout component for protected routes
 const ProtectedLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 overflow-x-hidden">
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      <div className="flex-1 flex flex-col w-full">
+    <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
+      <Sidebar 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+        onCollapse={(collapsed) => setIsSidebarCollapsed(collapsed)}
+      />
+      <div className="flex-1 flex flex-col w-full min-w-0">
         <Navbar
           title="لوحة التحكم"
           isMenuOpen={isSidebarOpen}
           onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+          isSidebarCollapsed={isSidebarCollapsed}
         />
-        <main className="flex-1 mt-16 md:mt-0 overflow-x-hidden w-full">
-          <Outlet />
+        <main className="flex-1 p-3 sm:p-4 lg:p-6 w-full min-w-0">
+          <div className="w-full min-w-0">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

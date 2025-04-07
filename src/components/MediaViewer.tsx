@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Modal, Image, Button, message } from 'antd';
-import { FileText, Image as ImageIcon, ExternalLink } from 'lucide-react';
+import { Modal, Image, Button, message, Typography } from 'antd';
+import { FileText, ExternalLink } from 'lucide-react';
 import {
   isGoogleDriveUrl,
   getGoogleDriveDirectUrl,
   getMediaType,
 } from '../utils/mediaUtils';
+
+const { Text } = Typography;
 
 interface MediaViewerProps {
   url: string;
@@ -32,38 +34,55 @@ const MediaViewer: React.FC<MediaViewerProps> = ({ url, title, className = '' })
   const renderPreview = () => {
     const mediaType = getMediaType(url);
     const isDriveUrl = isGoogleDriveUrl(url);
-    const directUrl = isDriveUrl ? getGoogleDriveDirectUrl(url) : url;
-    console.log("WWWWWWWWWWWWWWWWWWWWWWWWWD");
-    console.log(directUrl, mediaType);
+
     if (mediaType === 'image') {
       return (
-        <div className="relative group">
-          <Image
-            src={directUrl}
-            alt={title || 'صورة'}
-            className={`rounded-lg object-cover ${className}`}
-            preview={false}
-            loading="lazy"
-          />
-          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
+        <div 
+          onClick={() => setIsModalOpen(true)} 
+          className={`relative group cursor-pointer rounded-lg overflow-hidden ${className}`}
+        >
+          <div className="w-full h-full overflow-hidden">
+            <Image
+              src={isDriveUrl ? getGoogleDriveDirectUrl(url) : url}
+              alt={title || 'صورة'}
+              className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+              loading="lazy"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsModalOpen(true);
+              }}
+            />
+          </div>
+          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
             <Button
               type="primary"
-              icon={<ImageIcon className="h-4 w-4" />}
-              onClick={() => setIsModalOpen(true)}
+              icon={<ExternalLink className="h-4 w-4" />}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenInNewTab();
+              }}
             >
-              عرض الصورة
+              فتح الصورة
             </Button>
           </div>
         </div>
       );
     }
 
-    console.log("I'm INNNN")
     return (
-      <div className="relative group">
-        <div className={`bg-gray-100 rounded-lg p-4 flex items-center justify-center ${className}`}>
-          <FileText className="h-8 w-8 text-gray-400" />
-        </div>
+      <div className={`group relative ${className}`}>
+        {isDriveUrl ? (
+          <div className="flex flex-col items-center justify-center h-full w-full p-4 bg-gray-50 rounded-lg text-center cursor-pointer hover:bg-gray-100 transition-colors">
+            <div onClick={handleOpenInNewTab}>
+              <ExternalLink size={48} className="text-gray-500 mb-2" strokeWidth={1.5} />
+              <Typography.Text className="text-xs">فتح في Google Drive</Typography.Text>
+            </div>
+          </div>
+        ) : (
+          <div className={`bg-gray-100 rounded-lg p-4 flex items-center justify-center transition-colors hover:bg-gray-200 ${className}`}>
+            <FileText className="h-8 w-8 text-gray-400" />
+          </div>
+        )}
         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
           <Button
             type="primary"
@@ -84,6 +103,9 @@ const MediaViewer: React.FC<MediaViewerProps> = ({ url, title, className = '' })
         title={title || 'عرض الصورة'}
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
+        className="media-viewer-modal"
+        width="auto"
+        centered
         footer={[
           <Button key="copy" onClick={handleCopyLink}>
             نسخ الرابط
@@ -92,13 +114,12 @@ const MediaViewer: React.FC<MediaViewerProps> = ({ url, title, className = '' })
             فتح في نافذة جديدة
           </Button>,
         ]}
-        width={800}
       >
-        <div className="flex justify-center items-center">
+        <div className="flex justify-center items-center max-h-[80vh]">
           <Image
             src={isGoogleDriveUrl(url) ? getGoogleDriveDirectUrl(url) : url}
             alt={title || 'صورة'}
-            className="max-w-full max-h-[70vh]"
+            className="max-w-full max-h-[70vh] object-contain"
             loading="lazy"
           />
         </div>
@@ -107,4 +128,4 @@ const MediaViewer: React.FC<MediaViewerProps> = ({ url, title, className = '' })
   );
 };
 
-export default MediaViewer; 
+export default MediaViewer;
