@@ -276,7 +276,7 @@ const CreateProject = () => {
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                   min="0"
                   max="100"
-                  step="0.01"
+                  step="0.0001"
                   placeholder="أدخل النسبة المئوية"
                 />
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -297,8 +297,8 @@ const CreateProject = () => {
                   onChange={(e) => setCashFactor(Number(e.target.value))}
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                   min="0"
-                  max="100"
-                  step="0.00001"
+                  max="1"
+                  step="0.000001"
                   placeholder="أدخل معامل الكاش"
                   required
                 />
@@ -318,7 +318,7 @@ const CreateProject = () => {
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                   min="0"
                   max="1"
-                  step="0.000001"
+                  step="0.0000001"
                   placeholder="أدخل معامل التخفيض"
                   required
                 />
