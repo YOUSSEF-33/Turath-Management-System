@@ -39,10 +39,10 @@ import SearchResults from './pages/search/SearchResults';
 
 // Protected Route wrapper component
 const ProtectedRoute = ({ children, requiredPermission }: { children: React.ReactNode; requiredPermission?: string }) => {
-  const { isAuthenticated, isLoading } = useAuth();
-  const { hasPermission } = usePermissionsContext();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { hasPermission, isLoading: isPermissionsLoading } = usePermissionsContext();
 
-  if (isLoading) {
+  if (isAuthLoading || isPermissionsLoading) {
     return <LoadingSpinner />;
   }
 
@@ -51,7 +51,7 @@ const ProtectedRoute = ({ children, requiredPermission }: { children: React.Reac
   }
 
   if (requiredPermission && !hasPermission(requiredPermission)) {
-    return <Navigate to="/" />;
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

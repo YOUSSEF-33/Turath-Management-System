@@ -10,6 +10,7 @@ interface PermissionsContextProps {
   permissions: Permission[];
   hasPermission: (permissionName: string) => boolean;
   userRole: string | null;
+  isLoading: boolean;
 }
 
 const PermissionsContext = createContext<PermissionsContextProps | undefined>(undefined);
@@ -18,20 +19,18 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const { userInfo } = useUserContext();
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (userInfo && userInfo.role && userInfo.role.permissions) {
-      console.log("userInfo");
-      console.log(userInfo);
-      console.log("userInfo.role");
-      console.log(userInfo.role);
-      console.log("userInfo.role.permissions");
-      console.log(userInfo.role.permissions);
-      setPermissions(userInfo.role.permissions);
-      setUserRole(userInfo.role.name);
-    } else {
-      setPermissions([]);
-      setUserRole(null);
+    if (userInfo) {
+      if (userInfo.role && userInfo.role.permissions) {
+        setPermissions(userInfo.role.permissions);
+        setUserRole(userInfo.role.name);
+      } else {
+        setPermissions([]);
+        setUserRole(null);
+      }
+      setIsLoading(false);
     }
   }, [userInfo]);
 
@@ -40,7 +39,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   return (
-    <PermissionsContext.Provider value={{ permissions, hasPermission, userRole }}>
+    <PermissionsContext.Provider value={{ permissions, hasPermission, userRole, isLoading }}>
       {children}
     </PermissionsContext.Provider>
   );
