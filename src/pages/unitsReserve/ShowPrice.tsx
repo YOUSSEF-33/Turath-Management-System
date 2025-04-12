@@ -417,13 +417,37 @@ const ShowPrice = () => {
 
     setLoading(prev => ({ ...prev, generatingPDF: true }));
     try {
+      // Get the project to access additional expenses
+      const project = projects.find(p => p.id === selectedProject);
+      
+      // Prepare additional expenses data
+      const additionalExpensesData = project?.additional_expenses
+        ?.filter(expense => expense.is_active)
+        .map(expense => {
+          const unitPrice = parseFloat(unitDetails.price || '0');
+          let value = 0;
+          
+          if (expense.type === 'FIXED_VALUE') {
+            value = parseFloat(expense.value || '0');
+          } else if (expense.type === 'PERCENTAGE') {
+            value = (unitPrice * parseFloat(expense.value || '0')) / 100;
+          }
+          
+          return {
+            name: expense.name,
+            value: value.toFixed(2)
+          };
+        }) || [];
+
       const requestData = {
-        deposit_amount: parseFloat(unitDetails.downPayment),
+        deposit_amount: parseFloat(unitDetails.downPayment || '0'),
         installments: unitDetails.installments.map(installment => ({
           type: installment.type,
-          count: parseInt(installment.count),
-          amount: parseFloat(installment.amount)
-        }))
+          count: parseInt(installment.count || '0'),
+          amount: parseFloat(installment.amount || '0')
+        })),
+        additional_expenses: additionalExpensesData,
+        final_price: parseFloat(unitDetails.finalPrice || '0')
       };
 
       const response = await axiosInstance.post(
