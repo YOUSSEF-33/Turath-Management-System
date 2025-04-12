@@ -19,6 +19,8 @@ const CreateProject = () => {
   const [isActive, setIsActive] = useState(true);
   const [installmentOptions, setInstallmentOptions] = useState<string[]>([]);
   const [depositPercentage, setDepositPercentage] = useState<number | ''>('');
+  const [cashFactor, setCashFactor] = useState<number>(1);
+  const [reductionFactor, setReductionFactor] = useState<number>(1);
   const [additionalExpenses, setAdditionalExpenses] = useState<AdditionalExpense[]>([]);
   const [errors, setErrors] = useState({ name: '' });
   const [loading, setLoading] = useState(false);
@@ -48,6 +50,16 @@ const CreateProject = () => {
 
     if (depositPercentage !== '' && (depositPercentage < 0 || depositPercentage > 100)) {
       toast.error('نسبة الدفعة المقدمة يجب أن تكون بين 0 و 100');
+      valid = false;
+    }
+
+    if (cashFactor <= 0) {
+      toast.error('معامل الكاش يجب أن يكون أكبر من 0');
+      valid = false;
+    }
+
+    if (reductionFactor < 0) {
+      toast.error('معامل التخفيض يجب أن يكون أكبر من 0');
       valid = false;
     }
 
@@ -86,6 +98,8 @@ const CreateProject = () => {
       formData.append('name', name);
       formData.append('description', description);
       formData.append('is_active', isActive ? '1' : '0');
+      formData.append('cash_factor', cashFactor.toString());
+      formData.append('reduction_factor', reductionFactor.toString());
       
       // Only append the documents_background if we have one
       if (mediaId) {
@@ -268,6 +282,46 @@ const CreateProject = () => {
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <span className="text-gray-500">%</span>
                 </div>
+              </div>
+            </div>
+
+            {/* Cash Factor */}
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                معامل الكاش *
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  value={cashFactor}
+                  onChange={(e) => setCashFactor(Number(e.target.value))}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                  min="0"
+                  max="100"
+                  step="0.00001"
+                  placeholder="أدخل معامل الكاش"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Reduction Factor */}
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                معامل التخفيض *
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  value={reductionFactor}
+                  onChange={(e) => setReductionFactor(Number(e.target.value))}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                  min="0"
+                  max="1"
+                  step="0.000001"
+                  placeholder="أدخل معامل التخفيض"
+                  required
+                />
               </div>
             </div>
 
