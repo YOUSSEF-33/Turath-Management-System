@@ -166,7 +166,7 @@ const Dashboard = () => {
 
   return (
     <div className="p-4 sm:p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">لوحة التحكم</h1>
+      <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6"></h1>
       
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

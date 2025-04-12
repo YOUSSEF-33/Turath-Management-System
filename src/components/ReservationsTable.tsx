@@ -1,7 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, Calendar } from 'lucide-react';
 import GenericTable from './GenericTable';
+import ReservationsFilter from './ReservationsFilter';
+import { useUserContext } from '../context/UserContext';
+import axiosInstance from '../axiosInstance';
+import { toast } from 'react-hot-toast';
 
 interface ReservationData {
   id: number;
@@ -14,7 +18,18 @@ interface ReservationData {
   monthly_installment?: number | string;
   months_count?: number;
   reservation_deposit?: number | string;
+  user_id?: number;
   [key: string]: unknown;
+}
+
+interface FilterValues {
+  status?: 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'SOLD';
+  date_from?: string;
+  date_to?: string;
+  project_id?: number;
+  building_id?: number;
+  unit_id?: number;
+  user_id?: number;
 }
 
 interface Column {
@@ -31,37 +46,85 @@ interface Action {
 }
 
 interface ReservationsTableProps {
-  reservations: ReservationData[];
-  loading?: boolean;
   showUnitColumn?: boolean;
   showClientColumn?: boolean;
   showActions?: boolean;
   extraColumns?: Column[];
   extraActions?: Action[];
   noDataMessage?: string;
-  // Pagination props
-  itemsPerPage?: number;
-  totalPages?: number;
-  onPageChange?: (page: number) => void;
-  // Filters
-  filters?: React.ReactNode;
+}
+
+interface PaginationInfo {
+  current: number;
+  pageSize: number;
+  total: number;
 }
 
 const ReservationsTable: React.FC<ReservationsTableProps> = ({
-  reservations,
-  loading = false,
   showUnitColumn = true,
   showClientColumn = true,
   showActions = true,
   extraColumns = [],
   extraActions = [],
   noDataMessage = "لا توجد حجوزات",
-  itemsPerPage,
-  totalPages,
-  onPageChange,
-  filters,
 }) => {
   const navigate = useNavigate();
+  const [reservations, setReservations] = useState<ReservationData[]>([]);
+  const [filters, setFilters] = useState<FilterValues>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  });
+  const { userInfo } = useUserContext();
+  const isSalesAgent = userInfo?.role?.name === 'sales_agent';
+
+  // Fetch reservations with filters and pagination
+  const fetchReservations = async (filterParams: FilterValues, page: number = 1) => {
+    setIsLoading(true);
+    try {
+      const response = await axiosInstance.get('/reservations', {
+        params: {
+          ...filterParams,
+          page,
+          per_page: pagination.pageSize
+        }
+      });
+      setReservations(response.data.data);
+      setPagination(prev => ({
+        ...prev,
+        current: page,
+        total: response.data.meta?.total || 0
+      }));
+    } catch (error) {
+      console.error('Error fetching reservations:', error);
+      toast.error('فشل في تحميل الحجوزات');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initial fetch
+  useEffect(() => {
+    fetchReservations(filters);
+  }, []);
+
+  // Handle filter changes
+  const handleFilterChange = (newFilters: FilterValues) => {
+    setFilters(newFilters);
+  };
+
+  // Handle filter submission
+  const handleFilterSubmit = (newFilters: FilterValues) => {
+    setFilters(newFilters);
+    fetchReservations(newFilters, 1); // Reset to first page when filters change
+  };
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    fetchReservations(filters, page);
+  };
 
   // Handle view reservation details
   const handleViewReservation = (id: number) => {
@@ -79,7 +142,7 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({
     { 
       header: 'الحالة', 
       key: 'status',
-      render: (value: unknown) => {
+      render: (value: unknown): React.ReactNode => {
         const status = value as string;
         const statusColors: Record<string, string> = {
           'معلق': 'text-yellow-500',
@@ -97,7 +160,7 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({
     { 
       header: 'تاريخ العقد', 
       key: 'contract_date', 
-      render: (value: unknown) => {
+      render: (value: unknown): React.ReactNode => {
         if (!value) return '-';
         if (typeof value === 'string') {
           return new Date(value as string).toLocaleDateString('ar-EG');
@@ -116,11 +179,14 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({
   const optionalColumns: Column[] = [];
   
   if (showUnitColumn) {
-    optionalColumns.push({ header: 'رقم الوحدة', key: 'unit_id' });
-  }
-  
-  if (showClientColumn) {
-    optionalColumns.push({ header: 'رقم العميل', key: 'client_id' });
+    optionalColumns.push({ 
+      header: 'رقم الوحدة', 
+      key: 'unit',
+      render: (value: unknown): React.ReactNode => {
+        const unit = value as { unit_number: string } | undefined;
+        return unit?.unit_number || '-';
+      }
+    });
   }
 
   // Conditional columns that should be included if the data exists
@@ -148,7 +214,6 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({
 
   // Filter out conditional columns if they don't exist in the data
   const filteredConditionalColumns = conditionalColumns.filter(column => {
-    // Check if at least one reservation has this property
     return reservations.length > 0 && reservations.some(res => res[column.key] !== undefined);
   });
 
@@ -180,17 +245,22 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({
   const allActions: Action[] = [...defaultActions, ...extraActions];
 
   return (
-    <GenericTable
-      columns={allColumns}
-      data={reservations as unknown as Record<string, unknown>[]}
-      actions={allActions}
-      loading={loading}
-      noDataMessage={noDataMessage}
-      itemsPerPage={itemsPerPage}
-      totalPages={totalPages}
-      onPageChange={onPageChange}
-      filters={filters}
-    />
+    <div>
+      <ReservationsFilter 
+        onFilterChange={handleFilterChange}
+        onFilterSubmit={handleFilterSubmit}
+      />
+      <GenericTable
+        columns={allColumns}
+        data={reservations as unknown as Record<string, unknown>[]}
+        actions={allActions}
+        loading={isLoading}
+        noDataMessage={noDataMessage}
+        itemsPerPage={pagination.pageSize}
+        totalPages={Math.ceil(pagination.total / pagination.pageSize)}
+        onPageChange={handlePageChange}
+      />
+    </div>
   );
 };
 

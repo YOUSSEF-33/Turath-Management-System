@@ -82,7 +82,7 @@ const ProtectedLayout = () => {
       />
       <div className="flex-1 flex flex-col w-full min-w-0">
         <Navbar
-          title="لوحة التحكم"
+          title=""
           isMenuOpen={isSidebarOpen}
           onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)}
           isSidebarCollapsed={isSidebarCollapsed}
