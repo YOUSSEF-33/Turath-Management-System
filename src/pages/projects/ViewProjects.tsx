@@ -7,6 +7,7 @@ import { Modal, Button, message } from 'antd'; // Import the Modal, Button, and 
 import ToggleSwitch from '../../components/ToggleSwitch';
 import toast from 'react-hot-toast';
 import ImportDataModal from '../../components/ImportDataModal';
+import { usePermissionsContext } from '../../context/PermissionsContext';
 
 interface Project {
   id: number;
@@ -20,10 +21,12 @@ interface Action {
   icon: JSX.Element;
   onClick: (id: number) => void;
   color: string;
+  permission?: string;
 }
 
 const ViewProjects: React.FC = () => {
   const navigate = useNavigate();
+  const { hasPermission } = usePermissionsContext();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
@@ -141,11 +144,40 @@ const ViewProjects: React.FC = () => {
   };
 
   const actions: Action[] = [
-    { key: 'view', icon: <Eye className="h-5 w-5" />, onClick: handleView, color: 'text-blue-600' },
-    { key: 'edit', icon: <Edit className="h-5 w-5" />, onClick: handleEdit, color: 'text-yellow-600' },
-    { key: 'delete', icon: <Trash className="h-5 w-5" />, onClick: confirmDelete, color: 'text-red-600' },
-    { key: 'import', icon: <Upload className="h-5 w-5" />, onClick: handleImportData, color: 'text-green-600' },
+    { 
+      key: 'view', 
+      icon: <Eye className="h-5 w-5" />, 
+      onClick: handleView, 
+      color: 'text-blue-600',
+      permission: 'view_projects'
+    },
+    { 
+      key: 'edit', 
+      icon: <Edit className="h-5 w-5" />, 
+      onClick: handleEdit, 
+      color: 'text-yellow-600',
+      permission: 'edit_projects'
+    },
+    { 
+      key: 'delete', 
+      icon: <Trash className="h-5 w-5" />, 
+      onClick: confirmDelete, 
+      color: 'text-red-600',
+      permission: 'delete_projects'
+    },
+    { 
+      key: 'import', 
+      icon: <Upload className="h-5 w-5" />, 
+      onClick: handleImportData, 
+      color: 'text-green-600',
+      permission: 'edit_projects'
+    },
   ];
+
+  // Filter actions based on permissions
+  const filteredActions = actions.filter(action => 
+    !action.permission || hasPermission(action.permission)
+  );
 
   return (
     <div className="bg-gray-100 min-h-screen">
@@ -179,13 +211,14 @@ const ViewProjects: React.FC = () => {
                       isActive={Boolean(value)} 
                       onChange={(isActive) => handleToggleActive(Number(row.id), isActive)}
                       loading={togglingStatus === Number(row.id)}
+                      disabled={!hasPermission('edit_projects')}
                     />
                   )
                 },
               ]}
               data={projects as unknown as Record<string, unknown>[]}
-              actions={actions}
-              onCreate={handleCreate}
+              actions={filteredActions}
+              onCreate={hasPermission('create_projects') ? handleCreate : undefined}
               createButtonText="إضافة مشروع جديد"
               loading={loading}
               itemsPerPage={itemsPerPage}
@@ -205,7 +238,14 @@ const ViewProjects: React.FC = () => {
             <Button key="cancel" onClick={() => setShowDeleteModal(false)}>
               إلغاء
             </Button>,
-            <Button key="confirm" type="primary" danger onClick={handleDelete} loading={deleting}>
+            <Button 
+              key="confirm" 
+              type="primary" 
+              danger 
+              onClick={handleDelete} 
+              loading={deleting}
+              disabled={!hasPermission('delete_projects')}
+            >
               تأكيد
             </Button>,
           ]}

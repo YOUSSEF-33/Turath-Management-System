@@ -3,6 +3,7 @@ import { Form, Select, DatePicker, Button } from 'antd';
 import axiosInstance from '../axiosInstance';
 import { toast } from 'react-hot-toast';
 import { useUserContext } from '../context/UserContext';
+import { usePermissionsContext } from '../context/PermissionsContext';
 import dayjs from 'dayjs';
 
 interface FilterValues {
@@ -49,7 +50,9 @@ const ReservationsFilter: React.FC<ReservationsFilterProps> = ({
     users: [] as Option[],
   });
   const { userInfo } = useUserContext();
+  const { hasPermission } = usePermissionsContext();
   const isSalesAgent = userInfo?.role?.name === 'sales_agent';
+  const canViewUsers = hasPermission('view_users');
 
   // Fetch projects
   useEffect(() => {
@@ -69,10 +72,10 @@ const ReservationsFilter: React.FC<ReservationsFilterProps> = ({
     fetchProjects();
   }, []);
 
-  // Fetch users if not sales agent
+  // Fetch users if not sales agent and has view_users permission
   useEffect(() => {
     const fetchUsers = async () => {
-      if (!isSalesAgent) {
+      if (!isSalesAgent && canViewUsers) {
         setLoading(prev => ({ ...prev, users: true }));
         try {
           const response = await axiosInstance.get('/users');
@@ -87,7 +90,7 @@ const ReservationsFilter: React.FC<ReservationsFilterProps> = ({
     };
 
     fetchUsers();
-  }, [isSalesAgent]);
+  }, [isSalesAgent, canViewUsers]);
 
   // Fetch buildings when project is selected
   useEffect(() => {
@@ -240,7 +243,7 @@ const ReservationsFilter: React.FC<ReservationsFilterProps> = ({
               />
             </Form.Item>
 
-            {!isSalesAgent && (
+            {!isSalesAgent && canViewUsers && (
               <Form.Item name="user_id" label="المستخدم">
                 <Select
                   placeholder="اختر المستخدم"
