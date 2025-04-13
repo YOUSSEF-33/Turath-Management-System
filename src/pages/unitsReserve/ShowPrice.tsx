@@ -13,6 +13,8 @@ interface Project {
   additional_expenses: AdditionalExpense[];
   buildings: Building[];
   deposit_percentage?: number;
+  cash_factor?: number;
+  reduction_factor?: number;
 }
 
 interface AdditionalExpense {
@@ -73,6 +75,22 @@ interface UnitErrors {
   [key: string]: string;
 }
 
+interface PriceBreakdown {
+  unit_price: number;
+  cash_price: number;
+  deposit_amount: number;
+  financed_amount: number;
+  monthly_installment: number;
+  total_paid: number;
+  additional_expenses: {
+    name: string;
+    type: 'PERCENTAGE' | 'FIXED_VALUE';
+    value: number;
+    amount: number;
+  }[];
+  final_price: number;
+}
+
 const ShowPrice = () => {
   // State for projects, buildings, and units
   const [projects, setProjects] = useState<Project[]>([]);
@@ -114,6 +132,9 @@ const ShowPrice = () => {
     additional_expenses: {},
     finalPrice: "0",
   });
+
+  // Add new state for price breakdown
+  const [priceBreakdown, setPriceBreakdown] = useState<PriceBreakdown | null>(null);
 
   // Add translation map for installment types
   const installmentTypeTranslations: { [key: string]: string } = {
@@ -407,6 +428,87 @@ const ShowPrice = () => {
   useEffect(() => {
     calculateFinalPrice();
   }, [unitDetails.downPayment, unitDetails.installments]);
+
+  // Calculate price breakdown
+  const calculatePriceBreakdown = (
+    unit_price: number,
+    deposit_percentage: number,
+    cash_factor: number,
+    reduction_factor: number,
+    installment_type: string,
+    installment_count: number,
+    additional_expenses: AdditionalExpense[]
+  ): PriceBreakdown => {
+    // Calculate cash price
+    const cash_price = unit_price * cash_factor;
+
+    // Calculate deposit amount
+    const deposit_amount = deposit_percentage * unit_price;
+
+    // Calculate financed amount
+    const financed_amount = deposit_amount - (cash_price * reduction_factor);
+
+    // Calculate monthly installment using annuity formula
+    const r = reduction_factor; // monthly discount rate
+    const n = installment_count;
+    const monthly_installment = ( Math.pow(financed_amount * r *(1 + r), n)) / (Math.pow(1 + r, n -1 ));
+    console.log(r, cash_factor, n, monthly_installment);
+
+    // Calculate total paid
+    const total_paid = deposit_amount + (monthly_installment * n);
+
+    // Calculate additional expenses
+    const calculated_expenses = additional_expenses.map(expense => {
+      let amount = 0;
+      if (expense.type === 'PERCENTAGE') {
+        amount = (unit_price * parseFloat(expense.value)) / 100;
+      } else if (expense.type === 'FIXED_VALUE') {
+        amount = parseFloat(expense.value);
+      }
+      return {
+        name: expense.name,
+        type: expense.type,
+        value: parseFloat(expense.value),
+        amount
+      };
+    });
+
+    // Calculate final price
+    const final_price = total_paid + calculated_expenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+    return {
+      unit_price,
+      cash_price,
+      deposit_amount,
+      financed_amount,
+      monthly_installment,
+      total_paid,
+      additional_expenses: calculated_expenses,
+      final_price
+    };
+  };
+
+  // Update price breakdown when unit details change
+  useEffect(() => {
+    if (selectedUnit && selectedProject) {
+      const unit = units.find(u => u.id === selectedUnit);
+      const project = projects.find(p => p.id === selectedProject);
+      
+      if (unit && project) {
+        const breakdown = calculatePriceBreakdown(
+          unit.price,
+          project.deposit_percentage || 0,
+          project.cash_factor || 1,
+          project.reduction_factor || 1, 
+          unitDetails.installments[0]?.type || 'MONTHLY',
+          parseInt(unitDetails.installments[0]?.count || '0'),
+          project.additional_expenses || []
+        );
+        
+        setPriceBreakdown(breakdown);
+      }
+    }
+  }, [selectedUnit, selectedProject, unitDetails.installments, units, projects]);
 
   // Generate PDF function
   const generatePDF = async () => {
@@ -773,6 +875,84 @@ const ShowPrice = () => {
               </div>
             </div>
           </>
+        )}
+
+        {priceBreakdown && (
+          <div className="bg-white shadow rounded-lg overflow-hidden mt-6">
+            <div className="px-6 py-5 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-800">تفاصيل السعر</h2>
+            </div>
+            
+            <div className="px-6 py-5 space-y-6">
+              {/* Price Breakdown */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">السعر الأساسي</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">سعر الوحدة</span>
+                      <span className="font-medium">{priceBreakdown.unit_price.toLocaleString()} جنيه</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">السعر النقدي</span>
+                      <span className="font-medium">{priceBreakdown.cash_price.toLocaleString()} جنيه</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">الدفعة المقدمة</span>
+                      <span className="font-medium">{priceBreakdown.deposit_amount.toLocaleString()} جنيه</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">المبلغ الممول</span>
+                      <span className="font-medium">{priceBreakdown.financed_amount.toLocaleString()} جنيه</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">التقسيط</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">القسط الشهري</span>
+                      <span className="font-medium">{priceBreakdown.monthly_installment.toLocaleString()} جنيه</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">عدد الأقساط</span>
+                      <span className="font-medium">{unitDetails.installments[0]?.count || '0'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">المبلغ الإجمالي</span>
+                      <span className="font-medium">{priceBreakdown.total_paid.toLocaleString()} جنيه</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Expenses */}
+              {priceBreakdown.additional_expenses.length > 0 && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">المصروفات الإضافية</h3>
+                  <div className="space-y-2">
+                    {priceBreakdown.additional_expenses.map((expense, index) => (
+                      <div key={index} className="flex justify-between">
+                        <span className="text-gray-600">{expense.name}</span>
+                        <span className="font-medium">{expense.amount.toLocaleString()} جنيه</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Final Price */}
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-semibold text-gray-900">السعر النهائي</span>
+                  <span className="text-2xl font-bold text-blue-600">
+                    {priceBreakdown.final_price.toLocaleString()} جنيه
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
