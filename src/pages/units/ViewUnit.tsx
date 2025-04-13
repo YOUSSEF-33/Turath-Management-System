@@ -7,6 +7,7 @@ import { Eye, Trash, Search, Filter } from 'lucide-react';
 import { Modal, Button, Input, Select, Slider, InputNumber, Row, Col, Badge, Card, Divider, Tooltip } from 'antd';
 import toast from 'react-hot-toast';
 import ToggleSwitch from '../../components/ToggleSwitch';
+import { usePermissionsContext } from '../../context/PermissionsContext';
 
 interface Unit {
   id: number;
@@ -60,9 +61,18 @@ interface BackendFilters {
   is_active?: boolean;
 }
 
+interface Action {
+  key: string;
+  icon: JSX.Element;
+  onClick: (unitId: number) => void;
+  color: string;
+  permission?: string;
+}
+
 const ViewUnit: React.FC = () => {
   const { projectId, buildingId } = useParams<{ projectId: string; buildingId: string }>();
   const navigate = useNavigate();
+  const { hasPermission } = usePermissionsContext();
   const [searchParams, setSearchParams] = useSearchParams();
   const [building, setBuilding] = useState<Building | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
@@ -303,10 +313,27 @@ const ViewUnit: React.FC = () => {
     { value: 'SOLD', label: 'مباع' },
   ];
 
-  const actions = [
-    { key: 'view', icon: <Eye className="h-5 w-5" />, onClick: handleView, color: 'text-blue-600' },
-    { key: 'delete', icon: <Trash className="h-5 w-5" />, onClick: confirmDelete, color: 'text-red-600' },
+  const actions: Action[] = [
+    { 
+      key: 'view', 
+      icon: <Eye className="h-5 w-5" />, 
+      onClick: handleView, 
+      color: 'text-blue-600',
+      permission: 'view_units'
+    },
+    { 
+      key: 'delete', 
+      icon: <Trash className="h-5 w-5" />, 
+      onClick: confirmDelete, 
+      color: 'text-red-600',
+      permission: 'delete_units'
+    },
   ];
+
+  // Filter actions based on permissions
+  const filteredActions = actions.filter(action => 
+    !action.permission || hasPermission(action.permission)
+  );
 
   // Get count of applied filters
   const getFilterCount = () => {
@@ -553,14 +580,15 @@ const ViewUnit: React.FC = () => {
                     isActive={Boolean(value)} 
                     onChange={(isActive) => handleToggleActive(Number(row.id), isActive)}
                     loading={togglingStatus === Number(row.id)}
+                    disabled={!hasPermission('edit_units')}
                   />
                 )
               },
             ]}
             data={units as unknown as Record<string, unknown>[]}
-            actions={actions}
+            actions={filteredActions}
             loading={loading}
-            onCreate={() => navigate(`/projects/${projectId}/buildings/${buildingId}/units/create`)}
+            onCreate={hasPermission('create_units') ? () => navigate(`/projects/${projectId}/buildings/${buildingId}/units/create`) : undefined}
             createButtonText="إضافة وحدة جديدة"
             itemsPerPage={itemsPerPage}
             totalPages={totalPages}
@@ -578,7 +606,13 @@ const ViewUnit: React.FC = () => {
           <Button key="cancel" onClick={() => setShowDeleteModal(false)}>
             إلغاء
           </Button>,
-          <Button key="confirm" type="primary" onClick={handleDelete} loading={deleting}>
+          <Button 
+            key="confirm" 
+            type="primary" 
+            onClick={handleDelete} 
+            loading={deleting}
+            disabled={!hasPermission('delete_units')}
+          >
             تأكيد
           </Button>,
         ]}
