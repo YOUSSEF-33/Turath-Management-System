@@ -32,6 +32,8 @@ const InstallmentsBreakdown = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [installmentToDelete, setInstallmentToDelete] = useState<number | null>(null);
   const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
+  const [chequeSuggestions, setChequeSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState<number | null>(null);
 
   // Fetch reservation data
   useEffect(() => {
@@ -157,6 +159,129 @@ const InstallmentsBreakdown = () => {
     }, 500); // Match this with the CSS transition duration
   };
 
+  // Function to analyze cheque number patterns
+  const analyzeChequePattern = (chequeNumbers: string[]) => {
+    if (chequeNumbers.length < 1) return null;
+
+    // Try to find numeric patterns
+    const numericCheques = chequeNumbers
+      .filter(c => c && /^\d+$/.test(c))
+      .map(c => parseInt(c, 10))
+      .filter(n => !isNaN(n));
+
+    if (numericCheques.length >= 1) {
+      // If we have at least one numeric cheque, try to find a pattern
+      const lastNumber = numericCheques[numericCheques.length - 1];
+      
+      // Check if numbers are sequential
+      let isSequential = true;
+      let increment = 1;
+      
+      if (numericCheques.length >= 2) {
+        increment = numericCheques[1] - numericCheques[0];
+        for (let i = 1; i < numericCheques.length; i++) {
+          if (numericCheques[i] - numericCheques[i - 1] !== increment) {
+            isSequential = false;
+            break;
+          }
+        }
+      }
+
+      if (isSequential) {
+        return {
+          type: 'numeric',
+          lastNumber,
+          increment
+        };
+      }
+    }
+
+    // Try to find alphanumeric patterns (e.g., CHQ001, CHQ002)
+    const alphanumericCheques = chequeNumbers.filter(c => c && /^[A-Za-z]+\d+$/.test(c));
+    if (alphanumericCheques.length >= 1) {
+      const prefix = alphanumericCheques[0].match(/^[A-Za-z]+/)?.[0];
+      const numbers = alphanumericCheques
+        .map(c => parseInt(c.replace(/^[A-Za-z]+/, ''), 10))
+        .filter(n => !isNaN(n));
+
+      if (numbers.length >= 1) {
+        const lastNumber = numbers[numbers.length - 1];
+        let isSequential = true;
+        let increment = 1;
+
+        if (numbers.length >= 2) {
+          increment = numbers[1] - numbers[0];
+          for (let i = 1; i < numbers.length; i++) {
+            if (numbers[i] - numbers[i - 1] !== increment) {
+              isSequential = false;
+              break;
+            }
+          }
+        }
+
+        if (isSequential && prefix) {
+          return {
+            type: 'alphanumeric',
+            prefix,
+            lastNumber,
+            increment
+          };
+        }
+      }
+    }
+
+    return null;
+  };
+
+  // Function to generate suggestions
+  const generateSuggestions = (index: number) => {
+    if (!reservation) return;
+
+    // Get all cheque numbers except the current one
+    const existingCheques = reservation.installments_schedule
+      .filter((_, i) => i !== index) // Exclude current row
+      .map(inst => inst.cheque_number)
+      .filter(Boolean) as string[];
+
+    console.log('Existing cheques for suggestions:', existingCheques);
+
+    const pattern = analyzeChequePattern(existingCheques);
+    console.log('Detected pattern:', pattern);
+
+    const suggestions: string[] = [];
+
+    if (pattern) {
+      if (pattern.type === 'numeric') {
+        for (let i = 1; i <= 3; i++) {
+          const nextNumber = pattern.lastNumber + (pattern.increment * i);
+          suggestions.push(String(nextNumber));
+        }
+      } else if (pattern.type === 'alphanumeric') {
+        for (let i = 1; i <= 3; i++) {
+          const nextNumber = pattern.lastNumber + (pattern.increment * i);
+          suggestions.push(`${pattern.prefix}${nextNumber.toString().padStart(3, '0')}`);
+        }
+      }
+    } else if (existingCheques.length > 0) {
+      // If no pattern detected but we have existing cheques, suggest the last number + 1
+      const lastCheque = existingCheques[existingCheques.length - 1];
+      if (/^\d+$/.test(lastCheque)) {
+        const lastNumber = parseInt(lastCheque, 10);
+        suggestions.push(String(lastNumber + 1));
+      } else if (/^[A-Za-z]+\d+$/.test(lastCheque)) {
+        const prefix = lastCheque.match(/^[A-Za-z]+/)?.[0];
+        const number = parseInt(lastCheque.replace(/^[A-Za-z]+/, ''), 10);
+        if (prefix && !isNaN(number)) {
+          suggestions.push(`${prefix}${(number + 1).toString().padStart(3, '0')}`);
+        }
+      }
+    }
+
+    console.log('Generated suggestions:', suggestions);
+    setChequeSuggestions(suggestions);
+    setShowSuggestions(index);
+  };
+
   // Loading state
   if (loading) {
     return <div className="p-6 text-center">جاري التحميل...</div>;
@@ -274,17 +399,59 @@ const InstallmentsBreakdown = () => {
                     <option value="ANNUAL">سنوي</option>
                   </select>
                 </td>
-                <td className="py-3 px-4 border-b">
-                  <input
-                    type="text"
-                    value={installment.cheque_number || ''}
-                    onChange={(e) => handleFieldChange(index, 'cheque_number', e.target.value)}
-                    className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
-                    }`}
-                    placeholder="أدخل رقم الشيك"
-                    disabled={!hasPermission('update_reservation_installments_schedule')}
-                  />
+                <td className="py-3 px-4 border-b relative">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={installment.cheque_number || ''}
+                      onChange={(e) => handleFieldChange(index, 'cheque_number', e.target.value)}
+                      onFocus={() => {
+                        generateSuggestions(index);
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          if (showSuggestions === index) {
+                            setShowSuggestions(null);
+                          }
+                        }, 200);
+                      }}
+                      className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
+                      }`}
+                      placeholder="أدخل رقم الشيك"
+                      disabled={!hasPermission('update_reservation_installments_schedule')}
+                    />
+                    {showSuggestions === index && chequeSuggestions.length > 0 && (
+                      <div 
+                        className="absolute top-full left-0 w-full bg-white border border-gray-300 rounded-lg shadow-xl mt-1 max-h-48 overflow-y-auto z-50"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                      >
+                        <div className="py-1">
+                          {chequeSuggestions.map((suggestion, i) => (
+                            <div
+                              key={i}
+                              className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-gray-700 hover:text-blue-600 transition-colors duration-150"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleFieldChange(index, 'cheque_number', suggestion);
+                                setShowSuggestions(null);
+                              }}
+                            >
+                              {suggestion}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </td>
                 <td className="py-3 px-4 border-b">
                   <input
@@ -328,10 +495,7 @@ const InstallmentsBreakdown = () => {
             onClick={() => {
               if (!reservation) return;
               const newSchedule = [...reservation.installments_schedule];
-              const lastDate = newSchedule.length > 0 
-                ? new Date(newSchedule[newSchedule.length - 1].date)
-                : new Date();
-              
+              const lastDate = new Date(newSchedule[newSchedule.length - 1].date);
               const nextDate = new Date(lastDate);
               if (newSchedule.length > 0 && newSchedule[newSchedule.length - 1].type === 'MONTHLY') {
                 nextDate.setMonth(nextDate.getMonth() + 1);
