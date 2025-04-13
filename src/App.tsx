@@ -22,7 +22,6 @@ import CreateBuilding from './pages/buildings/CreateBuilding';
 import EditBuilding from './pages/buildings/EditBuilding';
 import ViewUnitDetails from './pages/units/ViewUnitDetails';
 import ReservationDetails from './pages/unitsReserve/ReservationDetails';
-import AcceptUnitSale from './pages/unitsReserve/AcceptUnitSale';
 import ViewUsers from './pages/users/ViewUsers';
 import CreateUser from './pages/users/CreateUser';
 import EditUser from './pages/users/EditUser';
@@ -36,6 +35,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import ShowPrice from './pages/unitsReserve/ShowPrice';
 import SearchResults from './pages/search/SearchResults';
+import InstallmentsBreakdown from './pages/unitsReserve/InstallmentsBreakdown';
 
 // Protected Route wrapper component
 const ProtectedRoute = ({ children, requiredPermission }: { children: React.ReactNode; requiredPermission?: string }) => {
@@ -144,7 +144,7 @@ function AppContent() {
           <Route path="reservations" element={<ProtectedRoute requiredPermission="view_reservations"><UnitReserve /></ProtectedRoute>} />
           <Route path="reservations/reserve" element={<ProtectedRoute requiredPermission="create_reservations"><ReserveUnit /></ProtectedRoute>} />
           <Route path="reservations/:id" element={<ProtectedRoute requiredPermission="view_reservations"><ReservationDetails /></ProtectedRoute>} />
-          <Route path="reservations/:id/accept" element={<ProtectedRoute requiredPermission="confirm_reservations"><AcceptUnitSale /></ProtectedRoute>} />
+          <Route path="reservations/:id/installments-breakdown" element={<ProtectedRoute requiredPermission="confirm_reservations"><InstallmentsBreakdown /></ProtectedRoute>} />
           <Route path="showprice" element={<ProtectedRoute requiredPermission="view_units"><ShowPrice /></ProtectedRoute>} />
           <Route path="projects" element={<ProtectedRoute requiredPermission="view_projects"><ViewProjects /></ProtectedRoute>} />
           <Route path="projects/create" element={<ProtectedRoute requiredPermission="create_projects"><CreateProject /></ProtectedRoute>} />

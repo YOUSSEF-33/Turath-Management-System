@@ -4,7 +4,7 @@ import axiosInstance from '../../axiosInstance'; // Adjust the import path as ne
 import { convertToArabicWords } from '../../utils/convertNumbers';
 import * as XLSX from 'xlsx';
 
-const AcceptUnitSale = () => {
+const InstallmentsBreakdown = () => {
   const { id } = useParams<{ id: string }>();
   const [reservation, setReservation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -371,4 +371,4 @@ const AcceptUnitSale = () => {
   );
 };
 
-export default AcceptUnitSale;
+export default InstallmentsBreakdown;
