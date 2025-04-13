@@ -2,9 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import axiosInstance from '../../axiosInstance';
 import GenericTable from '../../components/GenericTable';
-import { Eye, PlusSquare } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { Button, Input, DatePicker, Form } from 'antd';
-import toast from 'react-hot-toast';
 import dayjs from 'dayjs';
 import { usePermissionsContext } from '../../context/PermissionsContext';
 
@@ -23,6 +22,7 @@ interface Action {
   icon: JSX.Element;
   onClick: (id: number) => void;
   color: string;
+  permission?: string;
 }
 
 const ViewClients: React.FC = () => {
@@ -78,10 +78,6 @@ const ViewClients: React.FC = () => {
     fetchData();
   }, [currentPage, itemsPerPage, filters]); // Refetch data when filters change
 
-  const handleCreate = () => {
-    navigate('/clients/create');
-  };
-
   const handleView = (client: number) => {
     navigate(`/clients/${client}`);
   };
@@ -107,8 +103,19 @@ const ViewClients: React.FC = () => {
   };
 
   const actions: Action[] = [
-    { key: 'view', icon: <Eye className="h-5 w-5" />, onClick: handleView, color: 'text-blue-600' },
+    { 
+      key: 'view', 
+      icon: <Eye className="h-5 w-5" />, 
+      onClick: handleView, 
+      color: 'text-blue-600',
+      permission: 'view_clients'
+    },
   ];
+
+  // Filter actions based on permissions
+  const filteredActions = actions.filter(action => 
+    !action.permission || hasPermission(action.permission)
+  );
 
   return (
     <div className="bg-gray-100 min-h-screen">
@@ -167,8 +174,10 @@ const ViewClients: React.FC = () => {
               },
             ]}
             data={clients as unknown as Record<string, unknown>[]}
-            actions={actions}
+            actions={filteredActions}
             loading={loading}
+            onCreate={hasPermission('create_clients') ? () => navigate('/clients/create') : undefined}
+            createButtonText="إضافة عميل جديد"
             itemsPerPage={itemsPerPage}
             totalPages={totalPages}
             onPageChange={handlePageChange}
