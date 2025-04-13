@@ -6,6 +6,7 @@ import { Eye, Edit, Trash } from 'lucide-react';
 import { Modal, Button } from 'antd';
 import toast from 'react-hot-toast';
 import ToggleSwitch from '../../components/ToggleSwitch';
+import { usePermissionsContext } from '../../context/PermissionsContext';
 
 interface Building {
   id: number;
@@ -20,11 +21,13 @@ interface Action {
   icon: JSX.Element;
   onClick: (building: number) => void;
   color: string;
+  permission?: string;
 }
 
 const ViewBuildings: React.FC = () => {
   const { buildingId: projectId } = useParams<{ buildingId: string }>();
   const navigate = useNavigate();
+  const { hasPermission } = usePermissionsContext();
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [projectName, setProjectName] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
@@ -151,10 +154,33 @@ const ViewBuildings: React.FC = () => {
   };
 
   const actions: Action[] = [
-    { key: 'view', icon: <Eye className="h-5 w-5" />, onClick: handleView, color: 'text-blue-600' },
-    { key: 'edit', icon: <Edit className="h-5 w-5" />, onClick: handleEdit, color: 'text-yellow-600' },
-    { key: 'delete', icon: <Trash className="h-5 w-5" />, onClick: confirmDelete, color: 'text-red-600' },
+    { 
+      key: 'view', 
+      icon: <Eye className="h-5 w-5" />, 
+      onClick: handleView, 
+      color: 'text-blue-600',
+      permission: 'view_buildings'
+    },
+    { 
+      key: 'edit', 
+      icon: <Edit className="h-5 w-5" />, 
+      onClick: handleEdit, 
+      color: 'text-yellow-600',
+      permission: 'edit_buildings'
+    },
+    { 
+      key: 'delete', 
+      icon: <Trash className="h-5 w-5" />, 
+      onClick: confirmDelete, 
+      color: 'text-red-600',
+      permission: 'delete_buildings'
+    },
   ];
+
+  // Filter actions based on permissions
+  const filteredActions = actions.filter(action => 
+    !action.permission || hasPermission(action.permission)
+  );
 
   return (
     <div className="bg-gray-100 min-h-screen">
@@ -189,14 +215,15 @@ const ViewBuildings: React.FC = () => {
                       isActive={Boolean(value)} 
                       onChange={(isActive) => handleToggleActive(Number(row.id), isActive)}
                       loading={togglingStatus === Number(row.id)}
+                      disabled={!hasPermission('edit_buildings')}
                     />
                   )
                 },
               ]}
               data={buildings as unknown as Record<string, unknown>[]}
-              actions={actions}
+              actions={filteredActions}
               loading={loading}
-              onCreate={() => navigate(`/projects/${projectId}/create`)}
+              onCreate={hasPermission('create_buildings') ? () => navigate(`/projects/${projectId}/create`) : undefined}
               createButtonText="إضافة مبنى جديد"
               itemsPerPage={itemsPerPage}
               totalPages={totalPages}
@@ -216,7 +243,14 @@ const ViewBuildings: React.FC = () => {
             <Button key="cancel" onClick={() => setShowDeleteModal(false)}>
               إلغاء
             </Button>,
-            <Button key="confirm" type="primary" danger onClick={handleDelete} loading={deleting}>
+            <Button 
+              key="confirm" 
+              type="primary" 
+              danger 
+              onClick={handleDelete} 
+              loading={deleting}
+              disabled={!hasPermission('delete_buildings')}
+            >
               تأكيد
             </Button>,
           ]}
