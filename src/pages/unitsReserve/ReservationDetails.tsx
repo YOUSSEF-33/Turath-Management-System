@@ -36,6 +36,12 @@ interface UnitData {
   plan_images: ImageData[];
   gallery: ImageData[];
   price?: number;
+  building?: {
+    name?: string;
+    project?: {
+      name?: string;
+    };
+  };
 }
 
 interface ReservationData {
@@ -65,6 +71,18 @@ interface ReservationData {
     amount: number;
     count: number;
   }>;
+  user: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string | null;
+    role: {
+      id: number;
+      name: string;
+      readable_name: string;
+    };
+  };
 }
 
 interface Column {
@@ -557,6 +575,14 @@ const ReservationDetails = () => {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="flex items-center border-b pb-2 pt-1">
+                    <Text strong className="ml-2 mr-2 text-gray-700">المشروع:</Text>
+                    <Text>{reservation.unit.building?.project?.name || '-'}</Text>
+                  </div>
+                  <div className="flex items-center border-b pb-2 pt-1">
+                    <Text strong className="ml-2 mr-2 text-gray-700">المبنى:</Text>
+                    <Text>{reservation.unit.building?.name || '-'}</Text>
+                  </div>
+                  <div className="flex items-center border-b pb-2 pt-1">
                     <Text strong className="ml-2 mr-2 text-gray-700">رقم الوحدة:</Text>
                     <Text>{reservation.unit.unit_number || '-'}</Text>
                   </div>
@@ -580,6 +606,39 @@ const ReservationDetails = () => {
                     <Text strong className="ml-2 mr-2 text-gray-700">الحالة:</Text>
                     <Tag color={reservation.unit.status === 'متاح' ? 'green' : 'red'} style={{ padding: '0px 6px' }}>
                       {reservation.unit.status || '-'}
+                    </Tag>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Reservation Creator Information */}
+              <Card 
+                size="small"
+                title={
+                  <div className="flex items-center">
+                    <User size={16} className="mr-3 text-blue-500/70" />
+                    <span className="text-sm mr-1">تم الحجز بواسطة</span>
+                  </div>
+                } 
+                className="mb-4 shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="flex items-center border-b pb-2 pt-1">
+                    <Text strong className="ml-2 mr-2 text-gray-700">الاسم:</Text>
+                    <Text>{`${reservation.user.first_name} ${reservation.user.last_name}`}</Text>
+                  </div>
+                  <div className="flex items-center border-b pb-2 pt-1">
+                    <Text strong className="ml-2 mr-2 text-gray-700">البريد الإلكتروني:</Text>
+                    <Text>{reservation.user.email}</Text>
+                  </div>
+                  <div className="flex items-center border-b pb-2 pt-1">
+                    <Text strong className="ml-2 mr-2 text-gray-700">رقم الهاتف:</Text>
+                    <Text>{reservation.user.phone || '-'}</Text>
+                  </div>
+                  <div className="flex items-center">
+                    <Text strong className="ml-2 mr-2 text-gray-700">الدور:</Text>
+                    <Tag color="blue" style={{ padding: '0px 6px' }}>
+                      {reservation.user.role.readable_name}
                     </Tag>
                   </div>
                 </div>

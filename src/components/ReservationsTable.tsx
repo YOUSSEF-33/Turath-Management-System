@@ -19,6 +19,7 @@ interface ReservationData {
   months_count?: number;
   reservation_deposit?: number | string;
   user_id?: number;
+  client?: { name: string; phone: string };
   [key: string]: unknown;
 }
 
@@ -138,7 +139,28 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({
 
   // Base columns that will always be included
   const baseColumns: Column[] = [
-    { header: 'رقم الحجز', key: 'id' },
+    { 
+      header: 'اسم المشروع', 
+      key: 'project',
+      render: (value: unknown, row: Record<string, unknown>): React.ReactNode => {
+        const unit = row.unit as { building: { project: { name: string } } } | undefined;
+        return unit?.building?.project?.name || '-';
+      }
+    },
+    { 
+      header: 'بيانات العميل', 
+      key: 'client',
+      render: (value: unknown, row: Record<string, unknown>): React.ReactNode => {
+        const client = row.client as { name: string; phone: string } | undefined;
+        if (!client) return '-';
+        return (
+          <div className="flex flex-col">
+            <span className="font-medium">{client.name || '-'}</span>
+            <span className="text-sm text-gray-500">{client.phone || '-'}</span>
+          </div>
+        );
+      }
+    },
     { 
       header: 'الحالة', 
       key: 'status',
@@ -181,9 +203,9 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({
   if (showUnitColumn) {
     optionalColumns.push({ 
       header: 'رقم الوحدة', 
-      key: 'unit',
-      render: (value: unknown): React.ReactNode => {
-        const unit = value as { unit_number: string } | undefined;
+      key: 'unit_number',
+      render: (value: unknown, row: Record<string, unknown>): React.ReactNode => {
+        const unit = row.unit as { unit_number: string } | undefined;
         return unit?.unit_number || '-';
       }
     });
