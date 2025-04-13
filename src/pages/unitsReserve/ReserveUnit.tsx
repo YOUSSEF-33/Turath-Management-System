@@ -74,18 +74,18 @@ interface UnitDetails {
   floor: number;
   bedrooms: number;
   bathrooms: number;
-  reservation_deposit: number;
-  down_payment: number;
+  reservation_deposit: number | null;
+  down_payment: number | null;
   final_price: number;
-  monthly_installment: number;
+  monthly_installment: number | null;
   selected_installment_types: string[];
   installment_details: Record<string, InstallmentDetail>;
 }
 
 interface InstallmentDetail {
-  count: number;
-  amount: number;
   type: string;
+  count: number | null;
+  amount: number | null;
 }
 
 interface Attachments {
@@ -160,17 +160,16 @@ const ReserveUnit = () => {
         floor: 0,
         bedrooms: 0,
         bathrooms: 0,
-        reservation_deposit: 0,
-        down_payment: 0,
+        reservation_deposit: null,
+        down_payment: null,
         final_price: 0,
-        monthly_installment: 0,
+        monthly_installment: null,
         selected_installment_types: [],
         installment_details: {}
     });
 
     // Add new state for installment types
     const [availableInstallmentTypes, setAvailableInstallmentTypes] = useState<string[]>([]);
-    const [selectedInstallmentType, setSelectedInstallmentType] = useState<string | null>(null);
 
     //console.log(unitDetails)
 
@@ -247,31 +246,16 @@ const ReserveUnit = () => {
         }
 
         // Validate payment details
-        if (unitDetails.reservation_deposit <= 0) {
+        if (unitDetails.reservation_deposit === null || unitDetails.reservation_deposit <= 0) {
             errors.reservation_deposit = 'الرجاء إدخال قيمة دفعة الحجز';
         }
-        if (unitDetails.down_payment <= 0) {
+        if (unitDetails.down_payment === null || unitDetails.down_payment <= 0) {
             errors.down_payment = 'الرجاء إدخال قيمة الدفعة المقدمة';
         }
 
         // Validate installment details
         if (unitDetails.selected_installment_types.length === 0) {
             errors.installment = 'الرجاء اختيار نوع التقسيط';
-        } else {
-            let totalAmount = 0;
-            unitDetails.selected_installment_types.forEach(type => {
-                const detail = unitDetails.installment_details[type];
-                if (!detail || detail.count <= 0 || detail.amount <= 0) {
-                    errors[`installment_${type}`] = 'الرجاء إدخال تفاصيل التقسيط';
-                } else {
-                    totalAmount += detail.amount * detail.count;
-                }
-            });
-
-            const expectedAmount = unitDetails.final_price - unitDetails.down_payment;
-            if (Math.abs(totalAmount - expectedAmount) > 0.01) {
-                errors.installment_total = 'مجموع أقساط التقسيط يجب أن يساوي السعر النهائي ناقص الدفعة المقدمة';
-            }
         }
 
         return errors;
@@ -293,19 +277,15 @@ const ReserveUnit = () => {
         }
     };
 
-    const handleUnitDetailsChange = (e: React.ChangeEvent<HTMLInputElement>, key: string) => {
+    const handleUnitDetailChange = (e: React.ChangeEvent<HTMLInputElement>, key: string) => {
         const { value } = e.target;
-        if (value === '' || validateInput(value, "number")) {
-            setUnitDetails((prev) => ({ ...prev, [key]: value === '' ? 0 : parseFloat(value) }));
-            // Clear error when field is updated
-            if (errors[key]) {
-                setErrors(prev => {
-                    const newErrors = {...prev};
-                    delete newErrors[key];
-                    return newErrors;
-                });
-            }
-        }
+        const numValue = value === '' ? null : Number(value);
+        if (numValue !== null && numValue < 0) return;
+
+        setUnitDetails(prev => ({
+            ...prev,
+            [key]: numValue
+        }));
     };
 
     const handleDateChange = (date: dayjs.Dayjs | null, field: keyof ReservationDates) => {
@@ -552,7 +532,7 @@ const ReserveUnit = () => {
         if (selectedUnit && units.length > 0) {
             const unit = units.find(u => u.id === selectedUnit);
             if (unit) {
-                setUnitDetails({
+                const initialDetails: UnitDetails = {
                     unit_number: unit.unit_number,
                     unit_type: unit.unit_type,
                     price: Number(unit.price),
@@ -561,108 +541,39 @@ const ReserveUnit = () => {
                     floor: Number(unit.floor),
                     bedrooms: Number(unit.bedrooms),
                     bathrooms: Number(unit.bathrooms),
-                    reservation_deposit: 0,
-                    down_payment: 0,
+                    reservation_deposit: null,
+                    down_payment: null,
                     final_price: Number(unit.price),
-                    monthly_installment: 0,
+                    monthly_installment: null,
                     selected_installment_types: [],
                     installment_details: {}
-                });
+                };
 
                 // Apply default deposit percentage from project if available
                 if (selectedProject) {
                     const project = projects.find(p => p.id === selectedProject);
                     if (project?.deposit_percentage) {
                         const downPayment = (Number(unit.price) * project.deposit_percentage) / 100;
-                        setUnitDetails(prev => ({
-                            ...prev,
-                            down_payment: downPayment
-                        }));
+                        initialDetails.down_payment = downPayment;
                     }
-                }
 
-                // Reset installment selections and set default if only one option
-                if (selectedProject) {
-                    const project = projects.find(p => p.id === selectedProject);
-                    if (project?.installment_options.length === 1) {
-                        const type = project.installment_options[0];
-                        setUnitDetails(prev => ({
-                            ...prev,
-                            selected_installment_types: [type],
-                            installment_details: {
-                                [type]: {
+                    // Select monthly installment by default if available
+                    if (project.installment_options.includes('MONTHLY')) {
+                        initialDetails.selected_installment_types = ['MONTHLY'];
+                        initialDetails.installment_details = {
+                            'MONTHLY': {
+                                type: 'MONTHLY',
                                     count: 1,
-                                    amount: (Number(unit.price) - prev.down_payment)
+                                amount: 0
                                 }
+                        };
                             }
-                        }));
                     }
-                }
+
+                setUnitDetails(initialDetails);
             }
         }
     }, [selectedUnit, units, selectedProject, projects]);
-
-    // Calculate final price and monthly installment
-    useEffect(() => {
-        if (selectedUnit && units.length > 0) {
-            const unit = units.find(u => u.id === selectedUnit);
-            if (unit) {
-                let finalPrice = Number(unit.price);
-                
-                // Add additional expenses
-                if (selectedProject) {
-                    const project = projects.find(p => p.id === selectedProject);
-                    project?.additional_expenses.forEach(expense => {
-                        if (expense.type === 'fixed') {
-                            finalPrice += expense.value;
-                        } else if (expense.type === 'percentage') {
-                            finalPrice += (finalPrice * expense.value) / 100;
-                        }
-                    });
-                }
-
-                setUnitDetails(prev => ({
-                    ...prev,
-                    final_price: finalPrice
-                }));
-
-                // Update installment amounts
-                const remainingAmount = finalPrice - unitDetails.down_payment;
-                const totalInstallments = unitDetails.selected_installment_types.reduce((sum, type) => 
-                    sum + (unitDetails.installment_details[type]?.count || 0), 0);
-
-                if (totalInstallments > 0) {
-                    const newInstallmentDetails = { ...unitDetails.installment_details };
-                    unitDetails.selected_installment_types.forEach((type, index) => {
-                        if (index === unitDetails.selected_installment_types.length - 1) {
-                            // Last installment type gets the remaining amount
-                            const otherInstallmentsTotal = Object.entries(newInstallmentDetails)
-                                .filter(([t]) => t !== type)
-                                .reduce((sum, [, detail]) => sum + (detail.amount * detail.count), 0);
-                            
-                            newInstallmentDetails[type] = {
-                                type: type,
-                                count: unitDetails.installment_details[type]?.count || 1,
-                                amount: remainingAmount - otherInstallmentsTotal
-                            };
-                        } else {
-                            // Other installment types maintain their current amounts
-                            newInstallmentDetails[type] = {
-                                type: type,
-                                count: unitDetails.installment_details[type]?.count || 1,
-                                amount: unitDetails.installment_details[type]?.amount || 0
-                            };
-                        }
-                    });
-
-                    setUnitDetails(prev => ({
-                        ...prev,
-                        installment_details: newInstallmentDetails
-                    }));
-                }
-            }
-        }
-    }, [selectedUnit, units, selectedProject, projects, unitDetails.down_payment, unitDetails.selected_installment_types]);
 
     // Update useEffect for project selection
     useEffect(() => {
@@ -670,18 +581,16 @@ const ReserveUnit = () => {
             const project = projects.find(p => p.id === selectedProject);
             if (project) {
                 setAvailableInstallmentTypes(project.installment_options);
-                // Select the first installment type by default
-                if (project.installment_options.length > 0) {
-                    setSelectedInstallmentType(project.installment_options[0]);
-                    // Add the first installment type to the installments array
+                // Select monthly installment by default if available
+                if (project?.installment_options?.includes('MONTHLY')) {
                     setUnitDetails(prev => ({
                         ...prev,
-                        selected_installment_types: [project.installment_options[0]],
+                        selected_installment_types: ['MONTHLY'],
                         installment_details: {
-                            [project.installment_options[0]]: {
-                                type: project.installment_options[0],
-                                count: 0,
-                                amount: 0
+                            'MONTHLY': {
+                                type: 'MONTHLY',
+                                count: null,
+                                amount: null
                             }
                         }
                     }));
@@ -697,6 +606,7 @@ const ReserveUnit = () => {
         const formErrors = validateForm();
         if (Object.keys(formErrors).length > 0) {
             setErrors(formErrors);
+            console.log(formErrors);
             toast.error('يرجى التحقق من صحة البيانات المدخلة');
             return;
         }
@@ -725,15 +635,16 @@ const ReserveUnit = () => {
             if (selectedUnit) {
                 formData.append('unit_id', selectedUnit.toString());
             }
-            formData.append('reservation_deposit', unitDetails.reservation_deposit.toString());
-            formData.append('down_payment', unitDetails.down_payment.toString());
+            formData.append('reservation_deposit', unitDetails.reservation_deposit?.toString() || '');
+            formData.append('down_payment', unitDetails.down_payment?.toString() || '');
             formData.append('final_price', unitDetails.final_price.toString());
 
+            // Append installment details
             unitDetails.selected_installment_types.forEach((type, index) => {
                 const detail = unitDetails.installment_details[type];
-                formData.append(`installments_details[${index}][type]`, detail.type);
-                formData.append(`installments_details[${index}][count]`, detail.count.toString());
-                formData.append(`installments_details[${index}][amount]`, detail.amount.toString());
+                formData.append(`installments_details[${index}][type]`, type);
+                formData.append(`installments_details[${index}][count]`, detail?.count?.toString() || '');
+                formData.append(`installments_details[${index}][amount]`, detail?.amount?.toString() || '');
             });
 
             // Append uploaded media
@@ -779,29 +690,24 @@ const ReserveUnit = () => {
                 console.log(response.data);
                 toast.error(response.data.message || 'حدث خطأ أثناء حجز الوحدة');
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error submitting form:', error);
-            if (error.response?.data?.errors) {
-                // Handle validation errors from backend
-                const backendErrors = error.response.data.errors;
+            if (error && typeof error === 'object' && 'response' in error) {
+                const errorResponse = error.response as { data?: { errors?: Record<string, string[]>; message?: string } };
+                if (errorResponse.data?.errors) {
                 const newErrors: FormErrors = {};
-                
-                Object.entries(backendErrors).forEach(([key, value]) => {
+                    Object.entries(errorResponse.data.errors).forEach(([key, value]) => {
                     if (Array.isArray(value)) {
                         newErrors[key] = value[0];
-                    } else {
-                        newErrors[key] = value as string;
                     }
                 });
-                
                 setErrors(newErrors);
-                toast.error(error.response.data.message || 'يرجى التحقق من صحة البيانات المدخلة');
-            } else if (error.response) {
-                console.error('Error response:', error.response.data);
-                toast.error(error.response.data.message || 'حدث خطأ أثناء حجز الوحدة');
-            } else if (error.request) {
-                console.error('Error request:', error.request);
-                toast.error('فشل الاتصال بالخادم');
+                    toast.error('يرجى التحقق من صحة البيانات المدخلة');
+                } else if (errorResponse.data?.message) {
+                    toast.error(errorResponse.data.message);
+                } else {
+                    toast.error('حدث خطأ أثناء حجز الوحدة');
+                }
             } else {
                 toast.error('حدث خطأ أثناء حجز الوحدة');
             }
@@ -812,9 +718,9 @@ const ReserveUnit = () => {
 
     // Add this function before the return statement
     const calculateTotalAmount = () => {
-        let total = unitDetails.down_payment;
+        let total = unitDetails.down_payment || 0;
         Object.values(unitDetails.installment_details).forEach((details) => {
-            if (details && details.count && details.amount) {
+            if (details && details.count !== null && details.amount !== null) {
                 total += details.count * details.amount;
             }
         });
@@ -826,20 +732,14 @@ const ReserveUnit = () => {
         const existingInstallment = unitDetails.selected_installment_types.includes(type);
 
         if (existingInstallment) {
-            // Remove the installment type if it exists
             setUnitDetails(prev => ({
                 ...prev,
-                selected_installment_types: prev.selected_installment_types.filter(inst => inst !== type),
+                selected_installment_types: prev.selected_installment_types.filter(t => t !== type),
                 installment_details: Object.fromEntries(
                     Object.entries(prev.installment_details).filter(([key]) => key !== type)
                 )
             }));
-            // If this was the selected type, clear selection
-            if (selectedInstallmentType === type) {
-                setSelectedInstallmentType(null);
-            }
         } else {
-            // Add the new installment type
             setUnitDetails(prev => ({
                 ...prev,
                 selected_installment_types: [...prev.selected_installment_types, type],
@@ -847,13 +747,29 @@ const ReserveUnit = () => {
                     ...prev.installment_details,
                     [type]: {
                         type,
-                        count: 0,
-                        amount: 0
-                    }
+                        count: null,
+                        amount: null
+                    } as InstallmentDetail
                 }
             }));
-            setSelectedInstallmentType(type);
         }
+    };
+
+    // Update handleInstallmentDetailChange function
+    const handleInstallmentDetailChange = (type: string, field: 'count' | 'amount', value: string) => {
+        const numValue = value === '' ? null : Number(value);
+        if (numValue !== null && numValue < 0) return;
+
+        setUnitDetails(prev => ({
+            ...prev,
+            installment_details: {
+                ...prev.installment_details,
+                [type]: {
+                    ...prev.installment_details[type],
+                    [field]: numValue
+                }
+            }
+        }));
     };
 
     if (loading) {
@@ -1329,8 +1245,8 @@ const ReserveUnit = () => {
                                                     <div className="relative rounded-md shadow-sm">
                                                         <input
                                                             type="number"
-                                                            value={unitDetails.reservation_deposit || ''}
-                                                            onChange={(e) => handleUnitDetailsChange(e, 'reservation_deposit')}
+                                                            value={unitDetails.reservation_deposit === null ? '' : unitDetails.reservation_deposit}
+                                                            onChange={(e) => handleUnitDetailChange(e, 'reservation_deposit')}
                                                             className={`block w-full pr-12 py-2.5 sm:text-sm border ${errors.reservation_deposit ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-blue-500 focus:border-blue-500`}
                                                             placeholder="أدخل قيمة دفعة الحجز"
                                                         />
@@ -1348,8 +1264,8 @@ const ReserveUnit = () => {
                                                     <div className="relative rounded-md shadow-sm">
                                                         <input
                                                             type="number"
-                                                            value={unitDetails.down_payment || ''}
-                                                            onChange={(e) => handleUnitDetailsChange(e, 'down_payment')}
+                                                            value={unitDetails.down_payment === null ? '' : unitDetails.down_payment}
+                                                            onChange={(e) => handleUnitDetailChange(e, 'down_payment')}
                                                             className={`block w-full pr-12 py-2.5 sm:text-sm border ${errors.down_payment ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-blue-500 focus:border-blue-500`}
                                                             placeholder="أدخل قيمة الدفعة المقدمة"
                                                         />
@@ -1367,7 +1283,7 @@ const ReserveUnit = () => {
                                                     <div className="relative rounded-md shadow-sm">
                                                         <input
                                                             type="number"
-                                                            value={(unitDetails.final_price - unitDetails.down_payment) || ''}
+                                                            value={(unitDetails.final_price - (unitDetails.down_payment || 0)) || ''}
                                                             disabled
                                                             className="block w-full pr-12 py-2.5 sm:text-sm border border-gray-300 rounded-md bg-gray-50"
                                                         />
@@ -1379,103 +1295,71 @@ const ReserveUnit = () => {
                                             </div>
                                         </div>
 
-                                        {/* Installment Details */}
-                                        {unitDetails.selected_installment_types.length > 0 && (
-                                            <div className="border-t border-gray-200 pt-6">
-                                                <h3 className="text-lg font-medium text-gray-900 mb-4">تفاصيل التقسيط</h3>
-                                                <div className="space-y-4">
-                                                    {/* Installment Type Selection */}
-                                                    <div className="form-group">
-                                                        <label className="block text-sm font-medium text-gray-700 mb-2">نوع التقسيط</label>
-                                                        <div className="installment-types-container">
+                                        {/* Installment Options */}
+                                        <div className="bg-white shadow rounded-lg overflow-hidden mt-6">
+                                            <div className="px-6 py-5 border-b border-gray-200">
+                                                <h2 className="text-xl font-semibold text-gray-800">خيارات التقسيط</h2>
+                                                <p className="mt-1 text-sm text-gray-500">اختر نظام التقسيط المناسب</p>
+                                            </div>
+                                            
+                                            <div className="px-6 py-5">
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                                                             {availableInstallmentTypes.map((type) => (
                                                                 <button
                                                                     key={type}
-                                                                    className={`installment-type-button ${unitDetails.selected_installment_types.includes(type) ? 'selected' : ''}`}
                                                                     onClick={() => handleInstallmentTypeSelect(type)}
-                                                                    style={{
-                                                                        backgroundColor: unitDetails.selected_installment_types.includes(type) ? 'rgba(0, 123, 255, 0.1)' : 'transparent',
-                                                                        border: '1px solid rgba(0, 123, 255, 0.5)',
-                                                                        color: unitDetails.selected_installment_types.includes(type) ? '#007BFF' : '#333',
-                                                                        padding: '8px 16px',
-                                                                        borderRadius: '4px',
-                                                                        cursor: 'pointer',
-                                                                        transition: 'background-color 0.3s ease, color 0.3s ease'
-                                                                    }}
-                                                                >
-                                                                    {INSTALLMENT_TYPE_TRANSLATIONS[type] || type}
+                                                            className={`p-4 rounded-lg border ${
+                                                                unitDetails.selected_installment_types.includes(type)
+                                                                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                                                    : 'border-gray-300 hover:border-blue-400'
+                                                            } transition-all duration-200`}
+                                                        >
+                                                            {INSTALLMENT_TYPE_TRANSLATIONS[type]}
                                                                 </button>
                                                             ))}
-                                                        </div>
                                                     </div>
 
+                                                {unitDetails.selected_installment_types.length > 0 && (
+                                                    <div className="space-y-6">
                                                     {unitDetails.selected_installment_types.map((type) => (
-                                                        <div key={type} className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-                                                            <div className="flex items-center justify-between mb-4">
-                                                                <h4 className="text-md font-medium text-gray-900">{INSTALLMENT_TYPE_TRANSLATIONS[type] || type}</h4>
-                                                            </div>
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                            <div key={type} className="bg-gray-50 p-4 rounded-lg">
+                                                                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                                                                    {INSTALLMENT_TYPE_TRANSLATIONS[type]}
+                                                                </h3>
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                                 <div>
-                                                                    <label className="block text-sm font-medium text-gray-700 mb-2">عدد الأقساط</label>
-                                                                    <div className="relative rounded-md shadow-sm">
+                                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                            عدد الأقساط
+                                                                        </label>
                                                                         <input
                                                                             type="number"
-                                                                            min="1"
-                                                                            value={unitDetails.installment_details[type]?.count || ''}
-                                                                            onChange={(e) => {
-                                                                                const count = parseInt(e.target.value);
-                                                                                if (count > 0) {
-                                                                                    setUnitDetails(prev => ({
-                                                                                        ...prev,
-                                                                                        installment_details: {
-                                                                                            ...prev.installment_details,
-                                                                                            [type]: {
-                                                                                                ...prev.installment_details[type],
-                                                                                                count: count
-                                                                                            }
-                                                                                        }
-                                                                                    }));
-                                                                                }
-                                                                            }}
-                                                                            className="block w-full py-2.5 px-3 sm:text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                                            value={unitDetails.installment_details[type]?.count === null ? '' : unitDetails.installment_details[type]?.count}
+                                                                            onChange={(e) => handleInstallmentDetailChange(type, 'count', e.target.value)}
+                                                                            className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                                                            placeholder="عدد الأقساط"
                                                                         />
-                                                                    </div>
                                                                 </div>
                                                                 <div>
-                                                                    <label className="block text-sm font-medium text-gray-700 mb-2">قيمة القسط</label>
-                                                                    <div className="relative rounded-md shadow-sm">
+                                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                            قيمة القسط
+                                                                        </label>
+                                                                        <div className="relative">
                                                                         <input
                                                                             type="number"
-                                                                            min="0"
-                                                                            value={unitDetails.installment_details[type]?.amount || ''}
-                                                                            onChange={(e) => {
-                                                                                const amount = parseFloat(e.target.value);
-                                                                                if (amount >= 0) {
-                                                                                    setUnitDetails(prev => ({
-                                                                                        ...prev,
-                                                                                        installment_details: {
-                                                                                            ...prev.installment_details,
-                                                                                            [type]: {
-                                                                                                ...prev.installment_details[type],
-                                                                                                amount: amount
-                                                                                            }
-                                                                                        }
-                                                                                    }));
-                                                                                }
-                                                                            }}
-                                                                            className="block w-full pr-12 py-2.5 px-3 sm:text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                                        />
-                                                                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                                                            <span className="text-gray-500 sm:text-sm">جنيه</span>
-                                                                        </div>
+                                                                                value={unitDetails.installment_details[type]?.amount === null ? '' : unitDetails.installment_details[type]?.amount}
+                                                                                onChange={(e) => handleInstallmentDetailChange(type, 'amount', e.target.value)}
+                                                                                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                                                                placeholder="قيمة القسط"
+                                                                            />
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     ))}
-                                                </div>
                                             </div>
                                         )}
+                                            </div>
+                                        </div>
 
                                         {/* Total Amount After Installments */}
                                         <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
