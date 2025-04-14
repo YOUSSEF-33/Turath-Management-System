@@ -74,21 +74,21 @@ const ProtectedLayout = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
+    <div className="flex flex-row-reverse min-h-screen bg-gray-100">
       <Sidebar 
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)} 
         onCollapse={(collapsed) => setIsSidebarCollapsed(collapsed)}
       />
-      <div className="flex-1 flex flex-col w-full min-w-0">
+      <div className={`flex-1 transition-all duration-300 ${isSidebarCollapsed ? "md:mr-20" : "md:mr-72"}`}>
         <Navbar
           title=""
           isMenuOpen={isSidebarOpen}
           onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)}
           isSidebarCollapsed={isSidebarCollapsed}
         />
-        <main className="flex-1 p-3 sm:p-4 lg:p-6 w-full min-w-0">
-          <div className="w-full min-w-0">
+        <main className="p-3 sm:p-4 lg:p-6">
+          <div className="w-full">
             <Outlet />
           </div>
         </main>

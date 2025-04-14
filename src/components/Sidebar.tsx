@@ -118,22 +118,22 @@ const Sidebar = ({ isOpen, onClose, onCollapse }: SidebarProps) => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed md:sticky top-0 right-0 h-screen bg-white shadow-xl transform duration-300 ease-in-out z-100 
+        className={`fixed md:fixed top-0 right-0 h-screen bg-white shadow-xl transform duration-300 ease-in-out z-40
           ${isOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"}
           ${isCollapsed ? "md:w-20" : "w-[280px] sm:w-72"}
         `}
       >
         <div className="flex flex-col h-full w-full relative">
-          {/* Collapse toggle button (visible only on md and above) */}
+          {/* Collapse toggle button */}
           <button
             onClick={() => setIsCollapsed(prev => !prev)}
-            className="hidden md:flex absolute left-3 top-6 h-6 w-6 bg-white rounded-full shadow-md items-center justify-center hover:bg-gray-50 z-50"
+            className="hidden md:flex absolute right-3 top-6 h-6 w-6 bg-white rounded-full shadow-md items-center justify-center hover:bg-gray-50 z-50"
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? (
-              <ChevronLeft className="h-4 w-4 text-gray-600" />
+              <ChevronRight className="h-4 w-4 text-gray-600" />
             ) : (
-              <ChevronRight className="h-4 w-4 text-gray-600 z-[999999]" />
+              <ChevronLeft className="h-4 w-4 text-gray-600" />
             )}
           </button>
 

@@ -197,13 +197,13 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle, isSidebarCollapsed }: NavbarP
   }, [navigate, logout]);
 
   return (
-    <div className="bg-white shadow-sm sticky top-0 z-40 w-full" ref={navbarRef}>
+    <div className="bg-white shadow-sm sticky top-0 z-30 w-full" ref={navbarRef}>
       <div className="px-3 sm:px-4 py-2 sm:py-3">
         <div className="flex items-center justify-between w-full">
-          {/* Left Side: Menu Toggle and Logo */}
+          {/* Right Side: Menu Toggle and Logo */}
           <div className="flex items-center min-w-0">
             <button
-              className="md:hidden p-1.5 sm:p-2 -mr-1 text-gray-700 hover:text-gray-900 transition-colors rounded-lg hover:bg-gray-100"
+              className="md:hidden p-1.5 sm:p-2 ml-1 text-gray-700 hover:text-gray-900 transition-colors rounded-lg hover:bg-gray-100"
               onClick={onMenuToggle}
               aria-label={isMenuOpen ? 'إغلاق القائمة' : 'فتح القائمة'}
             >
@@ -221,8 +221,8 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle, isSidebarCollapsed }: NavbarP
             </div>
           </div>
 
-          {/* Right Side: Notifications and Profile */}
-          <div className="flex items-center space-x-0.5 sm:space-x-1 rtl:space-x-reverse shrink-0">
+          {/* Left Side: Notifications and Profile */}
+          <div className="flex items-center space-x-0.5 sm:space-x-1 space-x-reverse shrink-0">
             <div ref={notificationsRef} className="relative">
               <button
                 onClick={toggleNotifications}
