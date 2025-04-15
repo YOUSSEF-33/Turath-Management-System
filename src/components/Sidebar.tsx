@@ -118,48 +118,50 @@ const Sidebar = ({ isOpen, onClose, onCollapse }: SidebarProps) => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed md:sticky top-0 right-0 h-screen bg-white shadow-xl transform duration-300 ease-in-out z-100 
+        className={`fixed md:fixed top-0 right-0 h-screen bg-white shadow-xl transform duration-300 ease-in-out z-[60]
           ${isOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"}
-          ${isCollapsed ? "md:w-20" : "w-[280px] sm:w-72"}
+          ${isCollapsed ? "w-20" : "w-72"}
         `}
       >
-        <div className="flex flex-col h-full w-full relative">
-          {/* Collapse toggle button (visible only on md and above) */}
+        <div className="flex flex-col h-full">
+          {/* Collapse toggle button */}
           <button
             onClick={() => setIsCollapsed(prev => !prev)}
-            className="hidden md:flex absolute left-3 top-6 h-6 w-6 bg-white rounded-full shadow-md items-center justify-center hover:bg-gray-50 z-50"
+            className="hidden md:flex absolute -left-3 top-6 h-6 w-6 bg-white rounded-full shadow-md items-center justify-center hover:bg-gray-50 z-50"
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? (
-              <ChevronLeft className="h-4 w-4 text-gray-600" />
+              <ChevronRight className="h-4 w-4 text-gray-600" />
             ) : (
-              <ChevronRight className="h-4 w-4 text-gray-600 z-[999999]" />
+              <ChevronLeft className="h-4 w-4 text-gray-600" />
             )}
           </button>
 
           {/* Header */}
-          <div className="p-3 sm:p-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
-            <div className="flex-1 flex justify-center">
-              {!isCollapsed && (
-                <img 
-                  src="/images/output-onlinepngtools.png" 
-                  alt="Logo" 
-                  className="h-10 sm:h-12 transition-all duration-300" 
-                />
-              )}
+          <div className="sticky top-0 z-20 bg-white border-b border-gray-200">
+            <div className="p-4 flex items-center justify-between">
+              <div className="flex-1 flex justify-center">
+                {!isCollapsed && (
+                  <img 
+                    src="/images/output-onlinepngtools.png" 
+                    alt="Logo" 
+                    className="h-10 transition-all duration-300" 
+                  />
+                )}
+              </div>
+              <button 
+                onClick={onClose}
+                className="md:hidden absolute right-3 top-3 p-2 rounded-lg hover:bg-gray-100"
+                aria-label="Close sidebar"
+              >
+                <X className="h-5 w-5 text-gray-600" />
+              </button>
             </div>
-            <button 
-              onClick={onClose}
-              className="md:hidden absolute right-3 top-3 p-2 rounded-lg hover:bg-gray-100"
-              aria-label="Close sidebar"
-            >
-              <X className="h-5 w-5 text-gray-600" />
-            </button>
           </div>
-          
+
           {/* Navigation */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 sm:py-6 px-3 sm:px-4">
-            <nav className="space-y-1.5 sm:space-y-2 w-full">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3">
+            <nav className="space-y-1">
               {isLoading ? (
                 <div className="flex justify-center items-center h-20">
                   <Loader2 className="animate-spin h-8 w-8 text-[#8884d8]" />
@@ -309,10 +311,10 @@ const Sidebar = ({ isOpen, onClose, onCollapse }: SidebarProps) => {
           </div>
           
           {/* Logout Button */}
-          <div className="p-3 sm:p-4 border-t border-gray-100 sticky bottom-0 bg-white">
+          <div className="sticky bottom-0 p-3 border-t border-gray-200 bg-white mt-auto">
             <button
               onClick={handleLogout}
-              className={`flex items-center ${isCollapsed ? "justify-center" : ""} w-full p-2.5 sm:p-3 text-sm sm:text-base rounded-lg text-red-600 hover:bg-red-50`}
+              className={`flex items-center ${isCollapsed ? "justify-center" : ""} w-full p-2.5 rounded-lg text-red-600 hover:bg-red-50`}
               title={isCollapsed ? "تسجيل الخروج" : undefined}
             >
               <LogOut className="ml-2" />

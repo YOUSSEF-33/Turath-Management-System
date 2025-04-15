@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import axiosInstance from '../../axiosInstance'; // Adjust the import path as needed
+import axiosInstance from '../../axiosInstance';
 import { convertToArabicWords } from '../../utils/convertNumbers';
-import * as XLSX from 'xlsx';
 import { usePermissionsContext } from '../../context/PermissionsContext';
 import { toast } from 'react-hot-toast';
+import { message } from 'antd';
 
 interface Installment {
   date: string;
@@ -13,9 +13,17 @@ interface Installment {
   cheque_number: string | null;
 }
 
+interface AdditionalExpense {
+  date: string;
+  amount: string;
+  type: string;
+  cheque_number: string | null;
+}
+
 interface Reservation {
   id: string;
   installments_schedule: Installment[];
+  additional_expenses: AdditionalExpense[];
   final_price: string;
   down_payment: string;
   monthly_installment: string;
@@ -25,21 +33,35 @@ interface Reservation {
 const InstallmentsBreakdown = () => {
   const { id } = useParams<{ id: string }>();
   const { hasPermission } = usePermissionsContext();
-  const [reservation, setReservation] = useState<Reservation | null>(null);
+  const [regularInstallments, setRegularInstallments] = useState<Installment[]>([]);
+  const [additionalExpenses, setAdditionalExpenses] = useState<AdditionalExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const contractRef = useRef<HTMLDivElement>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [installmentToDelete, setInstallmentToDelete] = useState<number | null>(null);
+  const [installmentToDelete, setInstallmentToDelete] = useState<{type: 'installment' | 'expense', index: number} | null>(null);
   const [chequeSuggestions, setChequeSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState<number | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState<{type: 'installment' | 'expense', index: number} | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   // Fetch reservation data
   useEffect(() => {
     const fetchReservation = async () => {
       try {
         const response = await axiosInstance.get(`/reservations/${id}`);
-        setReservation(response.data.data);
+        const data = response.data.data;
+        
+        // Separate installments and expenses
+        const regular = data.installments_schedule.filter((inst: any) => 
+          inst.type === 'MONTHLY' || inst.type === 'QUARTERLY' || inst.type === 'ANNUAL'
+        );
+        
+        const expenses = data.installments_schedule.filter((inst: any) => 
+          inst.type === 'مرافق' || inst.type === 'صيانة'
+        );
+        
+        setRegularInstallments(regular);
+        setAdditionalExpenses(expenses);
         setLoading(false);
       } catch (err) {
         setError('فشل في تحميل بيانات الحجز');
@@ -51,88 +73,85 @@ const InstallmentsBreakdown = () => {
     fetchReservation();
   }, [id]);
 
-  // Handle input changes for all fields
-  const handleFieldChange = (index: number, field: keyof Installment, value: string) => {
-    if (!reservation) return;
-    const newSchedule = [...reservation.installments_schedule];
-    newSchedule[index] = { ...newSchedule[index], [field]: value };
-    setReservation({ ...reservation, installments_schedule: newSchedule });
+  // Handle input changes for installments
+  const handleInstallmentChange = (index: number, field: keyof Installment, value: string) => {
+    setRegularInstallments(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  // Handle input changes for expenses  
+  const handleExpenseChange = (index: number, field: keyof AdditionalExpense, value: string) => {
+    setAdditionalExpenses(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
   };
 
   // Handle print (PDF export)
-  const handlePrint = () => {
-    if (contractRef.current) {
-      const printWindow = window.open("", "_blank");
-      if (printWindow) {
-        printWindow.document.write(`
-          <html>
-          <head>
-            <title>Print</title>
-            <style>
-              body { direction: rtl; font-family: Arial, sans-serif; }
-              .contract { padding: 20px; }
-              .contract h1 { text-align: center; margin-bottom: 20px; font-size: 24px; }
-              .contract p { text-align: right; margin-bottom: 20px; font-size: 18px; }
-              .contract table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-              .contract table, .contract th, .contract td { border: 1px solid black; }
-              .contract th, .contract td { padding: 10px; text-align: right; font-size: 16px; }
-              .contract th { background-color: #f2f2f2; }
-            </style>
-          </head>
-          <body>
-            ${contractRef.current.innerHTML}
-          </body>
-          </html>
-        `);
-        printWindow.document.close();
-        printWindow.print();
-      }
+  const handlePrint = async () => {
+    if (!regularInstallments) return;
+    
+    setPdfLoading(true);
+    try {
+      const response = await axiosInstance.get(`/reservations/${id}/installments-schedule/pdf`, {
+        responseType: 'blob'
+      });
+      
+      // Create a blob from the PDF stream
+      const file = new Blob([response.data], { type: 'application/pdf' });
+      
+      // Create a link and trigger download
+      const fileURL = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = fileURL;
+      link.download = `ملحق_الأسعار_${id}.pdf`; // Set filename for download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      document.body.removeChild(link);
+      URL.revokeObjectURL(fileURL);
+    } catch (err) {
+      console.error('Error fetching PDF:', err);
+      message.error('فشل في تحميل ملف PDF');
+    } finally {
+      setPdfLoading(false);
     }
   };
 
   // Export data to Excel
-  const exportToExcel = () => {
-    if (!reservation) return;
-
-    const data = [
-      ['تاريخ الدفعة', 'نوع الدفعة', 'رقم الشيك', 'المبلغ بالأرقام', 'المبلغ بالحروف'],
-      ...reservation.installments_schedule.map(installment => [
-        installment.date,
-        installment.type === 'MONTHLY' ? 'شهري' : installment.type === 'QUARTERLY' ? 'ربع سنوي' : 'سنوي',
-        installment.cheque_number || '',
-        installment.amount,
-        convertToArabicWords(installment.amount)
-      ])
-    ];
-
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'ملحق الأسعار');
-    XLSX.writeFile(wb, 'ملحق_الأسعار.xlsx');
-  };
-
-  // Function to group installments by type
-  const groupInstallmentsByType = (installments: Installment[]) => {
-    const grouped = {
-      MONTHLY: [] as Installment[],
-      QUARTERLY: [] as Installment[],
-      ANNUAL: [] as Installment[],
-      OTHER: [] as Installment[]
-    };
-
-    installments.forEach(installment => {
-      if (installment.type === 'MONTHLY') {
-        grouped.MONTHLY.push(installment);
-      } else if (installment.type === 'QUARTERLY') {
-        grouped.QUARTERLY.push(installment);
-      } else if (installment.type === 'ANNUAL') {
-        grouped.ANNUAL.push(installment);
-      } else {
-        grouped.OTHER.push(installment);
-      }
-    });
-
-    return grouped;
+  const exportToExcel = async () => {
+    if (!regularInstallments) return;
+  
+    try {
+      const response = await axiosInstance.get(`/reservations/${id}/installments-schedule/excel`, {
+        responseType: 'blob'
+      });
+  
+      // Create a blob from the Excel data
+      const file = new Blob([response.data], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+  
+      // Create a link and trigger download
+      const fileURL = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = fileURL;
+      link.download = `ملحق_الأسعار_${id}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+  
+      // Clean up
+      document.body.removeChild(link);
+      URL.revokeObjectURL(fileURL);
+    } catch (err) {
+      console.error('Error downloading Excel file:', err);
+      message.error('فشل في تحميل ملف Excel');
+    }
   };
 
   // Function to calculate total for a group of installments
@@ -142,25 +161,21 @@ const InstallmentsBreakdown = () => {
 
   // Function to get installments for update (excluding totals)
   const getInstallmentsForUpdate = () => {
-    if (!reservation) return [];
-    return reservation.installments_schedule.filter(inst => 
+    if (!regularInstallments) return [];
+    return regularInstallments.filter(inst => 
       inst.type === 'MONTHLY' || inst.type === 'QUARTERLY' || inst.type === 'ANNUAL'
     );
   };
 
   // Update the save button click handler
   const handleSave = async () => {
-    if (!reservation) return;
-    
-    const installmentsToUpdate = getInstallmentsForUpdate();
-    
+    const allInstallments = [
+      ...regularInstallments,
+      ...additionalExpenses
+    ];
+
     const savePromise = axiosInstance.put(`/reservations/${id}/installments-schedule`, {
-      installments_schedule: installmentsToUpdate.map(installment => ({
-        date: installment.date,
-        amount: installment.amount,
-        cheque_number: installment.cheque_number,
-        type: installment.type
-      }))
+      installments_schedule: allInstallments
     });
 
     toast.promise(savePromise, {
@@ -176,147 +191,98 @@ const InstallmentsBreakdown = () => {
     }
   };
 
-  const handleDelete = (index: number) => {
-    setInstallmentToDelete(index);
+  const handleDelete = (type: 'installment' | 'expense', index: number) => {
+    setInstallmentToDelete({ type, index });
     setDeleteModalOpen(true);
   };
 
   const confirmDelete = () => {
-    if (!reservation || installmentToDelete === null) return;
+    if (!installmentToDelete) return;
     
     setDeleteModalOpen(false);
     
-    // Wait for animation to complete before removing the row
     setTimeout(() => {
-      const newSchedule = [...reservation.installments_schedule];
-      newSchedule.splice(installmentToDelete, 1);
-      setReservation({ ...reservation, installments_schedule: newSchedule });
+      if (installmentToDelete.type === 'installment') {
+        setRegularInstallments(prev => prev.filter((_, i) => i !== installmentToDelete.index));
+      } else {
+        setAdditionalExpenses(prev => prev.filter((_, i) => i !== installmentToDelete.index));
+      }
       setInstallmentToDelete(null);
-    }, 500); // Match this with the CSS transition duration
+    }, 500);
   };
 
-  // Function to analyze cheque number patterns
-  const analyzeChequePattern = (chequeNumbers: string[]) => {
-    if (chequeNumbers.length < 1) return null;
+  // Function to generate suggestions based on date order and pattern detection
+  const generateSuggestions = (type: 'installment' | 'expense', index: number) => {
+    const allItems = [...regularInstallments, ...additionalExpenses].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
 
-    // Try to find numeric patterns
-    const numericCheques = chequeNumbers
-      .filter(c => c && /^\d+$/.test(c))
-      .map(c => parseInt(c, 10))
-      .filter(n => !isNaN(n));
+    const currentItem = type === 'installment' ? regularInstallments[index] : additionalExpenses[index];
+    const currentDate = new Date(currentItem.date);
 
-    if (numericCheques.length >= 1) {
-      // If we have at least one numeric cheque, try to find a pattern
-      const lastNumber = numericCheques[numericCheques.length - 1];
-      
-      // Check if numbers are sequential
-      let isSequential = true;
-      let increment = 1;
-      
-      if (numericCheques.length >= 2) {
-        increment = numericCheques[1] - numericCheques[0];
-        for (let i = 1; i < numericCheques.length; i++) {
-          if (numericCheques[i] - numericCheques[i - 1] !== increment) {
-            isSequential = false;
-            break;
-          }
-        }
-      }
+    const previousChecks = allItems
+      .filter(item => new Date(item.date) < currentDate && item.cheque_number)
+      .map(item => item.cheque_number) as string[];
 
-      if (isSequential) {
-        return {
-          type: 'numeric',
-          lastNumber,
-          increment
-        };
-      }
+    if (previousChecks.length === 0) {
+      setChequeSuggestions(['1', '2', '3', '4', '5']);
+      setShowSuggestions({ type, index });
+      return;
     }
 
-    // Try to find alphanumeric patterns (e.g., CHQ001, CHQ002)
-    const alphanumericCheques = chequeNumbers.filter(c => c && /^[A-Za-z]+\d+$/.test(c));
-    if (alphanumericCheques.length >= 1) {
-      const prefix = alphanumericCheques[0].match(/^[A-Za-z]+/)?.[0];
-      const numbers = alphanumericCheques
-        .map(c => parseInt(c.replace(/^[A-Za-z]+/, ''), 10))
-        .filter(n => !isNaN(n));
+    const lastCheck = previousChecks[previousChecks.length - 1];
+    if (!lastCheck) return;
 
-      if (numbers.length >= 1) {
-        const lastNumber = numbers[numbers.length - 1];
-        let isSequential = true;
-        let increment = 1;
-
-        if (numbers.length >= 2) {
-          increment = numbers[1] - numbers[0];
-          for (let i = 1; i < numbers.length; i++) {
-            if (numbers[i] - numbers[i - 1] !== increment) {
-              isSequential = false;
-              break;
-            }
-          }
-        }
-
-        if (isSequential && prefix) {
-          return {
-            type: 'alphanumeric',
-            prefix,
-            lastNumber,
-            increment
-          };
-        }
-      }
-    }
-
-    return null;
-  };
-
-  // Function to generate suggestions
-  const generateSuggestions = (index: number) => {
-    if (!reservation) return;
-
-    // Get all cheque numbers except the current one
-    const existingCheques = reservation.installments_schedule
-      .filter((_, i) => i !== index) // Exclude current row
-      .map(inst => inst.cheque_number)
-      .filter(Boolean) as string[];
-
-    console.log('Existing cheques for suggestions:', existingCheques);
-
-    const pattern = analyzeChequePattern(existingCheques);
-    console.log('Detected pattern:', pattern);
-
+    // Pattern detection
     const suggestions: string[] = [];
 
-    if (pattern) {
-      if (pattern.type === 'numeric') {
-        for (let i = 1; i <= 3; i++) {
-          const nextNumber = pattern.lastNumber + (pattern.increment * i);
-          suggestions.push(String(nextNumber));
-        }
-      } else if (pattern.type === 'alphanumeric') {
-        for (let i = 1; i <= 3; i++) {
-          const nextNumber = pattern.lastNumber + (pattern.increment * i);
-          suggestions.push(`${pattern.prefix}${nextNumber.toString().padStart(3, '0')}`);
-        }
+    // Check if the last check number is alphanumeric
+    if (/^[a-zA-Z]+[0-9]+[a-zA-Z]*$/.test(lastCheck)) {
+      // Pattern like "kh239f"
+      const prefix = lastCheck.match(/^[a-zA-Z]+/)?.[0] || '';
+      const suffix = lastCheck.match(/[a-zA-Z]*$/)?.[0] || '';
+      const number = parseInt(lastCheck.match(/[0-9]+/)?.[0] || '0');
+
+      // Generate next 5 suggestions maintaining the pattern
+      for (let i = 1; i <= 5; i++) {
+        suggestions.push(`${prefix}${(number + i).toString()}${suffix}`);
       }
-    } else if (existingCheques.length > 0) {
-      // If no pattern detected but we have existing cheques, suggest the last number + 1
-      const lastCheque = existingCheques[existingCheques.length - 1];
-      if (/^\d+$/.test(lastCheque)) {
-        const lastNumber = parseInt(lastCheque, 10);
-        suggestions.push(String(lastNumber + 1));
-      } else if (/^[A-Za-z]+\d+$/.test(lastCheque)) {
-        const prefix = lastCheque.match(/^[A-Za-z]+/)?.[0];
-        const number = parseInt(lastCheque.replace(/^[A-Za-z]+/, ''), 10);
-        if (prefix && !isNaN(number)) {
-          suggestions.push(`${prefix}${(number + 1).toString().padStart(3, '0')}`);
-        }
+    } else if (/^[0-9]+$/.test(lastCheck)) {
+      // Pure numeric pattern
+      const number = parseInt(lastCheck);
+      const padding = lastCheck.length;
+
+      // Generate next 5 suggestions with same padding
+      for (let i = 1; i <= 5; i++) {
+        suggestions.push((number + i).toString().padStart(padding, '0'));
       }
+    } else {
+      // For other patterns, just increment a number at the end
+      suggestions.push(
+        `${lastCheck}-1`,
+        `${lastCheck}-2`,
+        `${lastCheck}-3`,
+        `${lastCheck}-4`,
+        `${lastCheck}-5`
+      );
     }
 
-    console.log('Generated suggestions:', suggestions);
     setChequeSuggestions(suggestions);
-    setShowSuggestions(index);
+    setShowSuggestions({ type, index });
   };
+
+  // Add useEffect for handling click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.suggestions-dropdown') && !target.closest('.cheque-input')) {
+        setShowSuggestions(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Loading state
   if (loading) {
@@ -329,7 +295,7 @@ const InstallmentsBreakdown = () => {
   }
 
   // No reservation data
-  if (!reservation) {
+  if (!regularInstallments) {
     return <div className="p-6 text-center">لا توجد بيانات متاحة</div>;
   }
 
@@ -404,29 +370,31 @@ const InstallmentsBreakdown = () => {
           </thead>
           <tbody>
             {(() => {
-              if (!reservation) return null;
-              
-              const groupedInstallments = groupInstallmentsByType(reservation.installments_schedule);
-              const mainInstallments = [
-                ...groupedInstallments.MONTHLY,
-                ...groupedInstallments.QUARTERLY,
-                ...groupedInstallments.ANNUAL
-              ];
-              const otherInstallments = groupedInstallments.OTHER;
+              if (!regularInstallments) return null;
+
+              // Sort all installments by date
+              const sortedInstallments = [...regularInstallments]
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+              // Calculate totals
+              const installmentsTotal = sortedInstallments
+                .filter((inst:any) => inst.type !== 'مرافق' && inst.type !== 'صيانة')
+                .reduce((sum, inst) => sum + parseFloat(inst.amount), 0);
               
               return (
                 <>
-                  {/* Main Installments (MONTHLY, QUARTERLY, ANNUAL) */}
-                  {mainInstallments.map((installment, index) => (
+                  {sortedInstallments
+                    .filter((inst:any) => inst.type !== 'مرافق' && inst.type !== 'صيانة')
+                    .map((installment, index) => (
                     <tr 
-                      key={`main-${index}`}
+                      key={index}
                       className="hover:bg-gray-50 transition-all duration-500"
                     >
                       <td className="py-3 px-4 border-b">
                         <input
                           type="date"
                           value={installment.date}
-                          onChange={(e) => handleFieldChange(index, 'date', e.target.value)}
+                          onChange={(e) => handleInstallmentChange(index, 'date', e.target.value)}
                           className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                             !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
                           }`}
@@ -436,7 +404,7 @@ const InstallmentsBreakdown = () => {
                       <td className="py-3 px-4 border-b">
                         <select
                           value={installment.type}
-                          onChange={(e) => handleFieldChange(index, 'type', e.target.value)}
+                          onChange={(e) => handleInstallmentChange(index, 'type', e.target.value)}
                           className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                             !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
                           }`}
@@ -452,44 +420,36 @@ const InstallmentsBreakdown = () => {
                           <input
                             type="text"
                             value={installment.cheque_number || ''}
-                            onChange={(e) => handleFieldChange(index, 'cheque_number', e.target.value)}
-                            onFocus={() => {
-                              generateSuggestions(index);
-                            }}
-                            onBlur={() => {
-                              setTimeout(() => {
-                                if (showSuggestions === index) {
-                                  setShowSuggestions(null);
-                                }
-                              }, 200);
-                            }}
-                            className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            onChange={(e) => handleInstallmentChange(index, 'cheque_number', e.target.value)}
+                            onFocus={() => generateSuggestions('installment', index)}
+                            className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 cheque-input ${
                               !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
                             placeholder="أدخل رقم الشيك"
                             disabled={!hasPermission('update_reservation_installments_schedule')}
                           />
-                          {showSuggestions === index && chequeSuggestions.length > 0 && (
-                            <div 
-                              className="absolute top-full left-0 w-full bg-white border border-gray-300 rounded-lg shadow-xl mt-1 max-h-48 overflow-y-auto z-50"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                              }}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                              }}
-                            >
+                          {showSuggestions?.type === 'installment' && showSuggestions.index === index && chequeSuggestions.length > 0 && (
+                            <div className="absolute top-full left-0 w-full bg-white border border-gray-300 rounded-lg shadow-xl mt-1 max-h-48 overflow-y-auto z-50 suggestions-dropdown">
+                              <div className="sticky top-0 bg-gray-50 border-b flex justify-between items-center px-2 py-1">
+                                <span className="text-xs text-gray-600">اقتراحات الأرقام</span>
+                                <button
+                                  onClick={() => setShowSuggestions(null)}
+                                  className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
+                                  title="إغلاق"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                  </svg>
+                                </button>
+                              </div>
                               <div className="py-1">
                                 {chequeSuggestions.map((suggestion, i) => (
                                   <div
                                     key={i}
                                     className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-gray-700 hover:text-blue-600 transition-colors duration-150"
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleFieldChange(index, 'cheque_number', suggestion);
+                                    onClick={() => {
+                                      handleInstallmentChange(index, 'cheque_number', suggestion);
                                       setShowSuggestions(null);
                                     }}
                                   >
@@ -505,7 +465,7 @@ const InstallmentsBreakdown = () => {
                         <input
                           type="number"
                           value={installment.amount}
-                          onChange={(e) => handleFieldChange(index, 'amount', e.target.value)}
+                          onChange={(e) => handleInstallmentChange(index, 'amount', e.target.value)}
                           className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-right ${
                             !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
                           }`}
@@ -520,7 +480,7 @@ const InstallmentsBreakdown = () => {
                       {hasPermission('update_reservation_installments_schedule') && (
                         <td className="py-3 px-4 border-b text-center">
                           <button
-                            onClick={() => handleDelete(index)}
+                            onClick={() => handleDelete('installment', index)}
                             className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-100 transition-colors duration-200"
                             title="حذف الدفعة"
                           >
@@ -533,137 +493,127 @@ const InstallmentsBreakdown = () => {
                     </tr>
                   ))}
 
-                  {/* Total Row */}
+                  {/* Total Installments Row */}
                   <tr className="bg-blue-50 font-bold">
-                    <td colSpan={3} className="py-3 px-4 border-b text-right">الإجمالي الكلي</td>
+                    <td colSpan={3} className="py-3 px-4 border-b text-right">الإجمالي</td>
+                    <td className="py-3 px-4 border-b text-right">{installmentsTotal.toFixed(2)}</td>
                     <td className="py-3 px-4 border-b text-right">
-                      {calculateTotal(mainInstallments)}
-                    </td>
-                    <td className="py-3 px-4 border-b text-right">
-                      {convertToArabicWords(calculateTotal(mainInstallments))}
+                      {convertToArabicWords(installmentsTotal.toString())}
                     </td>
                     {hasPermission('update_reservation_installments_schedule') && <td></td>}
                   </tr>
 
-                  {/* Other Installments */}
-                  {otherInstallments.length > 0 && (
-                    <>
-                      <tr className="bg-gray-100">
-                        <td colSpan={6} className="py-2 px-4 text-center font-semibold">
-                          دفعات أخرى
-                        </td>
-                      </tr>
-                      {otherInstallments.map((installment, index) => (
-                        <tr 
-                          key={`other-${index}`}
-                          className="hover:bg-gray-50 transition-all duration-500"
+                  {/* Additional Expenses Header */}
+                  <tr className="bg-gray-100">
+                    <td colSpan={6} className="py-3 px-4 border-b text-right font-bold text-gray-700">
+                      مصاريف اضافيه
+                    </td>
+                  </tr>
+
+                  {/* Additional Expenses Rows */}
+                  {additionalExpenses.map((expense, expenseIndex) => (
+                    <tr key={`expense-${expenseIndex}`} className="hover:bg-gray-50">
+                      <td className="py-3 px-4 border-b">
+                        <input
+                          type="date"
+                          value={expense.date}
+                          onChange={(e) => handleExpenseChange(expenseIndex, 'date', e.target.value)}
+                          className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
+                          }`}
+                          disabled={!hasPermission('update_reservation_installments_schedule')}
+                        />
+                      </td>
+                      <td className="py-3 px-4 border-b">
+                        <select
+                          value={expense.type}
+                          onChange={(e) => handleExpenseChange(expenseIndex, 'type', e.target.value)}
+                          className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
+                          }`}
+                          disabled={!hasPermission('update_reservation_installments_schedule')}
                         >
-                          <td className="py-3 px-4 border-b">
-                            <input
-                              type="date"
-                              value={installment.date}
-                              onChange={(e) => handleFieldChange(index, 'date', e.target.value)}
-                              className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
-                              }`}
-                              disabled={!hasPermission('update_reservation_installments_schedule')}
-                            />
-                          </td>
-                          <td className="py-3 px-4 border-b">
-                            <input
-                              type="text"
-                              value={installment.type}
-                              className="w-full px-2 py-1 border rounded bg-gray-100 cursor-not-allowed"
-                              disabled
-                            />
-                          </td>
-                          <td className="py-3 px-4 border-b relative">
-                            <div className="relative">
-                              <input
-                                type="text"
-                                value={installment.cheque_number || ''}
-                                onChange={(e) => handleFieldChange(index, 'cheque_number', e.target.value)}
-                                onFocus={() => {
-                                  generateSuggestions(index);
-                                }}
-                                onBlur={() => {
-                                  setTimeout(() => {
-                                    if (showSuggestions === index) {
-                                      setShowSuggestions(null);
-                                    }
-                                  }, 200);
-                                }}
-                                className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                  !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
-                                }`}
-                                placeholder="أدخل رقم الشيك"
-                                disabled={!hasPermission('update_reservation_installments_schedule')}
-                              />
-                              {showSuggestions === index && chequeSuggestions.length > 0 && (
-                                <div 
-                                  className="absolute top-full left-0 w-full bg-white border border-gray-300 rounded-lg shadow-xl mt-1 max-h-48 overflow-y-auto z-50"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                  }}
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                  }}
+                          <option value="مرافق">مرافق</option>
+                          <option value="صيانة">صيانة</option>
+                        </select>
+                      </td>
+                      <td className="py-3 px-4 border-b relative">
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={expense.cheque_number || ''}
+                            onChange={(e) => handleExpenseChange(expenseIndex, 'cheque_number', e.target.value)}
+                            onFocus={() => generateSuggestions('expense', expenseIndex)}
+                            className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 cheque-input ${
+                              !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
+                            }`}
+                            placeholder="أدخل رقم الشيك"
+                            disabled={!hasPermission('update_reservation_installments_schedule')}
+                          />
+                          {showSuggestions?.type === 'expense' && showSuggestions.index === expenseIndex && chequeSuggestions.length > 0 && (
+                            <div className="absolute top-full left-0 w-full bg-white border border-gray-300 rounded-lg shadow-xl mt-1 max-h-48 overflow-y-auto z-50 suggestions-dropdown">
+                              <div className="sticky top-0 bg-gray-50 border-b flex justify-between items-center px-2 py-1">
+                                <span className="text-xs text-gray-600">اقتراحات الأرقام</span>
+                                <button
+                                  onClick={() => setShowSuggestions(null)}
+                                  className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
+                                  title="إغلاق"
                                 >
-                                  <div className="py-1">
-                                    {chequeSuggestions.map((suggestion, i) => (
-                                      <div
-                                        key={i}
-                                        className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-gray-700 hover:text-blue-600 transition-colors duration-150"
-                                        onMouseDown={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          handleFieldChange(index, 'cheque_number', suggestion);
-                                          setShowSuggestions(null);
-                                        }}
-                                      >
-                                        {suggestion}
-                                      </div>
-                                    ))}
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                  </svg>
+                                </button>
+                              </div>
+                              <div className="py-1">
+                                {chequeSuggestions.map((suggestion, i) => (
+                                  <div
+                                    key={i}
+                                    className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-gray-700 hover:text-blue-600 transition-colors duration-150"
+                                    onClick={() => {
+                                      handleExpenseChange(expenseIndex, 'cheque_number', suggestion);
+                                      setShowSuggestions(null);
+                                    }}
+                                  >
+                                    {suggestion}
                                   </div>
-                                </div>
-                              )}
+                                ))}
+                              </div>
                             </div>
-                          </td>
-                          <td className="py-3 px-4 border-b">
-                            <input
-                              type="number"
-                              value={installment.amount}
-                              onChange={(e) => handleFieldChange(index, 'amount', e.target.value)}
-                              className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-right ${
-                                !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
-                              }`}
-                              min="0"
-                              step="0.01"
-                              disabled={!hasPermission('update_reservation_installments_schedule')}
-                            />
-                          </td>
-                          <td className="py-3 px-4 border-b text-right">
-                            {convertToArabicWords(installment.amount)}
-                          </td>
-                          {hasPermission('update_reservation_installments_schedule') && (
-                            <td className="py-3 px-4 border-b text-center">
-                              <button
-                                onClick={() => handleDelete(index)}
-                                className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-100 transition-colors duration-200"
-                                title="حذف الدفعة"
-                              >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </button>
-                            </td>
                           )}
-                        </tr>
-                      ))}
-                    </>
-                  )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 border-b">
+                        <input
+                          type="number"
+                          value={expense.amount}
+                          onChange={(e) => handleExpenseChange(expenseIndex, 'amount', e.target.value)}
+                          className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-right ${
+                            !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
+                          }`}
+                          min="0"
+                          step="0.01"
+                          disabled={!hasPermission('update_reservation_installments_schedule')}
+                        />
+                      </td>
+                      <td className="py-3 px-4 border-b text-right">
+                        {convertToArabicWords(expense.amount)}
+                      </td>
+                      {hasPermission('update_reservation_installments_schedule') && <td></td>}
+                    </tr>
+                  ))}
+
+                  {/* Final Total Row */}
+                  <tr className="bg-green-50 font-bold">
+                    <td colSpan={3} className="py-3 px-4 border-b text-right">الإجمالي الكلي</td>
+                    <td className="py-3 px-4 border-b text-right">
+                      {(installmentsTotal + additionalExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0)).toFixed(2)}
+                    </td>
+                    <td className="py-3 px-4 border-b text-right">
+                      {convertToArabicWords((installmentsTotal + additionalExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0)).toString())}
+                    </td>
+                    {hasPermission('update_reservation_installments_schedule') && <td></td>}
+                  </tr>
                 </>
               );
             })()}
@@ -671,58 +621,40 @@ const InstallmentsBreakdown = () => {
         </table>
       </div>
 
-      {/* Add Row Buttons - Only show if user has permission */}
+      {/* Add Row Button */}
       {hasPermission('update_reservation_installments_schedule') && (
-        <div className="mt-4 flex justify-end gap-4">
+        <div className="mt-4 flex justify-end">
           <button
             onClick={() => {
-              if (!reservation) return;
-              const newSchedule = [...reservation.installments_schedule];
-
-              // Filter main installments (MONTHLY, QUARTERLY, ANNUAL)
-              const mainInstallments = newSchedule.filter(inst =>
-                inst.type === 'MONTHLY' || inst.type === 'QUARTERLY' || inst.type === 'ANNUAL'
-              );
-
-              // Get the last main installment or fallback to last schedule entry
-              const lastMain = mainInstallments.length > 0 
-                ? mainInstallments[mainInstallments.length - 1] 
-                : newSchedule[newSchedule.length - 1];
+              const newSchedule = [...regularInstallments];
               
-              const lastDate = new Date(lastMain.date);
+              // Sort by date to find the last date
+              const sortedByDate = [...newSchedule].sort((a, b) => 
+                new Date(a.date).getTime() - new Date(b.date).getTime()
+              );
+              
+              const lastDate = sortedByDate.length > 0 
+                ? new Date(sortedByDate[sortedByDate.length - 1].date)
+                : new Date();
+                
               const nextDate = new Date(lastDate);
+              nextDate.setMonth(nextDate.getMonth() + 1);
 
-              // Adjust nextDate based on type
-              if (lastMain.type === 'MONTHLY') {
-                nextDate.setMonth(nextDate.getMonth() + 1);
-              } else if (lastMain.type === 'QUARTERLY') {
-                nextDate.setMonth(nextDate.getMonth() + 3);
-              } else {
-                nextDate.setFullYear(nextDate.getFullYear() + 1);
-              }
-
-              // Create new installment
               const newInstallment: Installment = {
                 date: nextDate.toISOString().split('T')[0],
-                amount: lastMain.amount,
-                type: lastMain.type,
+                amount: sortedByDate.length > 0 ? sortedByDate[sortedByDate.length - 1].amount : "0",
+                type: 'MONTHLY',
                 cheque_number: null
               };
 
-              // Update main installments and sort by date
-              const updatedMainInstallments = [...mainInstallments, newInstallment];
-              updatedMainInstallments.sort(
-                (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+              newSchedule.push(newInstallment);
+              
+              // Sort the entire schedule by date
+              newSchedule.sort((a, b) => 
+                new Date(a.date).getTime() - new Date(b.date).getTime()
               );
-
-              // Get other installments
-              const otherInstallments = newSchedule.filter(
-                inst => inst.type !== 'MONTHLY' && inst.type !== 'QUARTERLY' && inst.type !== 'ANNUAL'
-              );
-
-              // Combine updated main installments with other installments
-              const updatedSchedule = [...updatedMainInstallments, ...otherInstallments];
-              setReservation({ ...reservation, installments_schedule: updatedSchedule });
+              
+              setRegularInstallments(newSchedule);
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
           >
@@ -730,106 +662,6 @@ const InstallmentsBreakdown = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             إضافة دفعة جديدة
-          </button>
-
-          <button
-            onClick={() => {
-              if (!reservation) return;
-              const newSchedule = [...reservation.installments_schedule];
-
-              // Filter main installments
-              const mainInstallments = newSchedule.filter(inst =>
-                inst.type === 'MONTHLY' || inst.type === 'QUARTERLY' || inst.type === 'ANNUAL'
-              );
-
-              // Get the last main installment or fallback to last schedule entry
-              const lastMain = mainInstallments.length > 0 
-                ? mainInstallments[mainInstallments.length - 1] 
-                : newSchedule[newSchedule.length - 1];
-              
-              const lastDate = new Date(lastMain.date);
-              const nextDate = new Date(lastDate);
-              nextDate.setMonth(nextDate.getMonth() + 1);
-
-              // Create new monthly installment
-              const newInstallment: Installment = {
-                date: nextDate.toISOString().split('T')[0],
-                amount: lastMain.amount,
-                type: 'MONTHLY',
-                cheque_number: null
-              };
-
-              // Update main installments and sort by date
-              const updatedMainInstallments = [...mainInstallments, newInstallment];
-              updatedMainInstallments.sort(
-                (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-              );
-
-              // Get other installments
-              const otherInstallments = newSchedule.filter(
-                inst => inst.type !== 'MONTHLY' && inst.type !== 'QUARTERLY' && inst.type !== 'ANNUAL'
-              );
-
-              // Combine updated main installments with other installments
-              const updatedSchedule = [...updatedMainInstallments, ...otherInstallments];
-              setReservation({ ...reservation, installments_schedule: updatedSchedule });
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            إضافة دفعة شهرية
-          </button>
-
-          <button
-            onClick={() => {
-              if (!reservation) return;
-              const newSchedule = [...reservation.installments_schedule];
-
-              // Filter main installments
-              const mainInstallments = newSchedule.filter(inst =>
-                inst.type === 'MONTHLY' || inst.type === 'QUARTERLY' || inst.type === 'ANNUAL'
-              );
-
-              // Get the last main installment or fallback to last schedule entry
-              const lastMain = mainInstallments.length > 0 
-                ? mainInstallments[mainInstallments.length - 1] 
-                : newSchedule[newSchedule.length - 1];
-              
-              const lastDate = new Date(lastMain.date);
-              const nextDate = new Date(lastDate);
-              nextDate.setFullYear(nextDate.getFullYear() + 1);
-
-              // Create new annual installment
-              const newInstallment: Installment = {
-                date: nextDate.toISOString().split('T')[0],
-                amount: lastMain.amount,
-                type: 'ANNUAL',
-                cheque_number: null
-              };
-
-              // Update main installments and sort by date
-              const updatedMainInstallments = [...mainInstallments, newInstallment];
-              updatedMainInstallments.sort(
-                (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-              );
-
-              // Get other installments
-              const otherInstallments = newSchedule.filter(
-                inst => inst.type !== 'MONTHLY' && inst.type !== 'QUARTERLY' && inst.type !== 'ANNUAL'
-              );
-
-              // Combine updated main installments with other installments
-              const updatedSchedule = [...updatedMainInstallments, ...otherInstallments];
-              setReservation({ ...reservation, installments_schedule: updatedSchedule });
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            إضافة دفعة سنوية
           </button>
         </div>
       )}
@@ -863,7 +695,7 @@ const InstallmentsBreakdown = () => {
             </tr>
           </thead>
           <tbody>
-            {reservation.installments_schedule.map((installment, index) => (
+            {regularInstallments.map((installment, index) => (
               <tr key={index}>
                 <td style={{ border: '1px solid black', padding: '10px', textAlign: 'right', fontSize: '16px' }}>{installment.date}</td>
                 <td style={{ border: '1px solid black', padding: '10px', textAlign: 'right', fontSize: '16px' }}>

@@ -196,10 +196,12 @@ const ReservationDetails = () => {
       const fileURL = URL.createObjectURL(file);
       const link = document.createElement('a');
       link.href = fileURL;
-      link.target = '_blank';
+      link.download = `تفاصيل_الحجز_${reservation.id}.pdf`; // Set filename for download
+      document.body.appendChild(link);
       link.click();
       
       // Clean up
+      document.body.removeChild(link);
       URL.revokeObjectURL(fileURL);
     } catch (err) {
       console.error('Error fetching PDF:', err);
@@ -451,6 +453,14 @@ const ReservationDetails = () => {
             </div>
           </div>
           <div className="flex space-x-2 space-x-reverse">
+            <Button
+              onClick={() => navigate(`/reservations/${id}/installments-breakdown`)}
+              icon={<CreditCard size={16} className="mr-3" />}
+              size="middle"
+              className="ml-2 bg-purple-500 hover:bg-purple-600 text-white"
+            >
+              جدول الأقساط
+            </Button>
             {hasPermission('view_reservations') && (
               <Button 
                 type="primary"
@@ -461,7 +471,8 @@ const ReservationDetails = () => {
                 loading={pdfLoading}
                 disabled={pdfLoading}
               >
-                {pdfLoading ? 'جاري التحميل...' : 'طباعة الاستمارة'}
+                {pdfLoading ? 'جاري التحميل...' : 'طباعة الاستمارة'
+                }
               </Button>
             )}
           </div>

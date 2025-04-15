@@ -217,8 +217,9 @@ const ReserveUnit = () => {
         } else if (type === "text") {
             return value.trim().length > 0;
         } else if (type === "email") {
+            if (value === "") return true; // Empty email is valid since it's optional
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return value === "" || emailRegex.test(value);
+            return emailRegex.test(value);
         } else if (type === "date") {
             return !isNaN(Date.parse(value));
         }
@@ -264,6 +265,22 @@ const ReserveUnit = () => {
     // Input handlers
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, key: string, type: string) => {
         const { value } = e.target;
+        
+        // For email, update the value without validation since we'll validate on submit
+        if (type === "email") {
+            setClientData((prev) => ({ ...prev, [key]: value }));
+            // Clear error when field is updated
+            if (errors[key]) {
+                setErrors(prev => {
+                    const newErrors = {...prev};
+                    delete newErrors[key];
+                    return newErrors;
+                });
+            }
+            return;
+        }
+
+        // For other fields, keep the existing validation
         if (validateInput(value, type)) {
             setClientData((prev) => ({ ...prev, [key]: value }));
             // Clear error when field is updated
@@ -558,17 +575,17 @@ const ReserveUnit = () => {
                     }
 
                     // Select monthly installment by default if available
-                    if (project.installment_options.includes('MONTHLY')) {
+                    if (project?.installment_options?.includes('MONTHLY')) {
                         initialDetails.selected_installment_types = ['MONTHLY'];
                         initialDetails.installment_details = {
                             'MONTHLY': {
                                 type: 'MONTHLY',
-                                    count: 1,
+                                count: 1,
                                 amount: 0
-                                }
-                        };
                             }
+                        };
                     }
+                }
 
                 setUnitDetails(initialDetails);
             }
