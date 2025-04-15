@@ -9,93 +9,93 @@ import dayjs from 'dayjs';
 
 // Define proper interfaces for our data structures
 interface Project {
-  id: number;
-  name: string;
-  is_active: boolean;
-  installment_options: string[];
-  deposit_percentage: number;
-  additional_expenses: AdditionalExpense[];
-  documents_background?: MediaFile;
+    id: number;
+    name: string;
+    is_active: boolean;
+    installment_options: string[];
+    deposit_percentage: number;
+    additional_expenses: AdditionalExpense[];
+    documents_background?: MediaFile;
 }
 
 interface Building {
-  id: number;
-  project_id: number;
-  name: string;
+    id: number;
+    project_id: number;
+    name: string;
 }
 
 interface Unit {
-  id: number;
-  building_id: number;
-  unit_number: string;
-  unit_type: string;
-  price: string;
-  status: string;
-  area: string;
-  floor: string;
-  bedrooms: string;
-  bathrooms: string;
+    id: number;
+    building_id: number;
+    unit_number: string;
+    unit_type: string;
+    price: string;
+    status: string;
+    area: string;
+    floor: string;
+    bedrooms: string;
+    bathrooms: string;
 }
 
 interface AdditionalExpense {
-  name: string;
-  type: 'fixed' | 'percentage';
-  value: number;
+    name: string;
+    type: 'fixed' | 'percentage';
+    value: number;
 }
 
 interface MediaFile {
-  id: number;
-  name: string;
-  url: string;
-  small_url?: string;
-  medium_url?: string;
-  disk?: string;
+    id: number;
+    name: string;
+    url: string;
+    small_url?: string;
+    medium_url?: string;
+    disk?: string;
 }
 
 interface ClientData {
-  name: string;
-  phone: string;
-  nationalId: string;
-  address: string;
-  email: string;
+    name: string;
+    phone: string;
+    nationalId: string;
+    address: string;
+    email: string;
 }
 
 interface ReservationDates {
-  reservation_date: string;
-  contract_date: string;
+    reservation_date: string;
+    contract_date: string;
 }
 
 interface UnitDetails {
-  unit_number: string;
-  unit_type: string;
-  price: number;
-  status: string;
-  area: number;
-  floor: number;
-  bedrooms: number;
-  bathrooms: number;
-  reservation_deposit: number | null;
-  down_payment: number | null;
-  final_price: number;
-  monthly_installment: number | null;
-  selected_installment_types: string[];
-  installment_details: Record<string, InstallmentDetail>;
+    unit_number: string;
+    unit_type: string;
+    price: number;
+    status: string;
+    area: number;
+    floor: number;
+    bedrooms: number;
+    bathrooms: number;
+    reservation_deposit: number | null;
+    down_payment: number | null;
+    final_price: number;
+    monthly_installment: number | null;
+    selected_installment_types: string[];
+    installment_details: Record<string, InstallmentDetail>;
 }
 
 interface InstallmentDetail {
-  type: string;
-  count: number | null;
-  amount: number | null;
+    type: string;
+    count: number | null;
+    amount: number | null;
 }
 
 interface Attachments {
-  national_id_images: File[];
-  reservation_deposit_receipt: File | null;
-  attachments: File[];
+    national_id_images: File[];
+    reservation_deposit_receipt: File | null;
+    attachments: File[];
 }
 
 interface FormErrors {
-  [key: string]: string;
+    [key: string]: string;
 }
 
 // Add this translation map at the top of the file after the interfaces
@@ -176,7 +176,7 @@ const ReserveUnit = () => {
     // Loading and validation states
     const [loading] = useState<boolean>(false);
     const [errors, setErrors] = useState<FormErrors>({});
-    const [uploading, setUploading] = useState<{[key: string]: boolean}>({
+    const [uploading, setUploading] = useState<{ [key: string]: boolean }>({
         national_id_images: false,
         reservation_deposit_receipt: false,
         attachments: false
@@ -265,14 +265,14 @@ const ReserveUnit = () => {
     // Input handlers
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, key: string, type: string) => {
         const { value } = e.target;
-        
+
         // For email, update the value without validation since we'll validate on submit
         if (type === "email") {
             setClientData((prev) => ({ ...prev, [key]: value }));
             // Clear error when field is updated
             if (errors[key]) {
                 setErrors(prev => {
-                    const newErrors = {...prev};
+                    const newErrors = { ...prev };
                     delete newErrors[key];
                     return newErrors;
                 });
@@ -286,7 +286,7 @@ const ReserveUnit = () => {
             // Clear error when field is updated
             if (errors[key]) {
                 setErrors(prev => {
-                    const newErrors = {...prev};
+                    const newErrors = { ...prev };
                     delete newErrors[key];
                     return newErrors;
                 });
@@ -352,40 +352,40 @@ const ReserveUnit = () => {
                 return;
             }
         }
-        
+
         // Update attachments state first with the selected files
         if (type === "national_id_images" || type === "attachments") {
             setAttachments((prev) => ({
                 ...prev,
                 [type]: [...prev[type], ...Array.from(files)],
             }));
-            
+
             // Mark this type as uploading
             setUploading(prev => ({
                 ...prev,
                 [type]: true
             }));
-            
+
             // Upload each file and collect their IDs
             try {
                 const collectionName = type === "national_id_images" ? "national-id-images" : "attachments";
-                const uploadPromises = Array.from(files).map(file => 
+                const uploadPromises = Array.from(files).map(file =>
                     uploadFileToMedia(file, collectionName)
                 );
-                
+
                 const uploadedIds = await Promise.all(uploadPromises);
-                
+
                 // Update the uploaded media IDs
                 setUploadedMedia(prev => ({
                     ...prev,
                     [type]: [...prev[type], ...uploadedIds]
                 }));
-                
+
                 toast.success(`تم رفع الملفات بنجاح`);
             } catch (error) {
                 console.error(`Error uploading ${type}:`, error);
                 toast.error(`حدث خطأ أثناء رفع الملفات`);
-                
+
                 // Remove the failed uploads from attachments
                 setAttachments(prev => ({
                     ...prev,
@@ -404,27 +404,27 @@ const ReserveUnit = () => {
                 ...prev,
                 [type]: file,
             }));
-            
+
             // Mark this type as uploading
             setUploading(prev => ({
                 ...prev,
                 [type]: true
             }));
-            
+
             try {
                 const collectionName = "reservation-deposit-receipts";
                 const uploadedId = await uploadFileToMedia(file, collectionName);
-                
+
                 setUploadedMedia(prev => ({
                     ...prev,
                     [type]: uploadedId
                 }));
-                
+
                 toast.success(`تم رفع الملف بنجاح`);
             } catch (error) {
                 console.error(`Error uploading ${type}:`, error);
                 toast.error(`حدث خطأ أثناء رفع الملف`);
-                
+
                 // Remove the failed upload
                 setAttachments(prev => ({
                     ...prev,
@@ -447,7 +447,7 @@ const ReserveUnit = () => {
                 ...prev,
                 [type]: prev[type].filter((_, i) => i !== index),
             }));
-            
+
             // Also remove the corresponding ID if it exists
             if (uploadedMedia[type].length > index) {
                 setUploadedMedia((prev) => ({
@@ -461,7 +461,7 @@ const ReserveUnit = () => {
                 ...prev,
                 [type]: null,
             }));
-            
+
             setUploadedMedia((prev) => ({
                 ...prev,
                 [type]: null,
@@ -499,7 +499,7 @@ const ReserveUnit = () => {
                         params: { project_id: selectedProject }
                     });
                     setBuildings(buildingsResponse.data.data);
-                    
+
                     // Get project details to load installment options
                     const projectDetails = projects.find(p => p.id === selectedProject);
                     if (projectDetails) {
@@ -619,7 +619,7 @@ const ReserveUnit = () => {
     // Handle form submission
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         const formErrors = validateForm();
         if (Object.keys(formErrors).length > 0) {
             setErrors(formErrors);
@@ -712,13 +712,13 @@ const ReserveUnit = () => {
             if (error && typeof error === 'object' && 'response' in error) {
                 const errorResponse = error.response as { data?: { errors?: Record<string, string[]>; message?: string } };
                 if (errorResponse.data?.errors) {
-                const newErrors: FormErrors = {};
+                    const newErrors: FormErrors = {};
                     Object.entries(errorResponse.data.errors).forEach(([key, value]) => {
-                    if (Array.isArray(value)) {
-                        newErrors[key] = value[0];
-                    }
-                });
-                setErrors(newErrors);
+                        if (Array.isArray(value)) {
+                            newErrors[key] = value[0];
+                        }
+                    });
+                    setErrors(newErrors);
                     toast.error('يرجى التحقق من صحة البيانات المدخلة');
                 } else if (errorResponse.data?.message) {
                     toast.error(errorResponse.data.message);
@@ -870,8 +870,8 @@ const ReserveUnit = () => {
                                         notFoundContent={unitsLoading ? "جاري التحميل..." : "لا توجد نتائج"}
                                     >
                                         {units.map((unit) => (
-                                            <Select.Option 
-                                                key={unit.id} 
+                                            <Select.Option
+                                                key={unit.id}
                                                 value={unit.id}
                                                 label={`${unit.unit_number} - ${unit.unit_type}`}
                                                 disabled={unit.status !== "متاحة"}
@@ -987,7 +987,7 @@ const ReserveUnit = () => {
                                             />
                                             {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
                                         </div>
-                                        
+
                                         {/* Phone */}
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">رقم الهاتف *</label>
@@ -1001,7 +1001,7 @@ const ReserveUnit = () => {
                                             />
                                             {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
                                         </div>
-                                        
+
                                         {/* National ID */}
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">الرقم القومي *</label>
@@ -1015,7 +1015,7 @@ const ReserveUnit = () => {
                                             />
                                             {errors.nationalId && <p className="mt-1 text-sm text-red-600">{errors.nationalId}</p>}
                                         </div>
-                                        
+
                                         {/* Address */}
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">العنوان *</label>
@@ -1029,7 +1029,7 @@ const ReserveUnit = () => {
                                             />
                                             {errors.address && <p className="mt-1 text-sm text-red-600">{errors.address}</p>}
                                         </div>
-                                        
+
                                         {/* Email */}
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني</label>
@@ -1318,33 +1318,33 @@ const ReserveUnit = () => {
                                                 <h2 className="text-xl font-semibold text-gray-800">خيارات التقسيط</h2>
                                                 <p className="mt-1 text-sm text-gray-500">اختر نظام التقسيط المناسب</p>
                                             </div>
-                                            
+
                                             <div className="px-6 py-5">
                                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                                                            {availableInstallmentTypes.map((type) => (
-                                                                <button
-                                                                    key={type}
-                                                                    onClick={() => handleInstallmentTypeSelect(type)}
-                                                            className={`p-4 rounded-lg border ${
-                                                                unitDetails.selected_installment_types.includes(type)
+                                                    {availableInstallmentTypes.map((type) => (
+                                                        <button
+                                                            type="button"
+                                                            key={type}
+                                                            onClick={() => handleInstallmentTypeSelect(type)}
+                                                            className={`p-4 rounded-lg border ${unitDetails.selected_installment_types.includes(type)
                                                                     ? 'border-blue-500 bg-blue-50 text-blue-700'
                                                                     : 'border-gray-300 hover:border-blue-400'
-                                                            } transition-all duration-200`}
+                                                                } transition-all duration-200`}
                                                         >
                                                             {INSTALLMENT_TYPE_TRANSLATIONS[type]}
-                                                                </button>
-                                                            ))}
-                                                    </div>
+                                                        </button>
+                                                    ))}
+                                                </div>
 
                                                 {unitDetails.selected_installment_types.length > 0 && (
                                                     <div className="space-y-6">
-                                                    {unitDetails.selected_installment_types.map((type) => (
+                                                        {unitDetails.selected_installment_types.map((type) => (
                                                             <div key={type} className="bg-gray-50 p-4 rounded-lg">
                                                                 <h3 className="text-lg font-medium text-gray-900 mb-4">
                                                                     {INSTALLMENT_TYPE_TRANSLATIONS[type]}
                                                                 </h3>
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                                <div>
+                                                                    <div>
                                                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                             عدد الأقساط
                                                                         </label>
@@ -1355,26 +1355,26 @@ const ReserveUnit = () => {
                                                                             className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                                                             placeholder="عدد الأقساط"
                                                                         />
-                                                                </div>
-                                                                <div>
+                                                                    </div>
+                                                                    <div>
                                                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                             قيمة القسط
                                                                         </label>
                                                                         <div className="relative">
-                                                                        <input
-                                                                            type="number"
+                                                                            <input
+                                                                                type="number"
                                                                                 value={unitDetails.installment_details[type]?.amount === null ? '' : unitDetails.installment_details[type]?.amount}
                                                                                 onChange={(e) => handleInstallmentDetailChange(type, 'amount', e.target.value)}
                                                                                 className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                                                                 placeholder="قيمة القسط"
                                                                             />
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    ))}
-                                            </div>
-                                        )}
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 
@@ -1411,7 +1411,7 @@ const ReserveUnit = () => {
                                                                 <div className="relative rounded-md shadow-sm">
                                                                     <input
                                                                         type="number"
-                                                                        value={expense.type === 'fixed' 
+                                                                        value={expense.type === 'fixed'
                                                                             ? expense.value
                                                                             : (unitDetails.price * expense.value) / 100}
                                                                         disabled
