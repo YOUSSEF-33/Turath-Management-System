@@ -69,8 +69,8 @@ const GenericTable = ({
       </div>
 
       {/* Table Container */}
-      <div className="w-full overflow-x-auto -mx-4 sm:mx-0">
-        <div className="min-w-full px-4 sm:px-0">
+      <div className="w-full overflow-x-auto -mx-3 xs:mx-0">
+        <div className="inline-block min-w-full align-middle">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -78,7 +78,7 @@ const GenericTable = ({
                   <th
                     key={column.key}
                     scope="col"
-                    className={`px-3 sm:px-4 py-3 text-right text-xs sm:text-sm font-medium text-gray-500 whitespace-nowrap ${
+                    className={`px-3 xs:px-4 py-3 text-right text-xs xs:text-sm font-medium text-gray-500 whitespace-nowrap ${
                       index === columns.length - 1 ? 'pl-4' : ''
                     }`}
                   >
@@ -86,7 +86,7 @@ const GenericTable = ({
                   </th>
                 ))}
                 {actions && actions.length > 0 && (
-                  <th scope="col" className="pl-3 sm:pl-4 py-3 text-right text-xs sm:text-sm font-medium text-gray-500 whitespace-nowrap">
+                  <th scope="col" className="pl-3 xs:pl-4 py-3 text-right text-xs xs:text-sm font-medium text-gray-500 whitespace-nowrap">
                     الإجراءات
                   </th>
                 )}
@@ -97,7 +97,7 @@ const GenericTable = ({
                 <tr>
                   <td
                     colSpan={actions ? columns.length + 1 : columns.length}
-                    className="px-3 sm:px-4 py-8 text-center"
+                    className="px-3 xs:px-4 py-8 text-center"
                   >
                     <div className="flex items-center justify-center">
                       <div className="loader mx-auto"></div>
@@ -109,7 +109,7 @@ const GenericTable = ({
                 <tr>
                   <td
                     colSpan={actions ? columns.length + 1 : columns.length}
-                    className="px-3 sm:px-4 py-8 text-center text-gray-500"
+                    className="px-3 xs:px-4 py-8 text-center text-gray-500"
                   >
                     {noDataMessage || 'لا توجد بيانات'}
                   </td>
@@ -125,18 +125,20 @@ const GenericTable = ({
                     {columns.map((column, colIndex) => (
                       <td
                         key={`${rowIndex}-${column.key}`}
-                        className={`px-3 sm:px-4 py-3 sm:py-4 text-sm sm:text-base text-gray-900 align-middle ${
+                        className={`px-3 xs:px-4 py-3 sm:py-4 text-sm sm:text-base text-gray-900 align-middle ${
                           colIndex === columns.length - 1 ? 'pl-4' : ''
                         }`}
                       >
-                        {column.render
-                          ? column.render(item[column.key], item)
-                          : item[column.key]?.toString() || '-'}
+                        <div className="truncate max-w-[150px] xs:max-w-[200px] md:max-w-none">
+                          {column.render
+                            ? column.render(item[column.key], item)
+                            : item[column.key]?.toString() || '-'}
+                        </div>
                       </td>
                     ))}
                     {actions && actions.length > 0 && (
-                      <td className="pl-3 sm:pl-4 py-3 sm:py-4 text-sm whitespace-nowrap">
-                        <div className="flex items-center space-x-2 space-x-reverse">
+                      <td className="pl-3 xs:pl-4 py-3 sm:py-4 text-sm whitespace-nowrap">
+                        <div className="flex flex-col xs:flex-row gap-2 items-end xs:items-center justify-end">
                           {actions.map((action) => (
                             <button
                               key={action.key}

@@ -56,7 +56,6 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle, isSidebarCollapsed }: NavbarP
   
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
-  const navbarRef = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -197,157 +196,137 @@ const Navbar = ({ title, isMenuOpen, onMenuToggle, isSidebarCollapsed }: NavbarP
   }, [navigate, logout]);
 
   return (
-    <div className="bg-white shadow-sm sticky top-0 z-30 w-full" ref={navbarRef}>
-      <div className="px-3 sm:px-4 py-2 sm:py-3">
-        <div className="flex items-center justify-between w-full">
-          {/* Right Side: Menu Toggle and Logo */}
-          <div className="flex items-center min-w-0">
-            <button
-              className="md:hidden p-1.5 sm:p-2 ml-1 text-gray-700 hover:text-gray-900 transition-colors rounded-lg hover:bg-gray-100"
-              onClick={onMenuToggle}
-              aria-label={isMenuOpen ? 'إغلاق القائمة' : 'فتح القائمة'}
+    <nav className="px-4 lg:px-6 py-3 flex items-center justify-between bg-white border-b">
+      <div className="flex items-center gap-4">
+        <button
+          onClick={onMenuToggle}
+          className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <Menu className="h-6 w-6" />
+        </button>
+        <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div ref={notificationsRef} className="relative">
+          <button
+            onClick={toggleNotifications}
+            className="p-2 text-gray-700 hover:bg-gray-100 rounded-full transition-colors relative"
+            aria-label="الإشعارات"
+          >
+            <div className="relative">
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+          </button>
+
+          {isNotificationsOpen && (
+            <div 
+              className="notifications-dropdown absolute mt-2 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden"
+              style={{
+                maxHeight: 'calc(100vh - 80px)',
+                width: '320px',
+                right: '-8px'
+              }}
             >
-              {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
-            <div className="flex items-center min-w-0">
-              {(isSidebarCollapsed || !isMenuOpen) && (
-                <img 
-                  src="/images/output-onlinepngtools.png" 
-                  alt="Logo" 
-                  className={`h-8 sm:h-10 mx-2 sm:mx-3 transition-all duration-300 ${isSidebarCollapsed ? 'block' : 'block md:hidden'}`} 
-                />
-              )}
-              <h1 className="text-base sm:text-lg font-semibold text-gray-800 hidden sm:block truncate">{title}</h1>
-            </div>
-          </div>
+              <div className="sticky top-0 px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-white z-10">
+                <h3 className="text-base font-medium text-gray-900">الإشعارات</h3>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={markAllAsRead}
+                    className="text-sm text-[#8884d8] hover:underline"
+                  >
+                    تحديد الكل كمقروء
+                  </button>
+                )}
+              </div>
 
-          {/* Left Side: Notifications and Profile */}
-          <div className="flex items-center space-x-0.5 sm:space-x-1 space-x-reverse shrink-0">
-            <div ref={notificationsRef} className="relative">
-              <button
-                onClick={toggleNotifications}
-                className="p-1.5 sm:p-2 text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
-                aria-label="الإشعارات"
-              >
-                <div className="relative">
-                  <Bell className="h-5 w-5 sm:h-6 sm:w-6" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                      {unreadCount}
-                    </span>
-                  )}
-                </div>
-              </button>
-
-              {/* Notifications Dropdown */}
-              {isNotificationsOpen && (
-                <div 
-                  className="notifications-dropdown absolute mt-2 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50"
-                  style={{
-                    maxHeight: 'calc(100vh - 80px)',
-                    maxWidth: 'calc(100vw - 1rem)'
-                  }}
-                >
-                  {/* Notifications Header */}
-                  <div className="sticky top-0 px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-white z-10">
-                    <h3 className="text-base font-medium text-gray-900">الإشعارات</h3>
-                    {unreadCount > 0 && (
-                      <button
-                        onClick={markAllAsRead}
-                        className="text-sm text-[#8884d8] hover:underline"
+              <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 140px)' }}>
+                {notifications.length === 0 ? (
+                  <div className="py-4 px-4 text-center text-gray-500">
+                    لا توجد إشعارات
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100">
+                    {notifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        onClick={() => handleNotificationClick(notification)}
+                        className={`
+                          py-3 
+                          px-4 
+                          hover:bg-gray-50 
+                          cursor-pointer 
+                          transition-colors
+                          ${!notification.is_read ? 'bg-blue-50' : ''}
+                        `}
                       >
-                        تحديد الكل كمقروء
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Notifications List */}
-                  <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 140px)' }}>
-                    {notifications.length === 0 ? (
-                      <div className="py-4 px-4 text-center text-gray-500">
-                        لا توجد إشعارات
+                        <p className="text-sm font-medium text-gray-900 mb-1">
+                          {notification.title}
+                        </p>
+                        <p className="text-sm text-gray-600 mb-1 line-clamp-2">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {dayjs(notification.created_at).fromNow()}
+                        </p>
                       </div>
-                    ) : (
-                      <div className="divide-y divide-gray-100">
-                        {notifications.map((notification) => (
-                          <div
-                            key={notification.id}
-                            onClick={() => handleNotificationClick(notification)}
-                            className={`
-                              py-3 
-                              px-4 
-                              hover:bg-gray-50 
-                              cursor-pointer 
-                              transition-colors
-                              ${!notification.is_read ? 'bg-blue-50' : ''}
-                            `}
-                          >
-                            <p className="text-sm font-medium text-gray-900 mb-1">
-                              {notification.title}
-                            </p>
-                            <p className="text-sm text-gray-600 mb-1 line-clamp-2">
-                              {notification.message}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {dayjs(notification.created_at).fromNow()}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    ))}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
+          )}
+        </div>
 
-            <div ref={profileRef} className="relative">
-              <button
-                onClick={toggleProfile}
-                className="flex items-center p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition-colors"
-                aria-label="فتح قائمة الملف الشخصي"
-              >
-                <UserCircle className="h-5 w-5 sm:h-6 sm:w-6 text-gray-700" />
-              </button>
+        <div ref={profileRef} className="relative">
+          <button
+            onClick={toggleProfile}
+            className="flex items-center p-2 hover:bg-gray-100 rounded-full transition-colors"
+            aria-label="فتح قائمة الملف الشخصي"
+          >
+            <UserCircle className="h-5 w-5 text-gray-700" />
+          </button>
 
-              {/* Profile Dropdown */}
-              {isProfileOpen && (
-                <div 
-                  className="profile-dropdown absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50"
-                  style={{
-                    right: 'auto',
-                    left: '0'
+          {isProfileOpen && (
+            <div 
+              className="profile-dropdown absolute mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden"
+              style={{
+                right: '-8px'
+              }}
+            >
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <p className="text-sm font-medium text-gray-900">المستخدم الحالي</p>
+                <p className="text-sm text-gray-500 truncate">admin@example.com</p>
+              </div>
+              <div className="py-1">
+                <button
+                  className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  onClick={() => {
+                    setIsProfileOpen(false);
+                    navigate('/settings');
                   }}
                 >
-                  <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                    <p className="text-sm font-medium text-gray-900">المستخدم الحالي</p>
-                    <p className="text-sm text-gray-500 truncate">admin@example.com</p>
-                  </div>
-                  <div className="py-1">
-                    <button
-                      className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                      onClick={() => {
-                        setIsProfileOpen(false);
-                        navigate('/settings');
-                      }}
-                    >
-                      <Settings className="h-4 w-4 ml-2" />
-                      الإعدادات
-                    </button>
-                    <button
-                      className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 transition-colors"
-                      onClick={handleLogout}
-                    >
-                      <LogOut className="h-4 w-4 ml-2" />
-                      تسجيل الخروج
-                    </button>
-                  </div>
-                </div>
-              )}
+                  <Settings className="h-4 w-4 ml-2" />
+                  الإعدادات
+                </button>
+                <button
+                  className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 transition-colors"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="h-4 w-4 ml-2" />
+                  تسجيل الخروج
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
-    </div>
+    </nav>
   );
 };
 

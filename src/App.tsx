@@ -74,24 +74,53 @@ const ProtectedLayout = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex flex-row-reverse min-h-screen bg-gray-100">
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        onClose={() => setIsSidebarOpen(false)} 
-        onCollapse={(collapsed) => setIsSidebarCollapsed(collapsed)}
-      />
-      <div className={`flex-1 transition-all duration-300 ${isSidebarCollapsed ? "md:mr-20" : "md:mr-72"}`}>
-        <Navbar
-          title=""
-          isMenuOpen={isSidebarOpen}
-          onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-          isSidebarCollapsed={isSidebarCollapsed}
+    <div className="min-h-screen bg-gray-100">
+      {/* Overlay for mobile menu */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden" 
+          onClick={() => setIsSidebarOpen(false)}
         />
-        <main className="p-3 sm:p-4 lg:p-6">
-          <div className="w-full">
-            <Outlet />
+      )}
+
+      {/* Sidebar - Improved mobile positioning */}
+      <div 
+        className={`fixed top-0 bottom-0 right-0 w-[280px] xs:w-[320px] z-50 transform transition-transform duration-300 ease-in-out
+          ${isSidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
+          ${isSidebarCollapsed ? "lg:w-20" : "lg:w-72"}`}
+      >
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+          onCollapse={(collapsed) => setIsSidebarCollapsed(collapsed)}
+        />
+      </div>
+
+      {/* Main content wrapper with improved mobile spacing */}
+      <div className={`flex flex-col min-h-screen transition-all duration-300
+        ${isSidebarCollapsed ? "lg:mr-20" : "lg:mr-72"}`}
+      >
+        {/* Navbar with better mobile handling */}
+        <div className="sticky top-0 z-40 bg-white shadow-sm">
+          <Navbar
+            title=""
+            isMenuOpen={isSidebarOpen}
+            onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+            isSidebarCollapsed={isSidebarCollapsed}
+          />
+        </div>
+
+        {/* Main content area with responsive padding */}
+        <main className="flex-1 p-3 xs:p-4 lg:p-6 mt-2">
+          <div className="w-full mx-auto">
+            <div className="bg-white rounded-lg shadow-sm p-3 xs:p-4 lg:p-6 overflow-x-hidden">
+              <Outlet />
+            </div>
           </div>
         </main>
+
+        {/* Responsive footer spacing */}
+        <div className="h-4 xs:h-6 lg:h-8" />
       </div>
     </div>
   );
