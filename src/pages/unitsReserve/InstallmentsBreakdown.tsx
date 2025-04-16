@@ -41,8 +41,6 @@ const InstallmentsBreakdown = () => {
   const contractRef = useRef<HTMLDivElement>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [installmentToDelete, setInstallmentToDelete] = useState<{type: 'installment' | 'expense', index: number} | null>(null);
-  const [chequeSuggestions, setChequeSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState<{type: 'installment' | 'expense', index: number} | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
 
   // Fetch reservation data
@@ -213,7 +211,7 @@ const InstallmentsBreakdown = () => {
   };
 
   // Function to generate suggestions based on date order and pattern detection
-  const generateSuggestions = (type: 'installment' | 'expense', index: number) => {
+  /* const generateSuggestions = (type: 'installment' | 'expense', index: number) => {
     const allItems = [...regularInstallments, ...additionalExpenses].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
@@ -270,10 +268,10 @@ const InstallmentsBreakdown = () => {
 
     setChequeSuggestions(suggestions);
     setShowSuggestions({ type, index });
-  };
+  }; */
 
   // Add useEffect for handling click outside
-  useEffect(() => {
+  /* useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
       if (!target.closest('.suggestions-dropdown') && !target.closest('.cheque-input')) {
@@ -283,7 +281,7 @@ const InstallmentsBreakdown = () => {
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, []); */
 
   // Loading state
   if (loading) {
@@ -428,14 +426,14 @@ const InstallmentsBreakdown = () => {
                             type="text"
                             value={installment.cheque_number || ''}
                             onChange={(e) => handleInstallmentChange(index, 'cheque_number', e.target.value)}
-                            onFocus={() => generateSuggestions('installment', index)}
+                            // onFocus={() => generateSuggestions('installment', index)}
                             className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 cheque-input ${
                               !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
                             placeholder="أدخل رقم الشيك"
                             disabled={!hasPermission('update_reservation_installments_schedule')}
                           />
-                          {showSuggestions?.type === 'installment' && showSuggestions.index === index && chequeSuggestions.length > 0 && (
+                          {/* {showSuggestions?.type === 'installment' && showSuggestions.index === index && chequeSuggestions.length > 0 && (
                             <div className="absolute top-full left-0 w-full bg-white border border-gray-300 rounded-lg shadow-xl mt-1 max-h-48 overflow-y-auto z-50 suggestions-dropdown">
                               <div className="sticky top-0 bg-gray-50 border-b flex justify-between items-center px-2 py-1">
                                 <span className="text-xs text-gray-600">اقتراحات الأرقام</span>
@@ -465,7 +463,7 @@ const InstallmentsBreakdown = () => {
                                 ))}
                               </div>
                             </div>
-                          )}
+                          )} */}
                         </div>
                       </td>
                       <td className="py-3 px-4 border-b">
@@ -545,14 +543,14 @@ const InstallmentsBreakdown = () => {
                             type="text"
                             value={expense.cheque_number || ''}
                             onChange={(e) => handleExpenseChange(expenseIndex, 'cheque_number', e.target.value)}
-                            onFocus={() => generateSuggestions('expense', expenseIndex)}
+                            // onFocus={() => generateSuggestions('expense', expenseIndex)}
                             className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 cheque-input ${
                               !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
                             placeholder="أدخل رقم الشيك"
                             disabled={!hasPermission('update_reservation_installments_schedule')}
                           />
-                          {showSuggestions?.type === 'expense' && showSuggestions.index === expenseIndex && chequeSuggestions.length > 0 && (
+                          {/* {showSuggestions?.type === 'expense' && showSuggestions.index === expenseIndex && chequeSuggestions.length > 0 && (
                             <div className="absolute top-full left-0 w-full bg-white border border-gray-300 rounded-lg shadow-xl mt-1 max-h-48 overflow-y-auto z-50 suggestions-dropdown">
                               <div className="sticky top-0 bg-gray-50 border-b flex justify-between items-center px-2 py-1">
                                 <span className="text-xs text-gray-600">اقتراحات الأرقام</span>
@@ -582,7 +580,7 @@ const InstallmentsBreakdown = () => {
                                 ))}
                               </div>
                             </div>
-                          )}
+                          )} */}
                         </div>
                       </td>
                       <td className="py-3 px-4 border-b">
