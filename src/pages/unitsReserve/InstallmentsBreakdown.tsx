@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../axiosInstance';
 import { convertToArabicWords } from '../../utils/convertNumbers';
 import { usePermissionsContext } from '../../context/PermissionsContext';
@@ -32,6 +32,7 @@ interface Reservation {
 
 const InstallmentsBreakdown = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { hasPermission } = usePermissionsContext();
   const [regularInstallments, setRegularInstallments] = useState<Installment[]>([]);
   const [additionalExpenses, setAdditionalExpenses] = useState<AdditionalExpense[]>([]);
@@ -304,6 +305,16 @@ const InstallmentsBreakdown = () => {
       {/* Export Buttons */}
       <div className="flex justify-end gap-4 mb-6">
         <button 
+          onClick={() => navigate(`/reservations/${id}`)}
+          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          </svg>
+          عرض التفاصيل
+        </button>
+        <button 
           onClick={exportToExcel} 
           className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
         >
@@ -372,18 +383,14 @@ const InstallmentsBreakdown = () => {
             {(() => {
               if (!regularInstallments) return null;
 
-              // Sort all installments by date
-              const sortedInstallments = [...regularInstallments]
-                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
               // Calculate totals
-              const installmentsTotal = sortedInstallments
+              const installmentsTotal = Math.round(regularInstallments
                 .filter((inst:any) => inst.type !== 'مرافق' && inst.type !== 'صيانة')
-                .reduce((sum, inst) => sum + parseFloat(inst.amount), 0);
+                .reduce((sum, inst) => sum + parseFloat(inst.amount), 0));
               
               return (
                 <>
-                  {sortedInstallments
+                  {regularInstallments
                     .filter((inst:any) => inst.type !== 'مرافق' && inst.type !== 'صيانة')
                     .map((installment, index) => (
                     <tr 
@@ -464,13 +471,13 @@ const InstallmentsBreakdown = () => {
                       <td className="py-3 px-4 border-b">
                         <input
                           type="number"
-                          value={installment.amount}
-                          onChange={(e) => handleInstallmentChange(index, 'amount', e.target.value)}
+                          value={Math.round(parseFloat(installment.amount))}
+                          onChange={(e) => handleInstallmentChange(index, 'amount', Math.round(parseFloat(e.target.value)).toString())}
                           className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-right ${
                             !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
                           }`}
                           min="0"
-                          step="0.01"
+                          step="1"
                           disabled={!hasPermission('update_reservation_installments_schedule')}
                         />
                       </td>
@@ -495,19 +502,14 @@ const InstallmentsBreakdown = () => {
 
                   {/* Total Installments Row */}
                   <tr className="bg-blue-50 font-bold">
-                    <td colSpan={3} className="py-3 px-4 border-b text-right">الإجمالي</td>
-                    <td className="py-3 px-4 border-b text-right">{installmentsTotal.toFixed(2)}</td>
+                    <td className="py-3 px-4 border-b text-right">الإجمالي</td>
+                    <td className="py-3 px-4 border-b"></td>
+                    <td className="py-3 px-4 border-b"></td>
+                    <td className="py-3 px-4 border-b text-right">{installmentsTotal}</td>
                     <td className="py-3 px-4 border-b text-right">
                       {convertToArabicWords(installmentsTotal.toString())}
                     </td>
                     {hasPermission('update_reservation_installments_schedule') && <td></td>}
-                  </tr>
-
-                  {/* Additional Expenses Header */}
-                  <tr className="bg-gray-100">
-                    <td colSpan={6} className="py-3 px-4 border-b text-right font-bold text-gray-700">
-                      مصاريف اضافيه
-                    </td>
                   </tr>
 
                   {/* Additional Expenses Rows */}
@@ -531,7 +533,7 @@ const InstallmentsBreakdown = () => {
                           className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                             !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
                           }`}
-                          disabled={!hasPermission('update_reservation_installments_schedule')}
+                          disabled={true}
                         >
                           <option value="مرافق">مرافق</option>
                           <option value="صيانة">صيانة</option>
@@ -586,13 +588,13 @@ const InstallmentsBreakdown = () => {
                       <td className="py-3 px-4 border-b">
                         <input
                           type="number"
-                          value={expense.amount}
-                          onChange={(e) => handleExpenseChange(expenseIndex, 'amount', e.target.value)}
+                          value={Math.round(parseFloat(expense.amount))}
+                          onChange={(e) => handleExpenseChange(expenseIndex, 'amount', Math.round(parseFloat(e.target.value)).toString())}
                           className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-right ${
                             !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
                           }`}
                           min="0"
-                          step="0.01"
+                          step="1"
                           disabled={!hasPermission('update_reservation_installments_schedule')}
                         />
                       </td>
@@ -605,12 +607,14 @@ const InstallmentsBreakdown = () => {
 
                   {/* Final Total Row */}
                   <tr className="bg-green-50 font-bold">
-                    <td colSpan={3} className="py-3 px-4 border-b text-right">الإجمالي الكلي</td>
+                    <td className="py-3 px-4 border-b text-right">الإجمالي الكلي</td>
+                    <td className="py-3 px-4 border-b"></td>
+                    <td className="py-3 px-4 border-b"></td>
                     <td className="py-3 px-4 border-b text-right">
-                      {(installmentsTotal + additionalExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0)).toFixed(2)}
+                      {Math.round(installmentsTotal + additionalExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0))}
                     </td>
                     <td className="py-3 px-4 border-b text-right">
-                      {convertToArabicWords((installmentsTotal + additionalExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0)).toString())}
+                      {convertToArabicWords(Math.round(installmentsTotal + additionalExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0)).toString())}
                     </td>
                     {hasPermission('update_reservation_installments_schedule') && <td></td>}
                   </tr>
