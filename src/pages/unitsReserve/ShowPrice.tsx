@@ -81,7 +81,6 @@ interface PriceBreakdown {
   deposit_amount: number;
   financed_amount: number;
   monthly_installment: number;
-  total_paid: number;
   additional_expenses: {
     name: string;
     type: 'PERCENTAGE' | 'FIXED_VALUE';
@@ -90,6 +89,17 @@ interface PriceBreakdown {
   }[];
   final_price: number;
 }
+
+// Add number formatter function
+const formatNumber = (value: number | string): string => {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  return isNaN(num)
+    ? '0.00'
+    : num.toLocaleString('en-EG', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      });
+};
 
 const ShowPrice = () => {
   // State for projects, buildings, and units
@@ -244,27 +254,45 @@ const ShowPrice = () => {
         
         // Calculate default down payment based on deposit percentage
         const defaultDownPayment = project?.deposit_percentage 
-          ? Math.ceil(unit.price * project.deposit_percentage / 100).toString()
+          ? formatNumber((unit.price * project.deposit_percentage) / 100)
           : '';
+
+        // Calculate price breakdown to get monthly installment
+        const breakdown = calculatePriceBreakdown(
+          unit.price,
+          project?.deposit_percentage || 0,
+          project?.cash_factor || 1,
+          project?.reduction_factor || 1,
+          'MONTHLY',
+          1,
+          project?.additional_expenses || []
+        );
 
         setUnitDetails({
           unit_number: unit.unit_number || '',
           unit_type: unit.unit_type || '',
-          price: (unit.price || 0).toString(),
+          price: formatNumber(unit.price),
           status: unit.status || '',
-          area: (unit.area || 0).toString(),
-          price_per_meter: (unit.price_per_meter || 0).toString(),
+          area: formatNumber(unit.area),
+          price_per_meter: formatNumber(unit.price_per_meter),
           floor: getArabicFloor(unit.floor || 0),
           bedrooms: unit.bedrooms?.toString() || '',
           bathrooms: unit.bathrooms?.toString() || '',
           downPayment: defaultDownPayment,
-          installments: project?.installment_options?.[0] ? [{
-            type: project.installment_options[0] as 'MONTHLY' | 'ANNUAL' | 'QUARTERLY',
-            count: '',
-            amount: ''
-          }] : [],
+          installments: [{
+            type: 'MONTHLY',
+            count: '1',
+            amount: formatNumber(breakdown.monthly_installment)
+          }],
           additional_expenses: {},
-          finalPrice: defaultDownPayment || unit.price.toString()
+          finalPrice: defaultDownPayment || formatNumber(unit.price)
+        });
+
+        // Clear any existing down payment errors
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.downPayment;
+          return newErrors;
         });
       }
     }
@@ -272,16 +300,32 @@ const ShowPrice = () => {
 
   // Handle input changes
   const handleUnitDetailChange = (key: keyof UnitDetails, value: string) => {
-    setUnitDetails(prev => ({
-      ...prev,
-      [key]: value
-    }));
-
     if (key === 'downPayment') {
-      const downPayment = parseFloat(value || '0');
-      const originalPrice = parseFloat(unitDetails.price || '0');
+      // If empty, set to empty string
+      if (!value) {
+        setUnitDetails(prev => ({
+          ...prev,
+          downPayment: ''
+        }));
+        return;
+      }
+
+      // Remove any non-numeric characters except decimal point
+      const numericValue = value.replace(/[^\d.]/g, '');
       
-      if (!isNaN(downPayment) && !isNaN(originalPrice) && downPayment > originalPrice) {
+      // Format with the formatter function
+      const formattedValue = numericValue ? formatNumber(numericValue) : '';
+
+      setUnitDetails(prev => ({
+        ...prev,
+        downPayment: formattedValue
+      }));
+
+      // Convert back to number for validation (remove commas and convert to number)
+      const downPayment = parseFloat(numericValue) || 0;
+      const originalPrice = parseFloat(unitDetails.price.replace(/,/g, '')) || 0;
+      
+      if (downPayment > originalPrice) {
         setErrors(prev => ({
           ...prev,
           downPayment: "يجب أن تكون الدفعة المقدمة أقل من سعر الوحدة"
@@ -292,10 +336,55 @@ const ShowPrice = () => {
           delete newErrors.downPayment;
           return newErrors;
         });
+
+        // Recalculate monthly installment when deposit changes
+        const project = projects.find(p => p.id === selectedProject);
+        if (project && selectedUnit) {
+          const unit = units.find(u => u.id === selectedUnit);
+          if (unit) {
+            // Calculate the deposit percentage based on the new down payment
+            const depositPercentage = (downPayment / unit.price) * 100;
+            
+            // Get the current installment count (fallback to 1 if invalid)
+            const monthlyInstallment = unitDetails.installments[0];
+            const count = monthlyInstallment ? parseInt(monthlyInstallment.count || '0', 10) || 1 : 1;
+
+            const breakdown = calculatePriceBreakdown(
+              unit.price,
+              depositPercentage,
+              project.cash_factor || 1,
+              project.reduction_factor || 1,
+              'MONTHLY',
+              count,
+              project.additional_expenses || []
+            );
+
+            // Update the monthly installment amount and final price
+            setUnitDetails(prev => {
+              const updatedInstallments = prev.installments.map(inst => 
+                inst.type === 'MONTHLY' 
+                  ? { ...inst, amount: formatNumber(breakdown.monthly_installment) }
+                  : inst
+              );
+
+              // Calculate new final price (only installment amount * count)
+              const monthlyAmount = parseFloat(breakdown.monthly_installment.toFixed(2));
+              const newFinalPrice = monthlyAmount * count;
+
+              return {
+                ...prev,
+                installments: updatedInstallments,
+                finalPrice: formatNumber(newFinalPrice)
+              };
+            });
+          }
+        }
       }
-      
-      // Calculate final price when down payment changes
-      calculateFinalPrice();
+    } else {
+      setUnitDetails(prev => ({
+        ...prev,
+        [key]: value
+      }));
     }
   };
 
@@ -358,43 +447,101 @@ const ShowPrice = () => {
 
   // Handle installment updates
   const handleInstallmentUpdate = (type: string, field: 'count' | 'amount', value: string) => {
-    setUnitDetails(prev => ({
-      ...prev,
-      installments: prev.installments.map(inst =>
-        inst.type === type ? { ...inst, [field]: value } : inst
-      )
-    }));
+    if (type === 'MONTHLY' && field === 'count') {
+      const count = parseInt(value || '0', 10) || 1;
+      
+      // Get current down payment value
+      const downPayment = parseFloat(unitDetails.downPayment.replace(/,/g, '')) || 0;
+      const originalPrice = parseFloat(unitDetails.price.replace(/,/g, '')) || 0;
+      
+      // Calculate deposit percentage from current down payment
+      const depositPercentage = (downPayment / originalPrice) * 100;
 
-    calculateInstallmentValues(type, value, field);
+      const project = projects.find(p => p.id === selectedProject);
+      if (project) {
+        const breakdown = calculatePriceBreakdown(
+          originalPrice,
+          depositPercentage,
+          project.cash_factor || 1,
+          project.reduction_factor || 1,
+          'MONTHLY',
+          count,
+          project.additional_expenses || []
+        );
+
+        // Update both the count and recalculated amount
+        setUnitDetails(prev => {
+          const updatedInstallments = prev.installments.map(inst =>
+            inst.type === 'MONTHLY' 
+              ? { 
+                  ...inst, 
+                  count: value,
+                  amount: formatNumber(breakdown.monthly_installment)
+                } 
+              : inst
+          );
+
+          // Calculate new final price (only installment amount * count)
+          const monthlyAmount = parseFloat(breakdown.monthly_installment.toFixed(2));
+          const newFinalPrice = monthlyAmount * count;
+
+          return {
+            ...prev,
+            installments: updatedInstallments,
+            finalPrice: formatNumber(newFinalPrice)
+          };
+        });
+      }
+    } else {
+      // For other cases, just update the value
+      setUnitDetails(prev => ({
+        ...prev,
+        installments: prev.installments.map(inst =>
+          inst.type === type ? { ...inst, [field]: value } : inst
+        )
+      }));
+    }
   };
 
   // Calculate installment values
   const calculateInstallmentValues = (type: string, value: string, field: 'count' | 'amount') => {
-    const originalPrice = parseFloat(unitDetails.price || '0');
-    const downPayment = parseFloat(unitDetails.downPayment || '0');
+    const originalPrice = parseFloat(unitDetails.price.replace(/,/g, '')) || 0;
+    const downPayment = parseFloat(unitDetails.downPayment.replace(/,/g, '')) || 0;
     const remainingAmount = originalPrice - downPayment;
 
     if (isNaN(remainingAmount) || remainingAmount <= 0) return;
 
+    const project = projects.find(p => p.id === selectedProject);
+    if (!project) return;
+
     if (field === 'count') {
       const count = parseInt(value || '0', 10);
       if (!isNaN(count) && count > 0) {
-        const amount = Math.ceil(remainingAmount / count).toFixed(2);
+        const breakdown = calculatePriceBreakdown(
+          originalPrice,
+          project.deposit_percentage || 0,
+          project.cash_factor || 1,
+          project.reduction_factor || 1,
+          'MONTHLY',
+          count,
+          project.additional_expenses || []
+        );
+
         setUnitDetails(prev => ({
           ...prev,
           installments: prev.installments.map(inst =>
-            inst.type === type ? { ...inst, amount } : inst
+            inst.type === type ? { ...inst, amount: formatNumber(breakdown.monthly_installment), count: value } : inst
           )
         }));
       }
     } else {
-      const amount = parseFloat(value || '0');
+      const amount = parseFloat(value.replace(/,/g, '')) || 0;
       if (!isNaN(amount) && amount > 0) {
         const count = Math.ceil(remainingAmount / amount).toString();
         setUnitDetails(prev => ({
           ...prev,
           installments: prev.installments.map(inst =>
-            inst.type === type ? { ...inst, count } : inst
+            inst.type === type ? { ...inst, count, amount: formatNumber(amount) } : inst
           )
         }));
       }
@@ -404,23 +551,18 @@ const ShowPrice = () => {
     calculateFinalPrice();
   };
 
-  // Calculate final price based on down payment and installments
+  // Calculate final price based only on installments
   const calculateFinalPrice = () => {
-    const downPayment = parseFloat(unitDetails.downPayment || '0');
-    
-    // Calculate total installments amount
+    // Calculate total installments amount only
     const totalInstallmentsAmount = unitDetails.installments.reduce((total, installment) => {
       const count = parseInt(installment.count || '0', 10);
-      const amount = parseFloat(installment.amount || '0');
+      const amount = parseFloat(installment.amount.replace(/,/g, '')) || 0;
       return total + (count * amount);
     }, 0);
     
-    // Final price = down payment + total installments amount
-    const finalPrice = downPayment + totalInstallmentsAmount;
-    
     setUnitDetails(prev => ({
       ...prev,
-      finalPrice: finalPrice.toString()
+      finalPrice: formatNumber(totalInstallmentsAmount)
     }));
   };
 
@@ -440,22 +582,29 @@ const ShowPrice = () => {
     additional_expenses: AdditionalExpense[]
   ): PriceBreakdown => {
     // Calculate cash price
+
     const cash_price = unit_price * cash_factor;
-
+    console.log(cash_price, 'cash_price');
+    console.log(unit_price, 'unit_price');
+    console.log(cash_factor, 'cash_factor');
     // Calculate deposit amount
-    const deposit_amount = deposit_percentage * unit_price;
+    const deposit_amount = (deposit_percentage / 100) * unit_price;
 
+    console.log(deposit_amount, 'deposit_amount');
     // Calculate financed amount
-    const financed_amount = deposit_amount - (cash_price * reduction_factor);
+    console.log(deposit_amount, 'deposit_amount');
+    console.log(cash_price, 'cash_price');
 
+    // #########################
+    const financed_amount = cash_price - deposit_amount;
+    console.log(financed_amount, 'financed_amount');
     // Calculate monthly installment using annuity formula
-    const r = reduction_factor; // monthly discount rate
+    const r = Number(Number(reduction_factor).toFixed(6));
     const n = installment_count;
-    const monthly_installment = ( Math.pow(financed_amount * r *(1 + r), n)) / (Math.pow(1 + r, n -1 ));
-    console.log(r, cash_factor, n, monthly_installment);
-
-    // Calculate total paid
-    const total_paid = deposit_amount + (monthly_installment * n);
+    const monthly_installment = ( financed_amount * r * Math.pow((1 + r), n)) / (Math.pow(1 + r, n) - 1);
+    console.log(r, 'r');
+    console.log(n, 'n');
+    console.log(monthly_installment, 'monthly_installment');
 
     // Calculate additional expenses
     const calculated_expenses = additional_expenses.map(expense => {
@@ -474,7 +623,7 @@ const ShowPrice = () => {
     });
 
     // Calculate final price
-    const final_price = total_paid + calculated_expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const final_price =  monthly_installment * n;
 
     return {
       unit_price,
@@ -482,7 +631,6 @@ const ShowPrice = () => {
       deposit_amount,
       financed_amount,
       monthly_installment,
-      total_paid,
       additional_expenses: calculated_expenses,
       final_price
     };
@@ -521,18 +669,24 @@ const ShowPrice = () => {
     try {
       // Get the project to access additional expenses
       const project = projects.find(p => p.id === selectedProject);
+      const unit = units.find(u => u.id === selectedUnit);
       
-      // Prepare additional expenses data
-      const additionalExpensesData = project?.additional_expenses
+      if (!project || !unit) {
+        toast.error("حدث خطأ في تحميل بيانات المشروع");
+        return;
+      }
+
+      // Calculate additional expenses
+      const additionalExpensesData = project.additional_expenses
         ?.filter(expense => expense.is_active)
         .map(expense => {
-          const unitPrice = parseFloat(unitDetails.price || '0');
           let value = 0;
           
           if (expense.type === 'FIXED_VALUE') {
-            value = parseFloat(expense.value || '0');
+            value = parseFloat(expense.value);
           } else if (expense.type === 'PERCENTAGE') {
-            value = (unitPrice * parseFloat(expense.value || '0')) / 100;
+            // Calculate the actual amount based on the percentage
+            value = (unit.price * parseFloat(expense.value)) / 100;
           }
           
           return {
@@ -541,15 +695,23 @@ const ShowPrice = () => {
           };
         }) || [];
 
+      // Get raw values without formatting
+      const depositAmount = parseFloat(unitDetails.downPayment.replace(/,/g, '')) || 0;
+      const installmentCount = parseInt(unitDetails.installments[0]?.count || '0');
+      const installmentAmount = parseFloat(unitDetails.installments[0]?.amount.replace(/,/g, '') || '0');
+
+      // Calculate final price (only monthly installment * count)
+      const finalPrice = installmentAmount * installmentCount;
+
       const requestData = {
-        deposit_amount: parseFloat(unitDetails.downPayment || '0'),
-        installments: unitDetails.installments.map(installment => ({
-          type: installment.type,
-          count: parseInt(installment.count || '0'),
-          amount: parseFloat(installment.amount || '0')
-        })),
+        deposit_amount: depositAmount,
+        installments: [{
+          type: 'MONTHLY',
+          count: installmentCount,
+          amount: installmentAmount
+        }],
         additional_expenses: additionalExpensesData,
-        final_price: parseFloat(unitDetails.finalPrice || '0')
+        final_price: finalPrice
       };
 
       const response = await axiosInstance.post(
@@ -694,7 +856,7 @@ const ShowPrice = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">سعر المتر</label>
                   <input
                     type="text"
-                    value={`${parseFloat(unitDetails.price_per_meter).toLocaleString()} جنيه`}
+                    value={`${unitDetails.price_per_meter} جنيه`}
                     disabled
                     className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-50 text-gray-700 sm:text-sm"
                   />
@@ -714,7 +876,7 @@ const ShowPrice = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">السعر الإجمالي</label>
                     <input
                       type="text"
-                      value={`${parseFloat(unitDetails.price).toLocaleString()} جنيه`}
+                      value={`${unitDetails.price} جنيه`}
                       disabled
                       className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-50 text-gray-700 sm:text-sm"
                     />
@@ -723,7 +885,7 @@ const ShowPrice = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">الدفعة المقدمة</label>
                     <input
-                      type="number"
+                      type="text"
                       value={unitDetails.downPayment}
                       onChange={(e) => handleUnitDetailChange('downPayment', e.target.value)}
                       className={`block w-full border ${errors.downPayment ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
@@ -735,8 +897,8 @@ const ShowPrice = () => {
                   </div>
                 </div>
 
-                {/* Installment Types */}
-                <div className="mb-6">
+                {/* Installment Types - Temporarily hidden */}
+                {/* <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">أنظمة التقسيط المتاحة</label>
                   <div className="flex flex-wrap gap-3">
                     {availableInstallmentTypes.map((type) => (
@@ -753,7 +915,7 @@ const ShowPrice = () => {
                       </button>
                     ))}
                   </div>
-                </div>
+                </div> */}
 
                 {/* Installment Details */}
                 {unitDetails.installments.length > 0 && (
@@ -769,7 +931,7 @@ const ShowPrice = () => {
                               عدد الأقساط
                             </label>
                             <input
-                              type="number"
+                              type="text"
                               value={installment.count}
                               onChange={(e) => handleInstallmentUpdate(installment.type, 'count', e.target.value)}
                               className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -781,7 +943,7 @@ const ShowPrice = () => {
                               قيمة القسط
                             </label>
                             <input
-                              type="number"
+                              type="text"
                               value={installment.amount}
                               onChange={(e) => handleInstallmentUpdate(installment.type, 'amount', e.target.value)}
                               className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -808,13 +970,14 @@ const ShowPrice = () => {
                         {project.additional_expenses.map((expense) => {
                           if (!expense.is_active) return null;
                           
-                          const unitPrice = parseFloat(unitDetails.price || '0');
+                          const unitPrice = parseFloat(unitDetails.price.replace(/,/g, '')) || 0;
+                          console.log(unitPrice, 'unitPrice');
                           let expenseValue = 0;
-                          
+
                           if (expense.type === 'FIXED_VALUE') {
                             expenseValue = parseFloat(expense.value || '0');
                           } else if (expense.type === 'PERCENTAGE') {
-                            expenseValue = (unitPrice * parseFloat(expense.value || '0')) / 100;
+                            expenseValue = (unitPrice * parseFloat(expense.value)) / 100;
                           }
                           
                           return (
@@ -845,7 +1008,7 @@ const ShowPrice = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-semibold text-gray-900">السعر النهائي</span>
                     <span className="text-2xl font-bold text-blue-600">
-                      {parseFloat(unitDetails.finalPrice).toLocaleString()} جنيه
+                      {unitDetails.finalPrice} جنيه
                     </span>
                   </div>
                 </div>
@@ -875,84 +1038,6 @@ const ShowPrice = () => {
               </div>
             </div>
           </>
-        )}
-
-        {priceBreakdown && (
-          <div className="bg-white shadow rounded-lg overflow-hidden mt-6">
-            <div className="px-6 py-5 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-800">تفاصيل السعر</h2>
-            </div>
-            
-            <div className="px-6 py-5 space-y-6">
-              {/* Price Breakdown */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">السعر الأساسي</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">سعر الوحدة</span>
-                      <span className="font-medium">{priceBreakdown.unit_price.toLocaleString()} جنيه</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">السعر النقدي</span>
-                      <span className="font-medium">{priceBreakdown.cash_price.toLocaleString()} جنيه</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">الدفعة المقدمة</span>
-                      <span className="font-medium">{priceBreakdown.deposit_amount.toLocaleString()} جنيه</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">المبلغ الممول</span>
-                      <span className="font-medium">{priceBreakdown.financed_amount.toLocaleString()} جنيه</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">التقسيط</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">القسط الشهري</span>
-                      <span className="font-medium">{priceBreakdown.monthly_installment.toLocaleString()} جنيه</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">عدد الأقساط</span>
-                      <span className="font-medium">{unitDetails.installments[0]?.count || '0'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">المبلغ الإجمالي</span>
-                      <span className="font-medium">{priceBreakdown.total_paid.toLocaleString()} جنيه</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Additional Expenses */}
-              {priceBreakdown.additional_expenses.length > 0 && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">المصروفات الإضافية</h3>
-                  <div className="space-y-2">
-                    {priceBreakdown.additional_expenses.map((expense, index) => (
-                      <div key={index} className="flex justify-between">
-                        <span className="text-gray-600">{expense.name}</span>
-                        <span className="font-medium">{expense.amount.toLocaleString()} جنيه</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Final Price */}
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold text-gray-900">السعر النهائي</span>
-                  <span className="text-2xl font-bold text-blue-600">
-                    {priceBreakdown.final_price.toLocaleString()} جنيه
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
         )}
       </div>
     </div>
