@@ -5,21 +5,24 @@ import { toast } from "react-hot-toast";
 import axiosInstance from "../../axiosInstance";
 import InstallmentsBreakdown from "./InstallmentsBreakdown";
 
-// Global installment configuration
-const ANNUAL_INSTALLMENT_PERCENTAGE = 0.05; // 5% of unit price
-const QUARTERLY_INSTALLMENT_PERCENTAGE = 0.05; // 5% of unit price
-
 interface Project {
   id: number;
   name: string;
   description: string;
   is_active: boolean;
-  installment_options: string[];
+  installment_options: {
+    MONTHLY?: number;
+    ANNUAL?: number;
+    QUARTERLY?: number;
+  };
   additional_expenses: AdditionalExpense[];
   buildings: Building[];
   deposit_percentage?: number;
   cash_factor?: number;
   reduction_factor?: number;
+  created_at: string;
+  updated_at: string;
+  documents_background: string | null;
 }
 
 interface AdditionalExpense {
@@ -270,11 +273,12 @@ const ShowPrice = () => {
           : '';
 
         // Initialize all installment types as active
-        const initialInstallments = project?.installment_options.map(type => ({
-          type: type as 'MONTHLY' | 'ANNUAL' | 'QUARTERLY',
-          count: '0',
-          amount: '0'
-        })) || [];
+        const initialInstallments = project?.installment_options ? 
+          Object.entries(project.installment_options).map(([type, percentage]) => ({
+            type: type as 'MONTHLY' | 'ANNUAL' | 'QUARTERLY',
+            count: '0',
+            amount: '0'
+          })) : [];
         
         // Reset global installment configuration
         setInstallmentConfig({
@@ -594,7 +598,13 @@ const ShowPrice = () => {
     unit_price: number,
     total_months: number
   ): { count: number; amount: number } => {
-    const annual_installment = unit_price * ANNUAL_INSTALLMENT_PERCENTAGE;
+    const project = projects.find(p => p.id === selectedProject);
+    if (!project) return { count: 0, amount: 0 };
+
+    const annualPercentage = project.installment_options?.ANNUAL ? 
+      parseFloat(project.installment_options.ANNUAL.toString()) / 100 : 0;
+    
+    const annual_installment = unit_price * annualPercentage;
     const years = Math.floor(total_months / 12);
     const annual_count = years > 0 ? years - 1 : 0;
     
@@ -609,7 +619,13 @@ const ShowPrice = () => {
     unit_price: number,
     total_months: number
   ): { count: number; amount: number } => {
-    const quarterly_installment = unit_price * QUARTERLY_INSTALLMENT_PERCENTAGE;
+    const project = projects.find(p => p.id === selectedProject);
+    if (!project) return { count: 0, amount: 0 };
+
+    const quarterlyPercentage = project.installment_options?.QUARTERLY ? 
+      parseFloat(project.installment_options.QUARTERLY.toString()) / 100 : 0;
+    
+    const quarterly_installment = unit_price * quarterlyPercentage;
     const quarters = Math.floor(total_months / 3);
     const quarterly_count = quarters > 0 ? quarters - 1 : 0;
     
@@ -1014,7 +1030,9 @@ const ShowPrice = () => {
                   <div className="flex flex-wrap gap-3">
                     {(() => {
                       const currentProject = projects.find(p => p.id === selectedProject);
-                      return currentProject?.installment_options.map((type: string) => {
+                      if (!currentProject) return null;
+                      
+                      return Object.entries(currentProject.installment_options).map(([type, percentage]) => {
                         const isActive = unitDetails.installments.some(inst => inst.type === type);
                         return (
                           <button
@@ -1023,7 +1041,7 @@ const ShowPrice = () => {
                             className={`px-4 py-2 rounded-md text-sm font-medium ${
                               isActive
                                 ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-400'
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                             }`}
                           >
                             {installmentTypeTranslations[type]}
