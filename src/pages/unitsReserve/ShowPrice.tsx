@@ -3,6 +3,11 @@ import { Select } from 'antd';
 import type { SelectProps } from 'antd';
 import { toast } from "react-hot-toast";
 import axiosInstance from "../../axiosInstance";
+import InstallmentsBreakdown from "./InstallmentsBreakdown";
+
+// Global installment configuration
+const ANNUAL_INSTALLMENT_PERCENTAGE = 0.05; // 5% of unit price
+const QUARTERLY_INSTALLMENT_PERCENTAGE = 0.05; // 5% of unit price
 
 interface Project {
   id: number;
@@ -69,6 +74,7 @@ interface UnitDetails {
     [key: string]: string;
   };
   finalPrice: string;
+  totalInstallmentsCount?: string;
 }
 
 interface UnitErrors {
@@ -81,6 +87,8 @@ interface PriceBreakdown {
   deposit_amount: number;
   financed_amount: number;
   monthly_installment: number;
+  annual_installment: number;
+  quarterly_installment: number;
   additional_expenses: {
     name: string;
     type: 'PERCENTAGE' | 'FIXED_VALUE';
@@ -112,6 +120,22 @@ const ShowPrice = () => {
   const [selectedBuilding, setSelectedBuilding] = useState<number | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<number | null>(null);
 
+  // Global installment state
+  const [installmentConfig, setInstallmentConfig] = useState({
+    annual: {
+      count: 0,
+      amount: 0
+    },
+    quarterly: {
+      count: 0,
+      amount: 0
+    },
+    monthly: {
+      count: 0,
+      amount: 0
+    }
+  });
+
   // Loading and error states
   const [loading, setLoading] = useState({
     projects: false,
@@ -121,10 +145,6 @@ const ShowPrice = () => {
   });
   
   const [errors, setErrors] = useState<UnitErrors>({});
-
-  // Add new state for installment types
-  const [availableInstallmentTypes, setAvailableInstallmentTypes] = useState<string[]>([]);
-  const [selectedInstallmentType, setSelectedInstallmentType] = useState<string | null>(null);
 
   // Unit Details State
   const [unitDetails, setUnitDetails] = useState<UnitDetails>({
@@ -141,10 +161,8 @@ const ShowPrice = () => {
     installments: [],
     additional_expenses: {},
     finalPrice: "0",
+    totalInstallmentsCount: "1"
   });
-
-  // Add new state for price breakdown
-  const [priceBreakdown, setPriceBreakdown] = useState<PriceBreakdown | null>(null);
 
   // Add translation map for installment types
   const installmentTypeTranslations: { [key: string]: string } = {
@@ -199,12 +217,6 @@ const ShowPrice = () => {
             params: { project_id: selectedProject }
           });
           setBuildings(buildingsResponse.data.data);
-          
-          // Get project details to load installment options
-          const projectDetails = projects.find(p => p.id === selectedProject);
-          if (projectDetails) {
-            setAvailableInstallmentTypes(projectDetails.installment_options);
-          }
         } catch (error) {
           console.error('Error fetching buildings:', error);
           toast.error('فشل في تحميل المباني');
@@ -257,17 +269,21 @@ const ShowPrice = () => {
           ? formatNumber((unit.price * project.deposit_percentage) / 100)
           : '';
 
-        // Calculate price breakdown to get monthly installment
-        const breakdown = calculatePriceBreakdown(
-          unit.price,
-          project?.deposit_percentage || 0,
-          project?.cash_factor || 1,
-          project?.reduction_factor || 1,
-          'MONTHLY',
-          1,
-          project?.additional_expenses || []
-        );
+        // Initialize all installment types as active
+        const initialInstallments = project?.installment_options.map(type => ({
+          type: type as 'MONTHLY' | 'ANNUAL' | 'QUARTERLY',
+          count: '0',
+          amount: '0'
+        })) || [];
+        
+        // Reset global installment configuration
+        setInstallmentConfig({
+          annual: { count: 0, amount: 0 },
+          quarterly: { count: 0, amount: 0 },
+          monthly: { count: 0, amount: 0 }
+        });
 
+        // Set basic unit details first
         setUnitDetails({
           unit_number: unit.unit_number || '',
           unit_type: unit.unit_type || '',
@@ -279,13 +295,10 @@ const ShowPrice = () => {
           bedrooms: unit.bedrooms?.toString() || '',
           bathrooms: unit.bathrooms?.toString() || '',
           downPayment: defaultDownPayment,
-          installments: [{
-            type: 'MONTHLY',
-            count: '1',
-            amount: formatNumber(breakdown.monthly_installment)
-          }],
+          installments: initialInstallments,
           additional_expenses: {},
-          finalPrice: defaultDownPayment || formatNumber(unit.price)
+          finalPrice: defaultDownPayment || formatNumber(unit.price),
+          totalInstallmentsCount: '0'
         });
 
         // Clear any existing down payment errors
@@ -303,8 +316,8 @@ const ShowPrice = () => {
     if (key === 'downPayment') {
       // If empty, set to empty string
       if (!value) {
-        setUnitDetails(prev => ({
-          ...prev,
+    setUnitDetails(prev => ({
+      ...prev,
           downPayment: ''
         }));
         return;
@@ -337,44 +350,76 @@ const ShowPrice = () => {
           return newErrors;
         });
 
-        // Recalculate monthly installment when deposit changes
+        // Recalculate installments with new down payment
         const project = projects.find(p => p.id === selectedProject);
         if (project && selectedUnit) {
           const unit = units.find(u => u.id === selectedUnit);
           if (unit) {
-            // Calculate the deposit percentage based on the new down payment
             const depositPercentage = (downPayment / unit.price) * 100;
-            
-            // Get the current installment count (fallback to 1 if invalid)
-            const monthlyInstallment = unitDetails.installments[0];
-            const count = monthlyInstallment ? parseInt(monthlyInstallment.count || '0', 10) || 1 : 1;
+            const total_months = parseInt(unitDetails.totalInstallmentsCount || '1', 10) || 1;
 
-            const breakdown = calculatePriceBreakdown(
+            // Get active installment types
+            const activeInstallments = unitDetails.installments.filter(inst => 
+              inst.type === 'ANNUAL' || inst.type === 'QUARTERLY' || inst.type === 'MONTHLY'
+            );
+
+            // Calculate annual installment if active
+            const annualDetails = activeInstallments.some(inst => inst.type === 'ANNUAL')
+              ? calculateAnnualInstallment(unit.price, total_months)
+              : { count: 0, amount: 0 };
+
+            // Calculate quarterly installment if active
+            const quarterlyDetails = activeInstallments.some(inst => inst.type === 'QUARTERLY')
+              ? calculateQuarterlyInstallment(unit.price, total_months)
+              : { count: 0, amount: 0 };
+
+            // Calculate monthly installment
+            const monthlyDetails = calculateMonthlyInstallment(
               unit.price,
               depositPercentage,
               project.cash_factor || 1,
               project.reduction_factor || 1,
-              'MONTHLY',
-              count,
-              project.additional_expenses || []
+              total_months,
+              annualDetails.count,
+              annualDetails.amount,
+              quarterlyDetails.count,
+              quarterlyDetails.amount
             );
 
-            // Update the monthly installment amount and final price
-            setUnitDetails(prev => {
-              const updatedInstallments = prev.installments.map(inst => 
-                inst.type === 'MONTHLY' 
-                  ? { ...inst, amount: formatNumber(breakdown.monthly_installment) }
-                  : inst
-              );
+            // Calculate total amount including deposit
+            const totalAmount = downPayment + 
+              (annualDetails.count * annualDetails.amount) +
+              (quarterlyDetails.count * quarterlyDetails.amount) +
+              (monthlyDetails.count * monthlyDetails.amount);
 
-              // Calculate new final price (only installment amount * count)
-              const monthlyAmount = parseFloat(breakdown.monthly_installment.toFixed(2));
-              const newFinalPrice = monthlyAmount * count;
+            // Update global config
+            setInstallmentConfig({
+              annual: annualDetails,
+              quarterly: quarterlyDetails,
+              monthly: monthlyDetails
+            });
+
+            // Update unit details with new installments and final price
+            setUnitDetails(prev => {
+              const updatedInstallments = prev.installments.map(inst => {
+                const type = inst.type.toLowerCase();
+                const config = {
+                  'annual': annualDetails,
+                  'quarterly': quarterlyDetails,
+                  'monthly': monthlyDetails
+                }[type];
+                
+                return {
+                  ...inst,
+                  count: config ? config.count.toString() : '0',
+                  amount: config ? formatNumber(config.amount) : '0'
+                };
+              });
 
               return {
                 ...prev,
                 installments: updatedInstallments,
-                finalPrice: formatNumber(newFinalPrice)
+                finalPrice: formatNumber(totalAmount)
               };
             });
           }
@@ -420,243 +465,292 @@ const ShowPrice = () => {
   // Handle installment type selection
   const handleInstallmentTypeSelect = (type: string) => {
     const existingInstallment = unitDetails.installments.find(inst => inst.type === type);
+    const project = projects.find(p => p.id === selectedProject);
+    if (!project) return;
     
-    if (existingInstallment) {
-      setUnitDetails(prev => ({
-        ...prev,
-        installments: prev.installments.filter(inst => inst.type !== type)
-      }));
-      if (selectedInstallmentType === type) {
-        setSelectedInstallmentType(null);
-      }
-    } else {
-      setUnitDetails(prev => ({
-        ...prev,
-        installments: [...prev.installments, {
-          type: type as 'MONTHLY' | 'ANNUAL' | 'QUARTERLY',
-          count: '',
-          amount: ''
-        }]
-      }));
-      setSelectedInstallmentType(type);
-    }
-    
-    // Calculate final price when installment types change
-    calculateFinalPrice();
-  };
+    setUnitDetails(prev => {
+      // If removing an installment type
+      if (existingInstallment) {
+        const filteredInstallments = prev.installments.filter(inst => inst.type !== type);
+        
+        // Get current values for recalculation
+        const downPayment = parseFloat(prev.downPayment.replace(/,/g, '')) || 0;
+        const originalPrice = parseFloat(prev.price.replace(/,/g, '')) || 0;
+        const depositPercentage = (downPayment / originalPrice) * 100;
+        const total_months = parseInt(prev.totalInstallmentsCount || '1', 10) || 1;
 
-  // Handle installment updates
-  const handleInstallmentUpdate = (type: string, field: 'count' | 'amount', value: string) => {
-    if (type === 'MONTHLY' && field === 'count') {
-      const count = parseInt(value || '0', 10) || 1;
-      
-      // Get current down payment value
-      const downPayment = parseFloat(unitDetails.downPayment.replace(/,/g, '')) || 0;
-      const originalPrice = parseFloat(unitDetails.price.replace(/,/g, '')) || 0;
-      
-      // Calculate deposit percentage from current down payment
-      const depositPercentage = (downPayment / originalPrice) * 100;
+        // Reset the removed installment type in config
+        const typeKey = type.toLowerCase() as 'annual' | 'quarterly' | 'monthly';
+        setInstallmentConfig(prevConfig => ({
+          ...prevConfig,
+          [typeKey]: { count: 0, amount: 0 }
+        }));
 
-      const project = projects.find(p => p.id === selectedProject);
-      if (project) {
-        const breakdown = calculatePriceBreakdown(
+        // Calculate annual installment if active (and not being removed)
+        const annualDetails = filteredInstallments.some(inst => inst.type === 'ANNUAL')
+          ? calculateAnnualInstallment(originalPrice, total_months)
+          : { count: 0, amount: 0 };
+
+        // Calculate quarterly installment if active (and not being removed)
+        const quarterlyDetails = filteredInstallments.some(inst => inst.type === 'QUARTERLY')
+          ? calculateQuarterlyInstallment(originalPrice, total_months)
+          : { count: 0, amount: 0 };
+
+        // Calculate monthly installment
+        const monthlyDetails = calculateMonthlyInstallment(
           originalPrice,
           depositPercentage,
           project.cash_factor || 1,
           project.reduction_factor || 1,
-          'MONTHLY',
-          count,
-          project.additional_expenses || []
+          total_months,
+          annualDetails.count,
+          annualDetails.amount,
+          quarterlyDetails.count,
+          quarterlyDetails.amount
         );
 
-        // Update both the count and recalculated amount
-        setUnitDetails(prev => {
-          const updatedInstallments = prev.installments.map(inst =>
-            inst.type === 'MONTHLY' 
-              ? { 
-                  ...inst, 
-                  count: value,
-                  amount: formatNumber(breakdown.monthly_installment)
-                } 
-              : inst
-          );
+        // Calculate total amount including deposit
+        const totalAmount = downPayment + 
+          (annualDetails.count * annualDetails.amount) +
+          (quarterlyDetails.count * quarterlyDetails.amount) +
+          (monthlyDetails.count * monthlyDetails.amount);
 
-          // Calculate new final price (only installment amount * count)
-          const monthlyAmount = parseFloat(breakdown.monthly_installment.toFixed(2));
-          const newFinalPrice = monthlyAmount * count;
-
-          return {
-            ...prev,
-            installments: updatedInstallments,
-            finalPrice: formatNumber(newFinalPrice)
-          };
+        // Update global config
+        setInstallmentConfig({
+          annual: annualDetails,
+          quarterly: quarterlyDetails,
+          monthly: monthlyDetails
         });
-      }
-    } else {
-      // For other cases, just update the value
-      setUnitDetails(prev => ({
-        ...prev,
-        installments: prev.installments.map(inst =>
-          inst.type === type ? { ...inst, [field]: value } : inst
-        )
-      }));
-    }
-  };
 
-  // Calculate installment values
-  const calculateInstallmentValues = (type: string, value: string, field: 'count' | 'amount') => {
-    const originalPrice = parseFloat(unitDetails.price.replace(/,/g, '')) || 0;
-    const downPayment = parseFloat(unitDetails.downPayment.replace(/,/g, '')) || 0;
-    const remainingAmount = originalPrice - downPayment;
+        return {
+          ...prev,
+          installments: filteredInstallments,
+          finalPrice: formatNumber(totalAmount)
+        };
+      } 
+      // If adding a new installment type
+      else {
+        // Get current values
+        const downPayment = parseFloat(prev.downPayment.replace(/,/g, '')) || 0;
+        const originalPrice = parseFloat(prev.price.replace(/,/g, '')) || 0;
+        const depositPercentage = (downPayment / originalPrice) * 100;
+        const total_months = parseInt(prev.totalInstallmentsCount || '1', 10) || 1;
 
-    if (isNaN(remainingAmount) || remainingAmount <= 0) return;
+        // Add the new installment type with default values
+        const newInstallment = {
+          type: type as 'MONTHLY' | 'ANNUAL' | 'QUARTERLY',
+          count: '0',
+          amount: '0'
+        };
 
-    const project = projects.find(p => p.id === selectedProject);
-    if (!project) return;
+        // Calculate all installments including the new one
+        const annualDetails = type === 'ANNUAL' || prev.installments.some(inst => inst.type === 'ANNUAL')
+          ? calculateAnnualInstallment(originalPrice, total_months)
+          : { count: 0, amount: 0 };
 
-    if (field === 'count') {
-      const count = parseInt(value || '0', 10);
-      if (!isNaN(count) && count > 0) {
-        const breakdown = calculatePriceBreakdown(
+        const quarterlyDetails = type === 'QUARTERLY' || prev.installments.some(inst => inst.type === 'QUARTERLY')
+          ? calculateQuarterlyInstallment(originalPrice, total_months)
+          : { count: 0, amount: 0 };
+
+        const monthlyDetails = calculateMonthlyInstallment(
           originalPrice,
-          project.deposit_percentage || 0,
+          depositPercentage,
           project.cash_factor || 1,
           project.reduction_factor || 1,
-          'MONTHLY',
-          count,
-          project.additional_expenses || []
+          total_months,
+          annualDetails.count,
+          annualDetails.amount,
+          quarterlyDetails.count,
+          quarterlyDetails.amount
         );
 
-        setUnitDetails(prev => ({
-          ...prev,
-          installments: prev.installments.map(inst =>
-            inst.type === type ? { ...inst, amount: formatNumber(breakdown.monthly_installment), count: value } : inst
-          )
-        }));
-      }
-    } else {
-      const amount = parseFloat(value.replace(/,/g, '')) || 0;
-      if (!isNaN(amount) && amount > 0) {
-        const count = Math.ceil(remainingAmount / amount).toString();
-        setUnitDetails(prev => ({
-          ...prev,
-          installments: prev.installments.map(inst =>
-            inst.type === type ? { ...inst, count, amount: formatNumber(amount) } : inst
-          )
-        }));
-      }
-    }
-    
-    // Calculate final price after updating installments
-    calculateFinalPrice();
-  };
+        // Calculate total amount including deposit
+        const totalAmount = downPayment + 
+          (annualDetails.count * annualDetails.amount) +
+          (quarterlyDetails.count * quarterlyDetails.amount) +
+          (monthlyDetails.count * monthlyDetails.amount);
 
-  // Calculate final price based only on installments
-  const calculateFinalPrice = () => {
-    // Calculate total installments amount only
-    const totalInstallmentsAmount = unitDetails.installments.reduce((total, installment) => {
-      const count = parseInt(installment.count || '0', 10);
-      const amount = parseFloat(installment.amount.replace(/,/g, '')) || 0;
-      return total + (count * amount);
-    }, 0);
-    
-    setUnitDetails(prev => ({
+        // Update global config
+        setInstallmentConfig({
+          annual: annualDetails,
+          quarterly: quarterlyDetails,
+          monthly: monthlyDetails
+        });
+
+        // Update unit details with new installments and final price
+        const updatedInstallments = [...prev.installments, newInstallment];
+
+        return {
       ...prev,
-      finalPrice: formatNumber(totalInstallmentsAmount)
-    }));
+          installments: updatedInstallments,
+          finalPrice: formatNumber(totalAmount)
+        };
+      }
+    });
   };
 
-  // Update final price when down payment changes
-  useEffect(() => {
-    calculateFinalPrice();
-  }, [unitDetails.downPayment, unitDetails.installments]);
+  // Calculate annual installment details
+  const calculateAnnualInstallment = (
+    unit_price: number,
+    total_months: number
+  ): { count: number; amount: number } => {
+    const annual_installment = unit_price * ANNUAL_INSTALLMENT_PERCENTAGE;
+    const years = Math.floor(total_months / 12);
+    const annual_count = years > 0 ? years - 1 : 0;
+    
+    return {
+      count: annual_count,
+      amount: annual_installment
+    };
+  };
 
-  // Calculate price breakdown
-  const calculatePriceBreakdown = (
+  // Calculate quarterly installment details
+  const calculateQuarterlyInstallment = (
+    unit_price: number,
+    total_months: number
+  ): { count: number; amount: number } => {
+    const quarterly_installment = unit_price * QUARTERLY_INSTALLMENT_PERCENTAGE;
+    const quarters = Math.floor(total_months / 3);
+    const quarterly_count = quarters > 0 ? quarters - 1 : 0;
+    
+    return {
+      count: quarterly_count,
+      amount: quarterly_installment
+    };
+  };
+
+  // Calculate monthly installment details
+  const calculateMonthlyInstallment = (
     unit_price: number,
     deposit_percentage: number,
     cash_factor: number,
     reduction_factor: number,
-    installment_type: string,
-    installment_count: number,
-    additional_expenses: AdditionalExpense[]
-  ): PriceBreakdown => {
+    total_months: number,
+    annual_count: number,
+    annual_amount: number,
+    quarterly_count: number,
+    quarterly_amount: number
+  ): { count: number; amount: number } => {
     // Calculate cash price
-
     const cash_price = unit_price * cash_factor;
-    console.log(cash_price, 'cash_price');
-    console.log(unit_price, 'unit_price');
-    console.log(cash_factor, 'cash_factor');
-    // Calculate deposit amount
     const deposit_amount = (deposit_percentage / 100) * unit_price;
-
-    console.log(deposit_amount, 'deposit_amount');
-    // Calculate financed amount
-    console.log(deposit_amount, 'deposit_amount');
-    console.log(cash_price, 'cash_price');
-
-    // #########################
     const financed_amount = cash_price - deposit_amount;
-    console.log(financed_amount, 'financed_amount');
+
     // Calculate monthly installment using annuity formula
     const r = Number(Number(reduction_factor).toFixed(6));
-    const n = installment_count;
-    const monthly_installment = ( financed_amount * r * Math.pow((1 + r), n)) / (Math.pow(1 + r, n) - 1);
-    console.log(r, 'r');
-    console.log(n, 'n');
-    console.log(monthly_installment, 'monthly_installment');
-
-    // Calculate additional expenses
-    const calculated_expenses = additional_expenses.map(expense => {
-      let amount = 0;
-      if (expense.type === 'PERCENTAGE') {
-        amount = (unit_price * parseFloat(expense.value)) / 100;
-      } else if (expense.type === 'FIXED_VALUE') {
-        amount = parseFloat(expense.value);
-      }
-      return {
-        name: expense.name,
-        type: expense.type,
-        value: parseFloat(expense.value),
-        amount
-      };
-    });
-
-    // Calculate final price
-    const final_price =  monthly_installment * n;
+    
+    let basicInstallment = 0;
+    let monthly_installment = 0;
+    let monthly_count = 0;
+    if (total_months > 0 && financed_amount > 0) {
+      basicInstallment = (financed_amount * r * Math.pow((1 + r), total_months)) / (Math.pow(1 + r, total_months) - 1);
+      const correctFinalPrice = basicInstallment * total_months;
+      monthly_count = total_months - annual_count - quarterly_count;
+      monthly_installment = (correctFinalPrice - annual_amount * annual_count - quarterly_amount * quarterly_count ) / monthly_count;
+    }
+    
 
     return {
-      unit_price,
-      cash_price,
-      deposit_amount,
-      financed_amount,
-      monthly_installment,
-      additional_expenses: calculated_expenses,
-      final_price
+      count: monthly_count,
+      amount: monthly_installment
     };
   };
 
-  // Update price breakdown when unit details change
-  useEffect(() => {
-    if (selectedUnit && selectedProject) {
-      const unit = units.find(u => u.id === selectedUnit);
+  // Update the handleTotalInstallmentsCountChange function
+  const handleTotalInstallmentsCountChange = (value: string) => {
+    // Allow empty value
+    if (!value) {
+      setUnitDetails(prev => ({
+        ...prev,
+        totalInstallmentsCount: '',
+        installments: prev.installments.map(inst => ({
+          ...inst,
+          count: '0',
+          amount: '0'
+        })),
+        finalPrice: '0'
+      }));
+      return;
+    }
+
+    // Remove any non-numeric characters
+    const numericValue = value.replace(/[^\d]/g, '');
+    const total_months = parseInt(numericValue, 10) || 0;
+    
+    // Get current down payment value
+    const downPayment = parseFloat(unitDetails.downPayment.replace(/,/g, '')) || 0;
+    const originalPrice = parseFloat(unitDetails.price.replace(/,/g, '')) || 0;
+    
+    // Calculate deposit percentage from current down payment
+    const depositPercentage = (downPayment / originalPrice) * 100;
+
       const project = projects.find(p => p.id === selectedProject);
-      
-      if (unit && project) {
-        const breakdown = calculatePriceBreakdown(
-          unit.price,
-          project.deposit_percentage || 0,
+    if (project) {
+      // Get active installment types
+      const activeInstallments = unitDetails.installments.filter(inst => 
+        inst.type === 'ANNUAL' || inst.type === 'QUARTERLY' || inst.type === 'MONTHLY'
+      );
+
+      // Calculate annual installment if active
+      const annualDetails = activeInstallments.some(inst => inst.type === 'ANNUAL')
+        ? calculateAnnualInstallment(originalPrice, total_months)
+        : { count: 0, amount: 0 };
+
+      // Calculate quarterly installment if active
+      const quarterlyDetails = activeInstallments.some(inst => inst.type === 'QUARTERLY')
+        ? calculateQuarterlyInstallment(originalPrice, total_months)
+        : { count: 0, amount: 0 };
+
+      // Calculate monthly installment
+      const monthlyDetails = calculateMonthlyInstallment(
+        originalPrice,
+        depositPercentage,
           project.cash_factor || 1,
           project.reduction_factor || 1, 
-          unitDetails.installments[0]?.type || 'MONTHLY',
-          parseInt(unitDetails.installments[0]?.count || '0'),
-          project.additional_expenses || []
-        );
+        total_months,
+        annualDetails.count,
+        annualDetails.amount,
+        quarterlyDetails.count,
+        quarterlyDetails.amount
+      );
+
+      // Calculate total amount including deposit
+      const totalAmount = downPayment + 
+        (annualDetails.count * annualDetails.amount) +
+        (quarterlyDetails.count * quarterlyDetails.amount) +
+        (monthlyDetails.count * monthlyDetails.amount);
+
+      // Update global config
+      setInstallmentConfig({
+        annual: annualDetails,
+        quarterly: quarterlyDetails,
+        monthly: monthlyDetails
+      });
+
+      // Update unit details with new installments and final price
+      const updatedInstallments = unitDetails.installments.map(inst => {
+        const type = inst.type.toLowerCase();
+        const config = {
+          'annual': annualDetails,
+          'quarterly': quarterlyDetails,
+          'monthly': monthlyDetails
+        }[type];
         
-        setPriceBreakdown(breakdown);
-      }
+        return {
+          ...inst,
+          count: config ? config.count.toString() : '0',
+          amount: config ? formatNumber(config.amount) : '0'
+        };
+      });
+
+      setUnitDetails(prev => ({
+        ...prev,
+        totalInstallmentsCount: numericValue,
+        installments: updatedInstallments,
+        finalPrice: formatNumber(totalAmount)
+      }));
     }
-  }, [selectedUnit, selectedProject, unitDetails.installments, units, projects]);
+  };
 
   // Generate PDF function
   const generatePDF = async () => {
@@ -697,19 +791,22 @@ const ShowPrice = () => {
 
       // Get raw values without formatting
       const depositAmount = parseFloat(unitDetails.downPayment.replace(/,/g, '')) || 0;
-      const installmentCount = parseInt(unitDetails.installments[0]?.count || '0');
-      const installmentAmount = parseFloat(unitDetails.installments[0]?.amount.replace(/,/g, '') || '0');
+      
+      // Create installments data to send to API
+      const installmentsData = unitDetails.installments.map(installment => {
+        return {
+          type: installment.type,
+          count: parseInt(installment.count || '0', 10),
+          amount: parseFloat(installment.amount.replace(/,/g, '') || '0')
+        };
+      }).filter(installment => installment.count > 0);
 
-      // Calculate final price (only monthly installment * count)
-      const finalPrice = installmentAmount * installmentCount;
+      // Calculate final price
+      const finalPrice = parseFloat(unitDetails.finalPrice.replace(/,/g, '')) || 0;
 
       const requestData = {
         deposit_amount: depositAmount,
-        installments: [{
-          type: 'MONTHLY',
-          count: installmentCount,
-          amount: installmentAmount
-        }],
+        installments: installmentsData,
         additional_expenses: additionalExpensesData,
         final_price: finalPrice
       };
@@ -897,30 +994,56 @@ const ShowPrice = () => {
                   </div>
                 </div>
 
-                {/* Installment Types - Temporarily hidden */}
-                {/* <div className="mb-6">
+                {/* Total Installments Count */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    عدد الأقساط الإجمالي
+                  </label>
+                  <input
+                    type="text"
+                    value={unitDetails.totalInstallmentsCount}
+                    onChange={(e) => handleTotalInstallmentsCountChange(e.target.value)}
+                    className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="عدد الأقساط الإجمالي"
+                  />
+                </div>
+
+                {/* Installment Types */}
+                <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">أنظمة التقسيط المتاحة</label>
                   <div className="flex flex-wrap gap-3">
-                    {availableInstallmentTypes.map((type) => (
-                      <button
-                        key={type}
-                        onClick={() => handleInstallmentTypeSelect(type)}
-                        className={`px-4 py-2 rounded-md text-sm font-medium ${
-                          unitDetails.installments.some(i => i.type === type)
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {installmentTypeTranslations[type]}
-                      </button>
-                    ))}
+                    {(() => {
+                      const currentProject = projects.find(p => p.id === selectedProject);
+                      return currentProject?.installment_options.map((type: string) => {
+                        const isActive = unitDetails.installments.some(inst => inst.type === type);
+                        return (
+                          <button
+                            key={type}
+                            onClick={() => handleInstallmentTypeSelect(type)}
+                            className={`px-4 py-2 rounded-md text-sm font-medium ${
+                              isActive
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-400'
+                            }`}
+                          >
+                            {installmentTypeTranslations[type]}
+                          </button>
+                        );
+                      });
+                    })()}
                   </div>
-                </div> */}
+                </div>
 
                 {/* Installment Details */}
                 {unitDetails.installments.length > 0 && (
                   <div className="space-y-6">
-                    {unitDetails.installments.map((installment) => (
+                    {unitDetails.installments.filter(installment => {
+                      // Only show installments that exist in the current installments array
+                      return unitDetails.installments.some(inst => 
+                        inst.type === installment.type && 
+                        installmentConfig[inst.type.toLowerCase()].count > 0
+                      );
+                    }).map((installment) => (
                       <div key={installment.type} className="bg-gray-50 p-4 rounded-lg">
                         <h3 className="text-lg font-medium text-gray-900 mb-4">
                           {installmentTypeTranslations[installment.type]}
@@ -932,10 +1055,9 @@ const ShowPrice = () => {
                             </label>
                             <input
                               type="text"
-                              value={installment.count}
-                              onChange={(e) => handleInstallmentUpdate(installment.type, 'count', e.target.value)}
-                              className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                              placeholder="عدد الأقساط"
+                              value={installmentConfig[installment.type.toLowerCase()].count}
+                              disabled
+                              className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-50 text-gray-700 sm:text-sm"
                             />
                           </div>
                           <div>
@@ -944,10 +1066,9 @@ const ShowPrice = () => {
                             </label>
                             <input
                               type="text"
-                              value={installment.amount}
-                              onChange={(e) => handleInstallmentUpdate(installment.type, 'amount', e.target.value)}
-                              className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                              placeholder="قيمة القسط"
+                              value={formatNumber(installmentConfig[installment.type.toLowerCase()].amount)}
+                              disabled
+                              className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-50 text-gray-700 sm:text-sm"
                             />
                           </div>
                         </div>
@@ -958,8 +1079,8 @@ const ShowPrice = () => {
 
                 {/* Additional Expenses */}
                 {selectedProject && (() => {
-                  const project = projects.find(p => p.id === selectedProject);
-                  if (!project || !project.additional_expenses || project.additional_expenses.length === 0) {
+                  const currentProject = projects.find(p => p.id === selectedProject);
+                  if (!currentProject || !currentProject.additional_expenses || currentProject.additional_expenses.length === 0) {
                     return null;
                   }
                   
@@ -967,13 +1088,12 @@ const ShowPrice = () => {
                     <div className="mt-6">
                       <h3 className="text-lg font-medium text-gray-900 mb-4">المصروفات الإضافية</h3>
                       <div className="space-y-4">
-                        {project.additional_expenses.map((expense) => {
+                        {currentProject.additional_expenses.map((expense) => {
                           if (!expense.is_active) return null;
                           
                           const unitPrice = parseFloat(unitDetails.price.replace(/,/g, '')) || 0;
-                          console.log(unitPrice, 'unitPrice');
                           let expenseValue = 0;
-
+                          
                           if (expense.type === 'FIXED_VALUE') {
                             expenseValue = parseFloat(expense.value || '0');
                           } else if (expense.type === 'PERCENTAGE') {
