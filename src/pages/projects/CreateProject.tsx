@@ -11,13 +11,18 @@ interface AdditionalExpense {
   value: number;
 }
 
+interface InstallmentOption {
+  type: string;
+  value: number;
+}
+
 const CreateProject = () => {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [documentsBackground, setDocumentsBackground] = useState<File | null>(null);
   const [isActive, setIsActive] = useState(true);
-  const [installmentOptions, setInstallmentOptions] = useState<string[]>([]);
+  const [installmentOptions, setInstallmentOptions] = useState<InstallmentOption[]>([]);
   const [depositPercentage, setDepositPercentage] = useState<number | ''>('');
   const [cashFactor, setCashFactor] = useState<number>(1);
   const [reductionFactor, setReductionFactor] = useState<number>(1);
@@ -110,10 +115,16 @@ const CreateProject = () => {
         formData.append('deposit_percentage', String(depositPercentage));
       }
 
-      // Send arrays directly without JSON.stringify
-      if (installmentOptions.length > 0) {
-        installmentOptions.forEach((option, index) => {
-          formData.append(`installment_options[${index}]`, option);
+      // Convert installment options to the required format
+      const installmentOptionsArray = installmentOptions.map(option => ({
+        type: option.type,
+        value: option.value
+      }));
+      
+      // Always send installment options as an array
+      if (installmentOptionsArray.length > 0) {
+        installmentOptionsArray.forEach((option, index) => {
+          formData.append(`installment_options[${option.type}]`, String(option.value));
         });
       }
 
@@ -234,30 +245,56 @@ const CreateProject = () => {
               </label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {['MONTHLY', 'QUARTERLY', 'ANNUAL'].map((option) => (
-                  <label
+                  <div
                     key={option}
-                    className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
-                      installmentOptions.includes(option)
+                    className={`p-4 border rounded-lg transition-all duration-200 ${
+                      installmentOptions.some(opt => opt.type === option)
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:border-blue-200'
                     }`}
                   >
-                    <input
-                      type="checkbox"
-                      checked={installmentOptions.includes(option)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setInstallmentOptions([...installmentOptions, option]);
-                        } else {
-                          setInstallmentOptions(installmentOptions.filter((opt) => opt !== option));
-                        }
-                      }}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <span className="mr-3 text-sm font-medium text-gray-700">
-                      {option === 'MONTHLY' ? 'شهري' : option === 'QUARTERLY' ? 'ربع سنوي' : 'سنوي'}
-                    </span>
-                  </label>
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={installmentOptions.some(opt => opt.type === option)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setInstallmentOptions([
+                              ...installmentOptions,
+                              { type: option, value: option === 'MONTHLY' ? 1 : 0 }
+                            ]);
+                          } else {
+                            setInstallmentOptions(installmentOptions.filter(opt => opt.type !== option));
+                          }
+                        }}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        {option === 'MONTHLY' ? 'شهري' : option === 'QUARTERLY' ? 'ربع سنوي' : 'سنوي'}
+                      </span>
+                    </label>
+                    {(option === 'ANNUAL' || option === 'QUARTERLY') && 
+                     installmentOptions.some(opt => opt.type === option) && (
+                      <div className="mt-2">
+                        <input
+                          type="number"
+                          value={installmentOptions.find(opt => opt.type === option)?.value || ''}
+                          onChange={(e) => {
+                            const inputValue = e.target.value;
+                            const newValue = inputValue === '' ? 0 : parseFloat(inputValue);
+                            setInstallmentOptions(installmentOptions.map(opt => 
+                              opt.type === option ? { ...opt, value: newValue } : opt
+                            ));
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          placeholder="النسبة المئوية"
+                        />
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
