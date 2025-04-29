@@ -12,7 +12,11 @@ interface Project {
     id: number;
     name: string;
     is_active: boolean;
-    installment_options: string[];
+    installment_options: {
+        ANNUAL?: number;
+        MONTHLY?: number;
+        QUARTERLY?: number;
+    };
     deposit_percentage: number;
     additional_expenses: AdditionalExpense[];
     documents_background?: MediaFile;
@@ -575,13 +579,13 @@ const ReserveUnit = () => {
                     }
 
                     // Select monthly installment by default if available
-                    if (project?.installment_options?.includes('MONTHLY')) {
+                    if (project?.installment_options?.MONTHLY) {
                         initialDetails.selected_installment_types = ['MONTHLY'];
                         initialDetails.installment_details = {
                             'MONTHLY': {
                                 type: 'MONTHLY',
-                                count: 1,
-                                amount: 0
+                                count: null,
+                                amount: null
                             }
                         };
                     }
@@ -597,9 +601,12 @@ const ReserveUnit = () => {
         if (selectedProject) {
             const project = projects.find(p => p.id === selectedProject);
             if (project) {
-                setAvailableInstallmentTypes(project.installment_options);
+                // Convert installment options object keys to array
+                const installmentTypes = Object.keys(project.installment_options || {});
+                setAvailableInstallmentTypes(installmentTypes);
+                
                 // Select monthly installment by default if available
-                if (project?.installment_options?.includes('MONTHLY')) {
+                if (project.installment_options?.MONTHLY) {
                     setUnitDetails(prev => ({
                         ...prev,
                         selected_installment_types: ['MONTHLY'],
@@ -1256,7 +1263,7 @@ const ReserveUnit = () => {
                                         {/* Payment Summary Card */}
                                         <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
                                             <h3 className="text-lg font-medium text-gray-800 mb-4">ملخص الدفع</h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <div className="bg-white rounded-md p-4 shadow-sm">
                                                     <label className="block text-sm font-medium text-gray-700 mb-2">دفعة الحجز *</label>
                                                     <div className="relative rounded-md shadow-sm">
@@ -1295,20 +1302,6 @@ const ReserveUnit = () => {
                                                     )}
                                                 </div>
 
-                                                <div className="bg-white rounded-md p-4 shadow-sm">
-                                                    <label className="block text-sm font-medium text-gray-700 mb-2">المبلغ المتبقي</label>
-                                                    <div className="relative rounded-md shadow-sm">
-                                                        <input
-                                                            type="number"
-                                                            value={(unitDetails.final_price - (unitDetails.down_payment || 0)) || ''}
-                                                            disabled
-                                                            className="block w-full pr-12 py-2.5 sm:text-sm border border-gray-300 rounded-md bg-gray-50"
-                                                        />
-                                                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                                            <span className="text-gray-500 sm:text-sm">جنيه</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
                                             </div>
                                         </div>
 
