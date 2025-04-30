@@ -109,6 +109,17 @@ const INSTALLMENT_TYPE_TRANSLATIONS: Record<string, string> = {
     'ANNUAL': 'سنوي'
 };
 
+// Add these utility functions after the interfaces
+const formatNumber = (value: number | null): string => {
+    if (value === null) return '';
+    return value.toLocaleString('en-US');
+};
+
+const parseFormattedNumber = (value: string): number | null => {
+    if (!value) return null;
+    return parseFloat(value.replace(/,/g, ''));
+};
+
 const ReserveUnit = () => {
     // State for projects, buildings, and units
     const [projects, setProjects] = useState<Project[]>([]);
@@ -300,7 +311,7 @@ const ReserveUnit = () => {
 
     const handleUnitDetailChange = (e: React.ChangeEvent<HTMLInputElement>, key: string) => {
         const { value } = e.target;
-        const numValue = value === '' ? null : Number(value);
+        const numValue = parseFormattedNumber(value);
         if (numValue !== null && numValue < 0) return;
 
         setUnitDetails(prev => ({
@@ -781,7 +792,7 @@ const ReserveUnit = () => {
 
     // Update handleInstallmentDetailChange function
     const handleInstallmentDetailChange = (type: string, field: 'count' | 'amount', value: string) => {
-        const numValue = value === '' ? null : Number(value);
+        const numValue = parseFormattedNumber(value);
         if (numValue !== null && numValue < 0) return;
 
         setUnitDetails(prev => ({
@@ -1268,8 +1279,8 @@ const ReserveUnit = () => {
                                                     <label className="block text-sm font-medium text-gray-700 mb-2">دفعة الحجز *</label>
                                                     <div className="relative rounded-md shadow-sm">
                                                         <input
-                                                            type="number"
-                                                            value={unitDetails.reservation_deposit === null ? '' : unitDetails.reservation_deposit}
+                                                            type="text"
+                                                            value={formatNumber(unitDetails.reservation_deposit)}
                                                             onChange={(e) => handleUnitDetailChange(e, 'reservation_deposit')}
                                                             className={`block w-full pr-12 py-2.5 sm:text-sm border ${errors.reservation_deposit ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-blue-500 focus:border-blue-500`}
                                                             placeholder="أدخل قيمة دفعة الحجز"
@@ -1287,8 +1298,8 @@ const ReserveUnit = () => {
                                                     <label className="block text-sm font-medium text-gray-700 mb-2">الدفعة المقدمة *</label>
                                                     <div className="relative rounded-md shadow-sm">
                                                         <input
-                                                            type="number"
-                                                            value={unitDetails.down_payment === null ? '' : unitDetails.down_payment}
+                                                            type="text"
+                                                            value={formatNumber(unitDetails.down_payment)}
                                                             onChange={(e) => handleUnitDetailChange(e, 'down_payment')}
                                                             className={`block w-full pr-12 py-2.5 sm:text-sm border ${errors.down_payment ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-blue-500 focus:border-blue-500`}
                                                             placeholder="أدخل قيمة الدفعة المقدمة"
@@ -1342,8 +1353,8 @@ const ReserveUnit = () => {
                                                                             عدد الأقساط
                                                                         </label>
                                                                         <input
-                                                                            type="number"
-                                                                            value={unitDetails.installment_details[type]?.count === null ? '' : unitDetails.installment_details[type]?.count}
+                                                                            type="text"
+                                                                            value={formatNumber(unitDetails.installment_details[type]?.count)}
                                                                             onChange={(e) => handleInstallmentDetailChange(type, 'count', e.target.value)}
                                                                             className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                                                             placeholder="عدد الأقساط"
@@ -1355,8 +1366,8 @@ const ReserveUnit = () => {
                                                                         </label>
                                                                         <div className="relative">
                                                                             <input
-                                                                                type="number"
-                                                                                value={unitDetails.installment_details[type]?.amount === null ? '' : unitDetails.installment_details[type]?.amount}
+                                                                                type="text"
+                                                                                value={formatNumber(unitDetails.installment_details[type]?.amount)}
                                                                                 onChange={(e) => handleInstallmentDetailChange(type, 'amount', e.target.value)}
                                                                                 className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                                                                 placeholder="قيمة القسط"
@@ -1379,8 +1390,8 @@ const ReserveUnit = () => {
                                                     <label className="block text-sm font-medium text-gray-700 mb-2">المبلغ الإجمالي بعد التقسيط</label>
                                                     <div className="relative rounded-md shadow-sm">
                                                         <input
-                                                            type="number"
-                                                            value={calculateTotalAmount() || ''}
+                                                            type="text"
+                                                            value={formatNumber(calculateTotalAmount())}
                                                             disabled
                                                             className="block w-full pr-12 py-2.5 sm:text-sm border border-gray-300 rounded-md bg-gray-50"
                                                         />
@@ -1403,10 +1414,10 @@ const ReserveUnit = () => {
                                                                 <label className="block text-sm font-medium text-gray-700 mb-2">{expense.name}</label>
                                                                 <div className="relative rounded-md shadow-sm">
                                                                     <input
-                                                                        type="number"
-                                                                        value={expense.type === 'fixed'
-                                                                            ? expense.value
-                                                                            : (unitDetails.price * expense.value) / 100}
+                                                                        type="text"
+                                                                        value={expense.type == 'FIXED_VALUE' ?
+                                                                        formatNumber(parseInt(expense.value))
+                                                                        : formatNumber(unitDetails.price * parseInt(expense.value) / 100)}
                                                                         disabled
                                                                         className="block w-full pr-12 py-2.5 sm:text-sm border border-gray-300 rounded-md bg-gray-50"
                                                                     />
