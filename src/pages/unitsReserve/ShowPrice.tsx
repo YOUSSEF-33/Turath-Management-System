@@ -527,7 +527,7 @@ const ShowPrice = () => {
         });
 
         return {
-          ...prev,
+      ...prev,
           installments: filteredInstallments,
           finalPrice: formatNumber(totalAmount)
         };
@@ -766,6 +766,130 @@ const ShowPrice = () => {
         finalPrice: formatNumber(totalAmount)
       }));
     }
+  };
+
+  // Handle quarterly installment amount change
+  const handleQuarterlyInstallmentChange = (value: string) => {
+    // If empty, set to zero
+    if (!value) {
+      const updatedConfig = {
+        ...installmentConfig,
+        quarterly: { ...installmentConfig.quarterly, amount: 0 }
+      };
+      setInstallmentConfig(updatedConfig);
+      
+      // Recalculate final price
+      recalculateWithNewInstallmentAmount('quarterly', 0);
+      return;
+    }
+
+    // Remove any non-numeric characters except decimal point
+    const numericValue = value.replace(/[^\d.]/g, '');
+    const amount = parseFloat(numericValue) || 0;
+    
+    // Update the config
+    const updatedConfig = {
+      ...installmentConfig,
+      quarterly: { ...installmentConfig.quarterly, amount }
+    };
+    setInstallmentConfig(updatedConfig);
+
+    // Recalculate everything with the new quarterly amount
+    recalculateWithNewInstallmentAmount('quarterly', amount);
+  };
+
+  // Update annual installment handler to use the generic recalculation function
+  const handleAnnualInstallmentChange = (value: string) => {
+    if (!value) {
+      const updatedConfig = {
+        ...installmentConfig,
+        annual: { ...installmentConfig.annual, amount: 0 }
+      };
+      setInstallmentConfig(updatedConfig);
+      
+      recalculateWithNewInstallmentAmount('annual', 0);
+      return;
+    }
+
+    const numericValue = value.replace(/[^\d.]/g, '');
+    const amount = parseFloat(numericValue) || 0;
+    
+    const updatedConfig = {
+      ...installmentConfig,
+      annual: { ...installmentConfig.annual, amount }
+    };
+    setInstallmentConfig(updatedConfig);
+
+    recalculateWithNewInstallmentAmount('annual', amount);
+  };
+
+  // Generic recalculation function for both annual and quarterly changes
+  const recalculateWithNewInstallmentAmount = (type: 'annual' | 'quarterly', newAmount: number) => {
+    if (!selectedUnit || !selectedProject) return;
+
+    const project = projects.find(p => p.id === selectedProject);
+    if (!project) return;
+
+    const downPayment = parseFloat(unitDetails.downPayment.replace(/,/g, '')) || 0;
+    const originalPrice = parseFloat(unitDetails.price.replace(/,/g, '')) || 0;
+    const depositPercentage = (downPayment / originalPrice) * 100;
+    const total_months = parseInt(unitDetails.totalInstallmentsCount || '1', 10) || 1;
+
+    // Keep existing counts and amounts, update only the changed type
+    const annualDetails = {
+      count: installmentConfig.annual.count,
+      amount: type === 'annual' ? newAmount : installmentConfig.annual.amount
+    };
+
+    const quarterlyDetails = {
+      count: installmentConfig.quarterly.count,
+      amount: type === 'quarterly' ? newAmount : installmentConfig.quarterly.amount
+    };
+
+    // Recalculate monthly with the updated values
+    const monthlyDetails = calculateMonthlyInstallment(
+      originalPrice,
+      depositPercentage,
+      project.cash_factor || 1,
+      project.reduction_factor || 1,
+      total_months,
+      annualDetails.count,
+      annualDetails.amount,
+      quarterlyDetails.count,
+      quarterlyDetails.amount
+    );
+
+    // Calculate total amount
+    const totalAmount = downPayment +
+      (annualDetails.count * annualDetails.amount) +
+      (quarterlyDetails.count * quarterlyDetails.amount) +
+      (monthlyDetails.count * monthlyDetails.amount);
+
+    // Update unit details with new values
+    setUnitDetails(prev => ({
+      ...prev,
+      installments: prev.installments.map(inst => {
+        const instType = inst.type.toLowerCase();
+        const config = {
+          'annual': annualDetails,
+          'quarterly': quarterlyDetails,
+          'monthly': monthlyDetails
+        }[instType];
+        
+        return {
+          ...inst,
+          count: config ? config.count.toString() : '0',
+          amount: config ? formatNumber(config.amount) : '0'
+        };
+      }),
+      finalPrice: formatNumber(totalAmount)
+    }));
+
+    setInstallmentConfig({
+      annual: annualDetails,
+      quarterly: quarterlyDetails,
+      monthly: monthlyDetails
+    });
   };
 
   // Generate PDF function
@@ -1085,8 +1209,15 @@ const ShowPrice = () => {
                             <input
                               type="text"
                               value={formatNumber(installmentConfig[installment.type.toLowerCase()].amount)}
-                              disabled
-                              className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-50 text-gray-700 sm:text-sm"
+                              onChange={installment.type === 'ANNUAL' 
+                                ? (e) => handleAnnualInstallmentChange(e.target.value)
+                                : installment.type === 'QUARTERLY'
+                                ? (e) => handleQuarterlyInstallmentChange(e.target.value)
+                                : undefined}
+                              disabled={installment.type !== 'ANNUAL' && installment.type !== 'QUARTERLY'}
+                              className={`block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 ${
+                                installment.type === 'ANNUAL' || installment.type === 'QUARTERLY' ? 'bg-white' : 'bg-gray-50'
+                              } text-gray-700 sm:text-sm`}
                             />
                           </div>
                         </div>

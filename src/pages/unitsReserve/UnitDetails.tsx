@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axiosInstance from '../../axiosInstance';
-import { Modal, Input, Button, message, Spin, Card, Tag, Descriptions, Empty, Tabs, Typography, Statistic, Badge } from 'antd';
+import { Modal, Input, Button, message, Spin, Card, Tag, Descriptions, Empty } from 'antd';
 import GenericTable from '../../components/GenericTable';
 import { usePermissionsContext } from '../../context/PermissionsContext';
 import MediaViewer from '../../components/MediaViewer';
-import { Check, X, Printer, RefreshCw, Download, FileText, Image as ImageIcon, File, ExternalLink, Calendar, CreditCard, Building, User, Phone, Mail, MapPin, Clock, Edit3 } from 'lucide-react';
+import { Check, X, Printer, RefreshCw } from 'lucide-react';
 import { isImageFile } from '../../utils/mediaUtils';
 
 interface ImageData {
@@ -22,6 +22,8 @@ interface ClientData {
   phone: string;
   address: string;
   nationalId: string;
+  job: string;
+  nationality: string;
 }
 
 interface UnitData {
@@ -181,14 +183,14 @@ const ReservationDetails = () => {
     {
       key: 'role',
       header: 'الدور',
-      render: (value: unknown, row: Record<string, unknown>) => 
+      render: (_, row: Record<string, unknown>) => 
         (row.role as { display_name?: string; name?: string })?.display_name || 
         (row.role as { display_name?: string; name?: string })?.name || '-',
     },
     {
       key: 'status',
       header: 'الحالة',
-      render: (value: unknown, row: Record<string, unknown>) => {
+      render: (_, row: Record<string, unknown>) => {
         const status = row.status as string;
         let color = '';
         let icon = null;
@@ -209,7 +211,7 @@ const ReservationDetails = () => {
     {
       key: 'rejection_reason',
       header: 'سبب الرفض',
-      render: (value: unknown, row: Record<string, unknown>) => {
+      render: (_, row: Record<string, unknown>) => {
         const reason = row.rejection_reason as string;
         return reason ? (
           <div className="text-red-600">{reason}</div>
@@ -294,7 +296,9 @@ const ReservationDetails = () => {
               <Descriptions.Item label="البريد الإلكتروني">{reservation.client.email || '-'}</Descriptions.Item>
               <Descriptions.Item label="رقم الهاتف">{reservation.client.phone || '-'}</Descriptions.Item>
               <Descriptions.Item label="العنوان">{reservation.client.address || '-'}</Descriptions.Item>
-              <Descriptions.Item label="رقم البطاقة" span={2}>{reservation.client.nationalId || '-'}</Descriptions.Item>
+              <Descriptions.Item label="رقم البطاقة">{reservation.client.nationalId || '-'}</Descriptions.Item>
+              <Descriptions.Item label="الوظيفة">{reservation.client.job || '-'}</Descriptions.Item>
+              <Descriptions.Item label="الجنسية" span={2}>{reservation.client.nationality || '-'}</Descriptions.Item>
             </Descriptions>
           </Card>
 

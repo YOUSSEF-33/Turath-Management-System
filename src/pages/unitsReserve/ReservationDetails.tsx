@@ -23,6 +23,8 @@ interface ClientData {
   email: string;
   phone: string;
   address: string;
+  job: string;
+  nationality: string;
   nationalId: string;
 }
 
@@ -129,6 +131,7 @@ const ReservationDetails = () => {
     setLoading(true);
     try {
       const reservationResponse = await axiosInstance.get(`/reservations/${id}`);
+
       setReservation(reservationResponse.data.data);
     } catch (err) {
       setError('فشل في تحميل البيانات');
@@ -277,14 +280,14 @@ const ReservationDetails = () => {
     {
       key: 'role',
       header: 'الدور',
-      render: (value: unknown, row: Record<string, unknown>) => 
+      render: (_, row: Record<string, unknown>) => 
         (row.role as { readable_name?: string; name?: string })?.readable_name || 
         (row.role as { readable_name?: string; name?: string })?.name || '-',
     },
     {
       key: 'status',
       header: 'الحالة',
-      render: (value: unknown, row: Record<string, unknown>) => {
+      render: (_, row: Record<string, unknown>) => {
         const status = row.status as string;
         let color = '';
         let icon = null;
@@ -305,7 +308,7 @@ const ReservationDetails = () => {
     {
       key: 'user',
       header: 'تم بواسطة',
-      render: (value: unknown, row: Record<string, unknown>) => {
+      render: (_, row: Record<string, unknown>) => {
         const user = row.user as { email?: string; first_name?: string; last_name?: string } | null;
         if (!user) return '-';
         return (
@@ -319,7 +322,7 @@ const ReservationDetails = () => {
     {
       key: 'action_at',
       header: 'تاريخ الإجراء',
-      render: (value: unknown, row: Record<string, unknown>) => {
+      render: (_, row: Record<string, unknown>) => {
         const actionAt = row.action_at as string;
         return actionAt ? new Date(actionAt).toLocaleString('ar-EG', {
           year: 'numeric',
@@ -334,7 +337,7 @@ const ReservationDetails = () => {
     {
       key: 'rejection_reason',
       header: 'سبب الرفض',
-      render: (value: unknown, row: Record<string, unknown>) => {
+      render: (_, row: Record<string, unknown>) => {
         const reason = row.rejection_reason as string;
         return reason ? (
           <div className="text-red-600">{reason}</div>
@@ -565,10 +568,20 @@ const ReservationDetails = () => {
                     <Text strong className="ml-3 mr-2 w-24 text-gray-700">العنوان:</Text>
                     <Text>{reservation.client.address || '-'}</Text>
                   </div>
-                  <div className="flex items-center pt-1">
+                  <div className="flex items-center border-b pb-2 pt-1">
                     <Edit3 size={14} className="text-gray-600 mr-3" />
                     <Text strong className="ml-3 mr-2 w-24 text-gray-700">رقم البطاقة:</Text>
                     <Text>{reservation.client.nationalId || '-'}</Text>
+                  </div>
+                  <div className="flex items-center border-b pb-2 pt-1">
+                    <User size={14} className="text-gray-600 mr-3" />
+                    <Text strong className="ml-3 mr-2 w-24 text-gray-700">الوظيفة:</Text>
+                    <Text>{reservation.client.job || '-'}</Text>
+                  </div>
+                  <div className="flex items-center pt-1">
+                    <User size={14} className="text-gray-600 mr-3" />
+                    <Text strong className="ml-3 mr-2 w-24 text-gray-700">الجنسية:</Text>
+                    <Text>{reservation.client.nationality || '-'}</Text>
                   </div>
                 </div>
               </Card>

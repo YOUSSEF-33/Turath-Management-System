@@ -62,6 +62,8 @@ interface ClientData {
     nationalId: string;
     address: string;
     email: string;
+    job: string;
+    nationality: string;
 }
 
 interface ReservationDates {
@@ -140,6 +142,8 @@ const ReserveUnit = () => {
         nationalId: "",
         address: "",
         email: "",
+        job: "",
+        nationality: "",
     });
 
     const [reservationDates, setReservationDates] = useState<ReservationDates>({
@@ -252,6 +256,8 @@ const ReserveUnit = () => {
         if (clientData.email && !validateInput(clientData.email, 'email')) {
             errors.email = 'الرجاء إدخال بريد إلكتروني صحيح';
         }
+        if (!clientData.job) errors.job = 'الرجاء إدخال الوظيفة';
+        if (!clientData.nationality) errors.nationality = 'الرجاء إدخال الجنسية';
 
         // Validate media uploads
         if (attachments.national_id_images.length === 0) {
@@ -655,12 +661,15 @@ const ReserveUnit = () => {
 
         try {
             const formData = new FormData();
+           
 
             formData.append('client[name]', clientData.name);
             formData.append('client[phone]', clientData.phone);
             formData.append('client[national_id]', clientData.nationalId);
             formData.append('client[address]', clientData.address);
             formData.append('client[email]', clientData.email);
+            formData.append('client[job]', clientData.job);
+            formData.append('client[nationality]', clientData.nationality);
 
             // Append reservation dates
             formData.append('reservation_date', reservationDates.reservation_date);
@@ -700,7 +709,9 @@ const ReserveUnit = () => {
                     phone: clientData.phone,
                     national_id: clientData.nationalId,
                     address: clientData.address,
-                    email: clientData.email
+                    email: clientData.email,
+                    job: clientData.job,
+                    nationality: clientData.nationality
                 },
                 reservationDates,
                 selectedUnit,
@@ -1046,6 +1057,34 @@ const ReserveUnit = () => {
                                                 id="address"
                                             />
                                             {errors.address && <p className="mt-1 text-sm text-red-600">{errors.address}</p>}
+                                        </div>
+
+                                        {/* Job */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">الوظيفة *</label>
+                                            <input
+                                                type="text"
+                                                value={clientData.job}
+                                                onChange={(e) => handleInputChange(e, "job", "text")}
+                                                className={`block w-full border ${errors.job ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                                                placeholder="أدخل الوظيفة"
+                                                id="job"
+                                            />
+                                            {errors.job && <p className="mt-1 text-sm text-red-600">{errors.job}</p>}
+                                        </div>
+
+                                        {/* Nationality */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">الجنسية *</label>
+                                            <input
+                                                type="text"
+                                                value={clientData.nationality}
+                                                onChange={(e) => handleInputChange(e, "nationality", "text")}
+                                                className={`block w-full border ${errors.nationality ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                                                placeholder="أدخل الجنسية"
+                                                id="nationality"
+                                            />
+                                            {errors.nationality && <p className="mt-1 text-sm text-red-600">{errors.nationality}</p>}
                                         </div>
 
                                         {/* Email */}
@@ -1415,9 +1454,10 @@ const ReserveUnit = () => {
                                                                 <div className="relative rounded-md shadow-sm">
                                                                     <input
                                                                         type="text"
-                                                                        value={expense.type == 'FIXED_VALUE' ?
-                                                                        formatNumber(parseInt(expense.value))
-                                                                        : formatNumber(unitDetails.price * parseInt(expense.value) / 100)}
+                                                                        value={expense.type === 'fixed' ?
+                                                                            formatNumber(expense.value) :
+                                                                            formatNumber((unitDetails.price * expense.value) / 100)
+                                                                        }
                                                                         disabled
                                                                         className="block w-full pr-12 py-2.5 sm:text-sm border border-gray-300 rounded-md bg-gray-50"
                                                                     />
