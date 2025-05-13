@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../axiosInstance';
-import { Modal, Input, Button, message, Spin, Card, Tag, Empty, Tabs, Typography, Statistic, Badge } from 'antd';
+import { Modal, Input, Button, message, Spin, Card, Tag, Empty, Tabs, Typography, Statistic, Badge, List } from 'antd';
 import GenericTable from '../../components/GenericTable';
 import { usePermissionsContext } from '../../context/PermissionsContext';
 import { Check, X, Printer, RefreshCw, Download, FileText, Image as ImageIcon, File, ExternalLink, Calendar, CreditCard, Building, User, Phone, Mail, MapPin, Edit3, Home, Trash2 } from 'lucide-react';
@@ -42,6 +42,7 @@ interface UnitData {
     name?: string;
     project?: {
       name?: string;
+      contracts?: ContractData[];
     };
   };
 }
@@ -93,6 +94,13 @@ interface Column {
   render?: (value: unknown, row: Record<string, unknown>) => React.ReactNode;
 }
 
+interface ContractData {
+  id: number;
+  name: string;
+  url: string;
+  created_at?: string;
+}
+
 const INSTALLMENT_TYPE_TRANSLATIONS: Record<string, string> = {
   'MONTHLY': 'شهري',
   'QUARTERLY': 'ربع سنوي',
@@ -127,6 +135,9 @@ const ReservationDetails = () => {
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const [isContractsModalVisible, setIsContractsModalVisible] = useState(false);
+  const [contractLoading, setContractLoading] = useState<{ [key: number]: boolean }>({});
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -140,6 +151,8 @@ const ReservationDetails = () => {
       setLoading(false);
     }
   };
+
+  console.log(reservation)
 
   useEffect(() => {
     fetchData();
@@ -376,6 +389,163 @@ const ReservationDetails = () => {
     }
   };
 
+  const handleContractDownload = async (contractId: number, fileName: string) => {
+    try {
+      if (contractLoading[contractId]) return; // Prevent multiple clicks
+      
+      setContractLoading(prev => ({ ...prev, [contractId]: true }));
+      const response = await axiosInstance.get(`/reservations/${id}/contract/${contractId}`, {
+        responseType: 'blob'
+      });
+      
+      // Create a blob URL and trigger download
+      const blob = new Blob([response.data]);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      message.success('تم تحميل العقد بنجاح');
+    } catch (error) {
+      console.error('Error downloading contract:', error);
+      message.error('حدث خطأ أثناء تحميل العقد');
+    } finally {
+      setContractLoading(prev => ({ ...prev, [contractId]: false }));
+    }
+  };
+
+  const renderUnitInformation = () => (
+    <Card 
+      size="small"
+      title={
+        <div className="flex items-center">
+          <Building size={16} className="mr-3 text-blue-500/70" />
+          <span className="text-sm mr-1">بيانات الوحدة</span>
+        </div>
+      } 
+      className="mb-4 shadow-sm hover:shadow-md transition-shadow"
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="flex items-center border-b pb-2 pt-1">
+          <Text strong className="ml-2 mr-2 text-gray-700">المشروع:</Text>
+          <Text>{reservation?.unit?.building?.project?.name || '-'}</Text>
+        </div>
+        <div className="flex items-center border-b pb-2 pt-1">
+          <Text strong className="ml-2 mr-2 text-gray-700">المبنى:</Text>
+          <Text>{reservation?.unit?.building?.name || '-'}</Text>
+        </div>
+        <div className="flex items-center border-b pb-2 pt-1">
+          <Text strong className="ml-2 mr-2 text-gray-700">رقم الوحدة:</Text>
+          <Text>{reservation?.unit?.unit_number || '-'}</Text>
+        </div>
+        <div className="flex items-center border-b pb-2 pt-1">
+          <Text strong className="ml-2 mr-2 text-gray-700">النوع:</Text>
+          <Text>{reservation?.unit?.unit_type || '-'}</Text>
+        </div>
+        <div className="flex items-center border-b pb-2 pt-1">
+          <Text strong className="ml-2 mr-2 text-gray-700">المساحة:</Text>
+          <Text>{reservation?.unit?.area ? `${reservation.unit.area} متر مربع` : '-'}</Text>
+        </div>
+        <div className="flex items-center border-b pb-2 pt-1">
+          <Text strong className="ml-2 mr-2 text-gray-700">عدد الغرف:</Text>
+          <Text>{reservation?.unit?.bedrooms || '-'}</Text>
+        </div>
+        <div className="flex items-center border-b pb-2 pt-1">
+          <Text strong className="ml-2 mr-2 text-gray-700">عدد الحمامات:</Text>
+          <Text>{reservation?.unit?.bathrooms || '-'}</Text>
+        </div>
+        <div className="flex items-center">
+          <Text strong className="ml-2 mr-2 text-gray-700">الحالة:</Text>
+          <Tag color={reservation?.unit?.status === 'متاح' ? 'green' : 'red'} style={{ padding: '0px 6px' }}>
+            {reservation?.unit?.status || '-'}
+          </Tag>
+        </div>
+      </div>
+    </Card>
+  );
+
+  const removeFileExtension = (filename: string): string => {
+    return filename.replace(/\.[^/.]+$/, '');
+  };
+
+  const renderContractsModal = () => (
+    <Modal
+      title={
+        <div className="flex items-center space-x-2 space-x-reverse">
+          <FileText size={18} className="text-blue-500/70" />
+          <span className="font-medium"> نسخ العقود المتاحة</span>
+          {reservation?.unit?.building?.project?.name && (
+            <Tag color="blue" className="mr-2">
+              {reservation.unit.building.project.name}
+            </Tag>
+          )}
+        </div>
+      }
+      visible={isContractsModalVisible}
+      onCancel={() => setIsContractsModalVisible(false)}
+      footer={null}
+      width={600}
+      bodyStyle={{ padding: '16px' }}
+    >
+      {reservation?.unit?.building?.project?.contracts && 
+       reservation.unit.building.project.contracts.length > 0 ? (
+        <List
+          itemLayout="horizontal"
+          dataSource={reservation.unit.building.project.contracts}
+          className="contracts-list space-y-2"
+          renderItem={(contract: ContractData) => (
+            <List.Item
+              key={contract.id}
+              className="rounded-lg border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all duration-300 hover:border-blue-200 overflow-hidden group !p-0"
+            >
+              <div className="flex items-center w-full relative">
+                <div className="absolute top-0 left-0 w-1 h-full bg-blue-500/30 group-hover:bg-blue-500/70 transition-colors duration-300" />
+                <div className="flex-shrink-0 p-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors duration-300">
+                    <FileText size={20} className="text-blue-500/70 group-hover:text-blue-600 transition-colors duration-300" />
+                  </div>
+                </div>
+                <div className="flex-grow py-3 px-2">
+                  <div className="flex items-center">
+                    <span className="text-gray-800 text-sm font-medium group-hover:text-blue-600 transition-colors duration-300">
+                      {removeFileExtension(contract.name)}
+                    </span>
+                    {contractLoading[contract.id] && (
+                      <Spin size="small" className="ml-2" />
+                    )}
+                  </div>
+                  {contract.created_at && (
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      تم الإضافة: {new Date(contract.created_at).toLocaleDateString('ar-EG')}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 p-2">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<Download size={16} />}
+                    onClick={() => handleContractDownload(contract.id, contract.name)}
+                    loading={contractLoading[contract.id]}
+                    className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 !px-2"
+                  >
+                    تحميل
+                  </Button>
+                </div>
+              </div>
+            </List.Item>
+          )}
+        />
+      ) : (
+        <Empty description="لا توجد عقود متاحة" />
+      )}
+    </Modal>
+  );
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[500px]">
@@ -440,42 +610,45 @@ const ReservationDetails = () => {
   })).filter(item => item.count > 0);
 
   return (
-    <div className="p-4 bg-gray-50/50 rounded-lg max-w-7xl mx-auto">
+    <div className="p-2 sm:p-4 bg-gray-50/50 rounded-lg max-w-7xl mx-auto">
       {/* Header & Actions */}
-      <Card className="mb-6 shadow-sm border-t-4 border-t-blue-500/70">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center">
-          <div className="flex items-center mb-4 md:mb-0">
+      <Card className="mb-4 sm:mb-6 shadow-sm border-t-4 border-t-blue-500/70">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+          <div className="flex items-start md:items-center">
             <div>
-              <Title level={4} className="!mb-0">تفاصيل الحجز <span className="text-blue-500/80 mr-2">#{reservation.id}</span></Title>
-              <div className="flex items-center mt-2">
-                <Calendar size={16} className="text-blue-500/70 mr-3" />
-                <Text strong className="mr-2 mx-3" style={{ fontSize: '14px' }}>تاريخ الحجز:</Text>
-                <Text style={{ fontSize: '16px' }}>{new Date(reservation.contract_date).toLocaleDateString('ar-EG')}</Text>
-                <Tag className="mr-4 ml-4" color={reservationStatusColor} style={{ fontSize: '13px', padding: '1px 8px' }}>{reservation.status}</Tag>
+              <Title level={4} className="!mb-0 text-lg sm:text-xl">تفاصيل الحجز <span className="text-blue-500/80 mr-2">#{reservation.id}</span></Title>
+              <div className="flex flex-col sm:flex-row sm:items-center mt-2 gap-2">
+                <div className="flex items-center">
+                  <Calendar size={16} className="text-blue-500/70 ml-2" />
+                  <Text strong className="ml-2" style={{ fontSize: '14px' }}>تاريخ الحجز:</Text>
+                  <Text style={{ fontSize: '14px' }}>{new Date(reservation.contract_date).toLocaleDateString('ar-EG')}</Text>
+                </div>
+                <Tag className="self-start sm:self-auto sm:mr-4" color={reservationStatusColor} style={{ fontSize: '13px', padding: '1px 8px' }}>
+                  {reservation.status}
+                </Tag>
               </div>
             </div>
           </div>
-          <div className="flex space-x-2 space-x-reverse">
+          <div className="flex flex-wrap gap-2">
             <Button
               onClick={() => navigate(`/reservations/${id}/installments-breakdown`)}
-              icon={<CreditCard size={16} className="mr-3" />}
+              icon={<CreditCard size={16} className="mr-2" />}
               size="middle"
-              className="ml-2 bg-purple-500 hover:bg-purple-600 text-white"
+              className="flex-1 sm:flex-none bg-purple-500 hover:bg-purple-600 text-white"
             >
               جدول الأقساط
             </Button>
             {hasPermission('view_reservations') && (
               <Button 
                 type="primary"
-                icon={<Printer size={16} className="mr-3" />} 
+                icon={<Printer size={16} className="mr-2" />} 
                 onClick={handlePrintPDF}
                 size="middle"
-                className="bg-blue-500 hover:bg-blue-600"
+                className="flex-1 sm:flex-none bg-blue-500 hover:bg-blue-600"
                 loading={pdfLoading}
                 disabled={pdfLoading}
               >
-                {pdfLoading ? 'جاري التحميل...' : 'طباعة الاستمارة'
-                }
+                {pdfLoading ? 'جاري التحميل...' : 'طباعة الاستمارة'}
               </Button>
             )}
           </div>
@@ -484,7 +657,7 @@ const ReservationDetails = () => {
 
       {/* Summary Card */}
       <Card 
-        className="mb-6 shadow-sm" 
+        className="mb-4 sm:mb-6 shadow-sm" 
         title={
           <div className="flex items-center">
             <FileText size={18} className="text-blue-500/70 mr-3" strokeWidth={1.5} />
@@ -492,31 +665,31 @@ const ReservationDetails = () => {
           </div>
         }
       >
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Statistic 
-            title={<div className="flex items-center text-sm"><CreditCard size={16} className="mr-3 mx-1 text-blue-500/70" /> <span>السعر النهائي</span></div>}
+            title={<div className="flex items-center text-sm"><CreditCard size={16} className="mr-2 text-blue-500/70" /> <span>السعر النهائي</span></div>}
             value={parseFloat(reservation.final_price.toString())} 
             className="bg-blue-50/50 p-3 rounded-lg hover:bg-blue-50 transition-colors" 
           />
           <Statistic 
-            title={<div className="flex items-center text-sm"><CreditCard size={16} className="mr-3 mx-1 text-emerald-500/70" /> <span>الدفعة المقدمة</span></div>}
+            title={<div className="flex items-center text-sm"><CreditCard size={16} className="mr-2 text-emerald-500/70" /> <span>الدفعة المقدمة</span></div>}
             value={parseFloat(reservation.down_payment.toString())} 
             className="bg-emerald-50/50 p-3 rounded-lg hover:bg-emerald-50 transition-colors" 
           />
           <Statistic 
-            title={<div className="flex items-center text-sm"><CreditCard size={16} className="mr-3 mx-1 text-amber-500/70" /> <span>عربون الحجز</span></div>}
+            title={<div className="flex items-center text-sm"><CreditCard size={16} className="mr-2 text-amber-500/70" /> <span>عربون الحجز</span></div>}
             value={parseFloat(reservation.reservation_deposit.toString())} 
             className="bg-amber-50/50 p-3 rounded-lg hover:bg-amber-50 transition-colors" 
           />
           <Statistic 
-            title={<div className="flex items-center text-sm"><Home size={16} className="mr-3 mx-1 text-purple-500/70" /> <span>رقم الوحدة</span></div>}
+            title={<div className="flex items-center text-sm"><Home size={16} className="mr-2 text-purple-500/70" /> <span>رقم الوحدة</span></div>}
             value={reservation.unit.unit_number} 
             className="bg-purple-50/50 p-3 rounded-lg hover:bg-purple-50 transition-colors" 
           />
         </div>
       </Card>
 
-      {/* Main Content - Tabbed Interface */}
+      {/* Tabs Container */}
       <Tabs 
         activeKey={activeTabKey} 
         onChange={setActiveTabKey}
@@ -534,8 +707,8 @@ const ReservationDetails = () => {
           } 
           key="details"
         >
-          <div className="p-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="p-2 sm:p-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               {/* Client Information */}
               <Card 
                 size="small"
@@ -587,53 +760,7 @@ const ReservationDetails = () => {
               </Card>
 
               {/* Unit Information */}
-              <Card 
-                size="small"
-                title={
-                  <div className="flex items-center">
-                    <Building size={16} className="mr-3 text-blue-500/70" />
-                    <span className="text-sm mr-1">بيانات الوحدة</span>
-                  </div>
-                } 
-                className="mb-4 shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="flex items-center border-b pb-2 pt-1">
-                    <Text strong className="ml-2 mr-2 text-gray-700">المشروع:</Text>
-                    <Text>{reservation.unit.building?.project?.name || '-'}</Text>
-                  </div>
-                  <div className="flex items-center border-b pb-2 pt-1">
-                    <Text strong className="ml-2 mr-2 text-gray-700">المبنى:</Text>
-                    <Text>{reservation.unit.building?.name || '-'}</Text>
-                  </div>
-                  <div className="flex items-center border-b pb-2 pt-1">
-                    <Text strong className="ml-2 mr-2 text-gray-700">رقم الوحدة:</Text>
-                    <Text>{reservation.unit.unit_number || '-'}</Text>
-                  </div>
-                  <div className="flex items-center border-b pb-2 pt-1">
-                    <Text strong className="ml-2 mr-2 text-gray-700">النوع:</Text>
-                    <Text>{reservation.unit.unit_type || '-'}</Text>
-                  </div>
-                  <div className="flex items-center border-b pb-2 pt-1">
-                    <Text strong className="ml-2 mr-2 text-gray-700">المساحة:</Text>
-                    <Text>{reservation.unit.area ? `${reservation.unit.area} متر مربع` : '-'}</Text>
-                  </div>
-                  <div className="flex items-center border-b pb-2 pt-1">
-                    <Text strong className="ml-2 mr-2 text-gray-700">عدد الغرف:</Text>
-                    <Text>{reservation.unit.bedrooms || '-'}</Text>
-                  </div>
-                  <div className="flex items-center border-b pb-2 pt-1">
-                    <Text strong className="ml-2 mr-2 text-gray-700">عدد الحمامات:</Text>
-                    <Text>{reservation.unit.bathrooms || '-'}</Text>
-                  </div>
-                  <div className="flex items-center">
-                    <Text strong className="ml-2 mr-2 text-gray-700">الحالة:</Text>
-                    <Tag color={reservation.unit.status === 'متاح' ? 'green' : 'red'} style={{ padding: '0px 6px' }}>
-                      {reservation.unit.status || '-'}
-                    </Tag>
-                  </div>
-                </div>
-              </Card>
+              {renderUnitInformation()}
 
               {/* Reservation Creator Information */}
               <Card 
@@ -678,84 +805,86 @@ const ReservationDetails = () => {
                   <span className="text-sm mr-1">التفاصيل المالية</span>
                 </div>
               } 
-              className="mb-4 shadow-sm hover:shadow-md transition-shadow"
+              className="mb-4 shadow-sm hover:shadow-md transition-shadow overflow-x-auto"
             >
-              {/* Basic Financial Information */}
-              <div className="mb-6">
-                <Title level={5} className="mb-4 text-gray-700 border-b pb-2">المعلومات الأساسية</Title>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
-                    <Text className="text-gray-600">السعر النهائي:</Text>
-                    <Text  className="text-lg">{formatCurrency(reservation.final_price)}</Text>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
-                    <Text className="text-gray-600">عربون الحجز:</Text>
-                    <Text  className="text-lg">{formatCurrency(reservation.reservation_deposit)}</Text>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
-                    <Text className="text-gray-600">الدفعة المقدمة:</Text>
-                    <Text  className="text-lg">{formatCurrency(reservation.down_payment)}</Text>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
-                    <Text className="text-gray-600">تاريخ التعاقد:</Text>
-                    <Text style={{ fontSize: '16px' }} >{new Date(reservation.contract_date).toLocaleDateString('ar-EG')}</Text>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Installment Details */}
-              {reservation.installments_details && reservation.installments_details.length > 0 && (
+              <div className="min-w-[600px] lg:min-w-0">
+                {/* Basic Financial Information */}
                 <div className="mb-6">
-                  <Title level={5} className="mb-4 text-gray-700 border-b pb-2">تفاصيل التقسيط</Title>
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="bg-gray-100">
-                          <th className="p-3 text-right border border-gray-200">نوع التقسيط</th>
-                          <th className="p-3 text-right border border-gray-200">عدد الأقساط</th>
-                          <th className="p-3 text-right border border-gray-200">قيمة القسط</th>
-                          <th className="p-3 text-right border border-gray-200">إجمالي التقسيط</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {reservation.installments_details.map((installment, index) => (
-                          <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="p-3 border border-gray-200">{INSTALLMENT_TYPE_TRANSLATIONS[installment.type] || installment.type}</td>
-                            <td className="p-3 border border-gray-200 text-center">{installment.count}</td>
-                            <td className="p-3 border border-gray-200 text-left">{formatCurrency(installment.amount)}</td>
-                            <td className="p-3 border border-gray-200 text-left">{formatCurrency(installment.amount * installment.count)}</td>
+                  <Title level={5} className="mb-4 text-gray-700 border-b pb-2">المعلومات الأساسية</Title>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
+                      <Text className="text-gray-600">السعر النهائي:</Text>
+                      <Text  className="text-lg">{formatCurrency(reservation.final_price)}</Text>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
+                      <Text className="text-gray-600">عربون الحجز:</Text>
+                      <Text  className="text-lg">{formatCurrency(reservation.reservation_deposit)}</Text>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
+                      <Text className="text-gray-600">الدفعة المقدمة:</Text>
+                      <Text  className="text-lg">{formatCurrency(reservation.down_payment)}</Text>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
+                      <Text className="text-gray-600">تاريخ التعاقد:</Text>
+                      <Text style={{ fontSize: '16px' }} >{new Date(reservation.contract_date).toLocaleDateString('ar-EG')}</Text>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Installment Details */}
+                {reservation.installments_details && reservation.installments_details.length > 0 && (
+                  <div className="mb-6">
+                    <Title level={5} className="mb-4 text-gray-700 border-b pb-2">تفاصيل التقسيط</Title>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            <th className="p-3 text-right border border-gray-200">نوع التقسيط</th>
+                            <th className="p-3 text-right border border-gray-200">عدد الأقساط</th>
+                            <th className="p-3 text-right border border-gray-200">قيمة القسط</th>
+                            <th className="p-3 text-right border border-gray-200">إجمالي التقسيط</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {reservation.installments_details.map((installment, index) => (
+                            <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                              <td className="p-3 border border-gray-200">{INSTALLMENT_TYPE_TRANSLATIONS[installment.type] || installment.type}</td>
+                              <td className="p-3 border border-gray-200 text-center">{installment.count}</td>
+                              <td className="p-3 border border-gray-200 text-left">{formatCurrency(installment.amount)}</td>
+                              <td className="p-3 border border-gray-200 text-left">{formatCurrency(installment.amount * installment.count)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              )}
-              
-              {/* Additional Expenses */}
-              {reservation.unit.price && reservation.final_price > reservation.unit.price && (
-                <div>
-                  <Title level={5} className="mb-4 text-gray-700 border-b pb-2">المصروفات الإضافية</Title>
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <tbody>
-                        <tr className="bg-white">
-                          <td className="p-3 border border-gray-200 text-right">سعر الوحدة الأساسي:</td>
-                          <td className="p-3 border border-gray-200 text-left">{formatCurrency(reservation.unit.price)}</td>
-                        </tr>
-                        <tr className="bg-gray-50">
-                          <td className="p-3 border border-gray-200 text-right">المصروفات الإضافية:</td>
-                          <td className="p-3 border border-gray-200 text-left">{formatCurrency(reservation.final_price - reservation.unit.price)}</td>
-                        </tr>
-                        <tr className="bg-white">
-                          <td className="p-3 border border-gray-200 text-right font-medium">السعر النهائي:</td>
-                          <td className="p-3 border border-gray-200 text-left font-medium">{formatCurrency(reservation.final_price)}</td>
-                        </tr>
-                      </tbody>
-                    </table>
+                )}
+                
+                {/* Additional Expenses */}
+                {reservation.unit.price && reservation.final_price > reservation.unit.price && (
+                  <div>
+                    <Title level={5} className="mb-4 text-gray-700 border-b pb-2">المصروفات الإضافية</Title>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <tbody>
+                          <tr className="bg-white">
+                            <td className="p-3 border border-gray-200 text-right">سعر الوحدة الأساسي:</td>
+                            <td className="p-3 border border-gray-200 text-left">{formatCurrency(reservation.unit.price)}</td>
+                          </tr>
+                          <tr className="bg-gray-50">
+                            <td className="p-3 border border-gray-200 text-right">المصروفات الإضافية:</td>
+                            <td className="p-3 border border-gray-200 text-left">{formatCurrency(reservation.final_price - reservation.unit.price)}</td>
+                          </tr>
+                          <tr className="bg-white">
+                            <td className="p-3 border border-gray-200 text-right font-medium">السعر النهائي:</td>
+                            <td className="p-3 border border-gray-200 text-left font-medium">{formatCurrency(reservation.final_price)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </Card>
 
             {/* Approvals Section */}
@@ -767,15 +896,17 @@ const ReservationDetails = () => {
                   <span className="text-sm mr-1">الموافقات والتصديقات</span>
                 </div>
               } 
-              className="shadow-sm hover:shadow-md transition-shadow"
+              className="shadow-sm hover:shadow-md transition-shadow overflow-x-auto"
             >
-              <GenericTable
-                data={reservation.approvals}
-                columns={approvalsColumns}
-                loading={loading}
-                noDataMessage="لا توجد موافقات بعد"
-                totalPages={1}
-              />
+              <div className="min-w-[600px] lg:min-w-0">
+                <GenericTable
+                  data={reservation.approvals}
+                  columns={approvalsColumns}
+                  loading={loading}
+                  noDataMessage="لا توجد موافقات بعد"
+                  totalPages={1}
+                />
+              </div>
             </Card>
           </div>
         </TabPane>
@@ -791,35 +922,37 @@ const ReservationDetails = () => {
           } 
           key="attachments"
         >
-          <div className="p-4">
+          <div className="p-2 sm:p-4">
             {/* Filter Pills */}
-            <div className="mb-4 flex flex-wrap gap-2">
-              <Button 
-                type={selectedAttachmentType === null ? "default" : "text"}
-                onClick={() => setSelectedAttachmentType(null)}
-                size="small"
-                className={`rounded-full px-3 ${selectedAttachmentType === null ? "bg-blue-50 text-blue-600 border-blue-200" : ""}`}
-              >
-                الكل ({allAttachments.length})
-              </Button>
-              
-              {attachmentCounts.map(item => (
+            <div className="mb-4 overflow-x-auto">
+              <div className="flex flex-nowrap gap-2 pb-2">
                 <Button 
-                  key={item.type}
-                  type={selectedAttachmentType === item.type ? "default" : "text"}
-                  onClick={() => setSelectedAttachmentType(item.type)}
+                  type={selectedAttachmentType === null ? "default" : "text"}
+                  onClick={() => setSelectedAttachmentType(null)}
                   size="small"
-                  className={`rounded-full px-3 ${selectedAttachmentType === item.type ? "bg-blue-50 text-blue-600 border-blue-200" : ""}`}
+                  className={`rounded-full px-3 ${selectedAttachmentType === null ? "bg-blue-50 text-blue-600 border-blue-200" : ""}`}
                 >
-                  {item.title} ({item.count})
+                  الكل ({allAttachments.length})
                 </Button>
-              ))}
+                
+                {attachmentCounts.map(item => (
+                  <Button 
+                    key={item.type}
+                    type={selectedAttachmentType === item.type ? "default" : "text"}
+                    onClick={() => setSelectedAttachmentType(item.type)}
+                    size="small"
+                    className={`rounded-full px-3 ${selectedAttachmentType === item.type ? "bg-blue-50 text-blue-600 border-blue-200" : ""}`}
+                  >
+                    {item.title} ({item.count})
+                  </Button>
+                ))}
+              </div>
             </div>
             
             {/* Attachments Grid */}
             <Card className="shadow-sm" bodyStyle={{ padding: '16px' }}>
               {filteredAttachments.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {filteredAttachments.map((attachment) => {
                     const isImage = isImageFile(attachment.url);
                     const isPdf = isPdfFile(attachment.url);
@@ -886,198 +1019,229 @@ const ReservationDetails = () => {
                             )}
                             <Button 
                               type="text" 
-                              size="small" 
-                              className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
-                              icon={isImage ? <ImageIcon size={16} /> : <ExternalLink size={16} />}
-                              onClick={() => {
-                                if (isImage) {
-                                  handlePreviewImage(attachment.url, attachment.name || "Image");
-                                } else {
-                                  window.open(attachment.url, '_blank');
-                                }
-                              }}
-                              title={isImage ? "معاينة الصورة" : "فتح في نافذة جديدة"}
-                            />
+                                size="small" 
+                                className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                                icon={isImage ? <ImageIcon size={16} /> : <ExternalLink size={16} />}
+                                onClick={() => {
+                                  if (isImage) {
+                                    handlePreviewImage(attachment.url, attachment.name || "Image");
+                                  } else {
+                                    window.open(attachment.url, '_blank');
+                                  }
+                                }}
+                                title={isImage ? "معاينة الصورة" : "فتح في نافذة جديدة"}
+                              />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <Empty description="لا توجد مرفقات" />
+                )}
+              </Card>
+            </div>
+          </TabPane>
+        </Tabs>
+
+        {/* Actions Section */}
+        {reservation.status !== 'مباعة' && (
+          <div className="mt-4 sm:mt-6 flex flex-col space-y-4">
+            <div className="border-t pt-4">
+              <div className="flex flex-col space-y-3">
+                <div className="flex flex-wrap justify-end gap-2">
+                  {hasPermission('confirm_reservations') && !hasUserRoleApproved() && (
+                    <Button
+                      type="primary"
+                      onClick={() => setIsApproveModalVisible(true)}
+                      icon={<Check size={14} className="mr-3" />}
+                      size="middle"
+                      className="mx-2 bg-emerald-500 hover:bg-emerald-600 border-emerald-500"
+                    >
+                      قبول الحجز
+                    </Button>
+                  )}
+                  {hasPermission('cancel_reservations') && !hasUserRoleRejected() && (
+                    <Button
+                      danger
+                      onClick={() => setIsRejectModalVisible(true)}
+                      icon={<X size={14} className="mr-3" />}
+                      size="middle"
+                      className="mx-2"
+                    >
+                      رفض الحجز
+                    </Button>
+                  )}
+                  {hasPermission('delete_reservations') && (
+                    <Button
+                    color='geekblue'
+                      onClick={() => setIsDeleteModalVisible(true)}
+                      icon={<Trash2 size={14} className="mr-3" />}
+                      size="middle"
+                      className="mx-2"
+                    >
+                      حذف الحجز
+                    </Button>
+                  )}
                 </div>
-              ) : (
-                <Empty description="لا توجد مرفقات" />
-              )}
-            </Card>
-          </div>
-        </TabPane>
-      </Tabs>
-
-      {/* Actions */}
-      {reservation.status !== 'مباعة' && (
-        <div className="flex justify-end mt-4">
-          {hasPermission('confirm_reservations') && !hasUserRoleApproved() && (
-            <Button
-              type="primary"
-              onClick={() => setIsApproveModalVisible(true)}
-              icon={<Check size={14} className="mr-3" />}
-              size="middle"
-              className="mx-2 bg-emerald-500 hover:bg-emerald-600 border-emerald-500"
-            >
-              قبول الحجز
-            </Button>
-          )}
-          {hasPermission('cancel_reservations') && !hasUserRoleRejected() && (
-            <Button
-              danger
-              onClick={() => setIsRejectModalVisible(true)}
-              icon={<X size={14} className="mr-3" />}
-              size="middle"
-              className="mx-2"
-            >
-              رفض الحجز
-            </Button>
-          )}
-          {hasPermission('delete_reservations') && (
-            <Button
-            color='geekblue'
-              onClick={() => setIsDeleteModalVisible(true)}
-              icon={<Trash2 size={14} className="mr-3" />}
-              size="middle"
-            >
-              حذف الحجز
-            </Button>
-          )}
-        </div>
-      )}
-
-      {/* Approve Confirmation Modal */}
-      <Modal
-        title="تأكيد قبول الحجز"
-        visible={isApproveModalVisible}
-        onCancel={() => setIsApproveModalVisible(false)}
-        footer={[
-          <Button key="cancel" onClick={() => setIsApproveModalVisible(false)}>
-            إلغاء
-          </Button>,
-          <Button 
-            key="submit" 
-            type="primary" 
-            onClick={handleAcceptUnit} 
-            loading={approveLoading}
-            className="bg-emerald-500 hover:bg-emerald-600 border-emerald-500"
-          >
-            تأكيد القبول
-          </Button>,
-        ]}
-      >
-        <div className="p-4">
-          <p>هل أنت متأكد من قبول هذا الحجز؟</p>
-          <p className="mt-2 text-gray-600">سيتم إرسال إشعار بقبول الحجز.</p>
-        </div>
-      </Modal>
-
-      {/* Reject Modal */}
-      <Modal
-        title="سبب الرفض"
-        visible={isRejectModalVisible}
-        onCancel={() => setIsRejectModalVisible(false)}
-        footer={[
-          <Button key="cancel" onClick={() => setIsRejectModalVisible(false)}>
-            إلغاء
-          </Button>,
-          <Button 
-            key="submit" 
-            danger 
-            type="primary" 
-            onClick={handleRejectUnit} 
-            loading={rejectLoading}
-          >
-            تأكيد الرفض
-          </Button>,
-        ]}
-      >
-        <div className="p-4">
-          <p className="mb-4">يرجى إدخال سبب رفض الحجز:</p>
-          <Input.TextArea
-            placeholder="أدخل سبب الرفض"
-            value={rejectionReason}
-            onChange={(e) => setRejectionReason(e.target.value)}
-            rows={4}
-          />
-        </div>
-      </Modal>
-
-      {/* Image Preview Modal */}
-      <Modal
-        visible={previewModalVisible}
-        footer={null}
-        onCancel={() => setPreviewModalVisible(false)}
-        width={800}
-        title={previewImage?.title || "معاينة الصورة"}
-      >
-        {previewImage && (
-          <div className="flex flex-col items-center">
-            {previewImage.isPdf ? (
-              <div className="w-full h-[70vh] flex flex-col items-center justify-center">
-                <FileText size={80} className="text-gray-500 mb-4" strokeWidth={1.5} />
-                <Text className="mb-4">لا يمكن عرض الـ PDF هنا. يرجى فتحه في نافذة جديدة</Text>
-                <Button 
-                  type="primary" 
-                  icon={<ExternalLink size={16} />}
-                  onClick={() => window.open(previewImage.url, '_blank')}
-                >
-                  فتح الملف
-                </Button>
-              </div>
-            ) : (
-              <>
-                <img 
-                  src={previewImage.url} 
-                  alt={previewImage.title} 
-                  style={{ maxWidth: '100%', maxHeight: '70vh' }} 
-                />
-                <div className="mt-4">
-                  <Button 
-                    type="primary" 
-                    icon={<Download size={16} />}
-                    onClick={() => handleDownloadAttachment(previewImage.url, previewImage.title || "image")}
+                <div className="flex justify-end border-t pt-3">
+                  <Button
+                    type="primary"
+                    size="middle"
+                    icon={<FileText size={18} className="mr-2" />}
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 border-none shadow-md hover:shadow-lg transition-all duration-300"
+                    onClick={() => setIsContractsModalVisible(true)}
                   >
-                    تحميل الصورة
+                    إنشاء عقد
                   </Button>
                 </div>
-              </>
-            )}
+              </div>
+            </div>
           </div>
         )}
-      </Modal>
 
-      {/* Delete Confirmation Modal */}
-      <Modal
-        title="تأكيد حذف الحجز"
-        visible={isDeleteModalVisible}
-        onCancel={() => setIsDeleteModalVisible(false)}
-        footer={[
-          <Button key="cancel" onClick={() => setIsDeleteModalVisible(false)}>
-            إلغاء
-          </Button>,
-          <Button 
-            key="submit" 
-            danger 
-            type="primary" 
-            onClick={handleDeleteReservation} 
-            loading={deleteLoading}
-          >
-            تأكيد الحذف
-          </Button>,
-        ]}
-      >
-        <div className="p-4">
-          <p>هل أنت متأكد من حذف هذا الحجز؟</p>
-          <p className="mt-2 text-red-600">هذا الإجراء لا يمكن التراجع عنه.</p>
-        </div>
-      </Modal>
-    </div>
-  );
-};
+        {/* Approve Confirmation Modal */}
+        <Modal
+          title="تأكيد قبول الحجز"
+          visible={isApproveModalVisible}
+          onCancel={() => setIsApproveModalVisible(false)}
+          footer={[
+            <Button key="cancel" onClick={() => setIsApproveModalVisible(false)}>
+              إلغاء
+            </Button>,
+            <Button 
+              key="submit" 
+              type="primary" 
+              onClick={handleAcceptUnit} 
+              loading={approveLoading}
+              className="bg-emerald-500 hover:bg-emerald-600 border-emerald-500"
+            >
+              تأكيد القبول
+            </Button>,
+          ]}
+          width="90%"
+          style={{ maxWidth: '500px' }}
+          className="responsive-modal"
+        >
+          <div className="p-4">
+            <p>هل أنت متأكد من قبول هذا الحجز؟</p>
+            <p className="mt-2 text-gray-600">سيتم إرسال إشعار بقبول الحجز.</p>
+          </div>
+        </Modal>
 
-export default ReservationDetails;
+        {/* Reject Modal */}
+        <Modal
+          title="سبب الرفض"
+          visible={isRejectModalVisible}
+          onCancel={() => setIsRejectModalVisible(false)}
+          footer={[
+            <Button key="cancel" onClick={() => setIsRejectModalVisible(false)}>
+              إلغاء
+            </Button>,
+            <Button 
+              key="submit" 
+              danger 
+              type="primary" 
+              onClick={handleRejectUnit} 
+              loading={rejectLoading}
+            >
+              تأكيد الرفض
+            </Button>,
+          ]}
+          width="90%"
+          style={{ maxWidth: '500px' }}
+          className="responsive-modal"
+        >
+          <div className="p-4">
+            <p className="mb-4">يرجى إدخال سبب رفض الحجز:</p>
+            <Input.TextArea
+              placeholder="أدخل سبب الرفض"
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              rows={4}
+            />
+          </div>
+        </Modal>
+
+        {/* Image Preview Modal */}
+        <Modal
+          visible={previewModalVisible}
+          footer={null}
+          onCancel={() => setPreviewModalVisible(false)}
+          width="90%"
+          style={{ maxWidth: '800px' }}
+          className="responsive-modal"
+          title={previewImage?.title || "معاينة الصورة"}
+        >
+          {previewImage && (
+            <div className="flex flex-col items-center">
+              {previewImage.isPdf ? (
+                <div className="w-full h-[70vh] flex flex-col items-center justify-center">
+                  <FileText size={80} className="text-gray-500 mb-4" strokeWidth={1.5} />
+                  <Text className="mb-4">لا يمكن عرض الـ PDF هنا. يرجى فتحه في نافذة جديدة</Text>
+                  <Button 
+                    type="primary" 
+                    icon={<ExternalLink size={16} />}
+                    onClick={() => window.open(previewImage.url, '_blank')}
+                  >
+                    فتح الملف
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <img 
+                    src={previewImage.url} 
+                    alt={previewImage.title} 
+                    style={{ maxWidth: '100%', maxHeight: '70vh' }} 
+                  />
+                  <div className="mt-4">
+                    <Button 
+                      type="primary" 
+                      icon={<Download size={16} />}
+                      onClick={() => handleDownloadAttachment(previewImage.url, previewImage.title || "image")}
+                    >
+                      تحميل الصورة
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </Modal>
+
+        {/* Delete Confirmation Modal */}
+        <Modal
+          title="تأكيد حذف الحجز"
+          visible={isDeleteModalVisible}
+          onCancel={() => setIsDeleteModalVisible(false)}
+          footer={[
+            <Button key="cancel" onClick={() => setIsDeleteModalVisible(false)}>
+              إلغاء
+            </Button>,
+            <Button 
+              key="submit" 
+              danger 
+              type="primary" 
+              onClick={handleDeleteReservation} 
+              loading={deleteLoading}
+            >
+              تأكيد الحذف
+            </Button>,
+          ]}
+          width="90%"
+          style={{ maxWidth: '500px' }}
+          className="responsive-modal"
+        >
+          <div className="p-4">
+            <p>هل أنت متأكد من حذف هذا الحجز؟</p>
+            <p className="mt-2 text-red-600">هذا الإجراء لا يمكن التراجع عنه.</p>
+          </div>
+        </Modal>
+
+        {renderContractsModal()}
+      </div>
+    );
+  };
+
+  export default ReservationDetails;
