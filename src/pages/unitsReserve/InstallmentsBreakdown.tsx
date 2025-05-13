@@ -1,15 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../axiosInstance';
 import { convertToArabicWords } from '../../utils/convertNumbers';
 import { usePermissionsContext } from '../../context/PermissionsContext';
 import { toast } from 'react-hot-toast';
 import { message } from 'antd';
+import * as XLSX from 'xlsx';
 
 interface Installment {
   date: string;
   amount: string;
-  type: 'MONTHLY' | 'ANNUAL' | 'QUARTERLY';
+  type: 'MONTHLY' | 'ANNUAL' | 'QUARTERLY' | string;
   cheque_number: string | null;
 }
 
@@ -18,16 +19,6 @@ interface AdditionalExpense {
   amount: string;
   type: string;
   cheque_number: string | null;
-}
-
-interface Reservation {
-  id: string;
-  installments_schedule: Installment[];
-  additional_expenses: AdditionalExpense[];
-  final_price: string;
-  down_payment: string;
-  monthly_installment: string;
-  months_count: number;
 }
 
 const InstallmentsBreakdown = () => {
@@ -41,7 +32,8 @@ const InstallmentsBreakdown = () => {
   const contractRef = useRef<HTMLDivElement>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [installmentToDelete, setInstallmentToDelete] = useState<{type: 'installment' | 'expense', index: number} | null>(null);
-  const [pdfLoading, setPdfLoading] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch reservation data
   useEffect(() => {
@@ -56,7 +48,7 @@ const InstallmentsBreakdown = () => {
         );
         
         const expenses = data.installments_schedule.filter((inst: any) => 
-          inst.type === 'مرافق' || inst.type === 'صيانة'
+          inst.type === 'وديعة صيانة' || inst.type === 'حصة جراش + مرافق'
         );
         
         setRegularInstallments(regular);
@@ -71,6 +63,9 @@ const InstallmentsBreakdown = () => {
 
     fetchReservation();
   }, [id]);
+
+  //console.log(regularInstallments);
+  console.log(additionalExpenses)
 
   // Handle input changes for installments
   const handleInstallmentChange = (index: number, field: keyof Installment, value: string) => {
@@ -94,7 +89,6 @@ const InstallmentsBreakdown = () => {
   const handlePrint = async () => {
     if (!regularInstallments) return;
     
-    setPdfLoading(true);
     try {
       const response = await axiosInstance.get(`/reservations/${id}/installments-schedule/pdf`, {
         responseType: 'blob'
@@ -117,8 +111,6 @@ const InstallmentsBreakdown = () => {
     } catch (err) {
       console.error('Error fetching PDF:', err);
       message.error('فشل في تحميل ملف PDF');
-    } finally {
-      setPdfLoading(false);
     }
   };
 
@@ -127,43 +119,190 @@ const InstallmentsBreakdown = () => {
     if (!regularInstallments) return;
   
     try {
-      const response = await axiosInstance.get(`/reservations/${id}/installments-schedule/excel`, {
-        responseType: 'blob'
+      // Prepare regular installments data
+      const regularData = regularInstallments
+        .filter(inst => ['MONTHLY', 'QUARTERLY', 'ANNUAL'].includes(inst.type))
+        .map(inst => ({
+          'تاريخ الدفعة': inst.date,
+          'نوع الدفعة': inst.type === 'MONTHLY' ? 'شهري' : 
+                        inst.type === 'QUARTERLY' ? 'ربع سنوي' : 'سنوي',
+          'رقم الشيك': inst.cheque_number || '',
+          'المبلغ بالأرقام': Math.round(parseFloat(inst.amount)),
+          'المبلغ بالحروف': convertToArabicWords(inst.amount)
+        }));
+
+      // Add الاجمالي row for regular installments
+      const regularTotal = Math.round(calculateRegularInstallmentsTotal());
+      regularData.push({
+        'تاريخ الدفعة': '',
+        'نوع الدفعة': 'الاجمالي',
+        'رقم الشيك': '',
+        'المبلغ بالأرقام': regularTotal,
+        'المبلغ بالحروف': convertToArabicWords(regularTotal.toString())
       });
-  
-      // Create a blob from the Excel data
-      const file = new Blob([response.data], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+
+      // Add additional expenses data (both from regularInstallments and additionalExpenses)
+      const allAdditionalExpenses = [
+        ...regularInstallments.filter(inst => ['حصة جراش + مرافق', 'وديعة صيانة'].includes(inst.type)),
+        ...additionalExpenses
+      ];
+
+      const additionalData = allAdditionalExpenses.map(inst => ({
+        'تاريخ الدفعة': inst.date,
+        'نوع الدفعة': inst.type,
+        'رقم الشيك': inst.cheque_number || '',
+        'المبلغ بالأرقام': Math.round(parseFloat(inst.amount)),
+        'المبلغ بالحروف': convertToArabicWords(inst.amount)
+      }));
+
+      // Add الاجمالي الكلي row
+      const grandTotal = Math.round(calculateGrandTotal());
+      additionalData.push({
+        'تاريخ الدفعة': '',
+        'نوع الدفعة': 'الاجمالي الكلي',
+        'رقم الشيك': '',
+        'المبلغ بالأرقام': grandTotal,
+        'المبلغ بالحروف': convertToArabicWords(grandTotal.toString())
       });
-  
-      // Create a link and trigger download
-      const fileURL = URL.createObjectURL(file);
-      const link = document.createElement('a');
-      link.href = fileURL;
-      link.download = `ملحق_الأسعار_${id}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-  
-      // Clean up
-      document.body.removeChild(link);
-      URL.revokeObjectURL(fileURL);
+
+      // Combine all data
+      const allData = [...regularData, ...additionalData];
+
+      // Create worksheet
+      const ws = XLSX.utils.json_to_sheet(allData, { skipHeader: false });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'ملحق الأسعار');
+      
+      // Auto-size columns
+      const maxWidth = allData.reduce((w, r) => Math.max(w, r['المبلغ بالحروف'].length), 10);
+      const wscols = [
+        { wch: 12 }, // تاريخ الدفعة
+        { wch: 15 }, // نوع الدفعة
+        { wch: 12 }, // رقم الشيك
+        { wch: 15 }, // المبلغ بالأرقام
+        { wch: maxWidth } // المبلغ بالحروف
+      ];
+      ws['!cols'] = wscols;
+
+      // Save file
+      XLSX.writeFile(wb, `ملحق_الأسعار_${id}.xlsx`);
+      
+      message.success('تم تصدير الملف بنجاح');
     } catch (err) {
-      console.error('Error downloading Excel file:', err);
-      message.error('فشل في تحميل ملف Excel');
+      console.error('Error exporting to Excel:', err);
+      message.error('فشل في تصدير الملف');
     }
   };
 
-  // Function to calculate total for a group of installments
-  const calculateTotal = (installments: Installment[]) => {
-    return installments.reduce((sum, inst) => sum + parseFloat(inst.amount), 0).toFixed(2);
+  const handleExcelImport = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImportLoading(true);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      // Filter out total rows and transform data
+      const transformedInstallments = jsonData
+        .filter((row: any) => {
+          const type = row['نوع الدفعة']?.toString().trim();
+          return !['الاجمالي', 'الاجمالي الكلي'].includes(type);
+        })
+        .map((row: any) => {
+          // Convert amount to string and handle any formatting
+          const amount = row['المبلغ بالأرقام']?.toString().replace(/[^\d.-]/g, '') || '0';
+          
+          // Handle payment type mapping
+          let type = row['نوع الدفعة']?.toString().trim();
+          switch(type?.toLowerCase()) {
+            case 'شهري':
+              type = 'MONTHLY';
+              break;
+            case 'ربع سنوي':
+              type = 'QUARTERLY';
+              break;
+            case 'سنوي':
+              type = 'ANNUAL';
+              break;
+            case 'حصة جراش + مرافق':
+            case 'وديعة صيانة':
+              // Keep these types as is
+              break;
+            default:
+              type = 'MONTHLY'; // Default to monthly if unspecified
+          }
+
+          // Parse and format date
+          let date = row['تاريخ الدفعة'];
+          if (date) {
+            // Handle Excel date number format
+            if (typeof date === 'number') {
+              date = new Date(Math.round((date - 25569) * 86400 * 1000));
+            } else {
+              // Try to parse string date
+              date = new Date(date);
+            }
+            // Format date to YYYY-MM-DD
+            date = date.toISOString().split('T')[0];
+          } else {
+            date = new Date().toISOString().split('T')[0];
+          }
+
+          return {
+            date,
+            amount: Math.round(parseFloat(amount)).toString(),
+            type,
+            cheque_number: row['رقم الشيك']?.toString() || null
+          };
+        });
+
+      // Separate regular installments and additional expenses
+      const regular = transformedInstallments.filter(inst => 
+        ['MONTHLY', 'QUARTERLY', 'ANNUAL'].includes(inst.type)
+      );
+      
+      const expenses = transformedInstallments.filter(inst => 
+        ['حصة جراش + مرافق', 'وديعة صيانة'].includes(inst.type)
+      );
+
+      // Sort regular installments by date
+      regular.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      setRegularInstallments(regular);
+      setAdditionalExpenses(expenses);
+
+      message.success('تم استيراد البيانات بنجاح');
+    } catch (error) {
+      console.error('Error importing Excel file:', error);
+      message.error('حدث خطأ أثناء استيراد الملف');
+    } finally {
+      setImportLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
-  // Function to get installments for update (excluding totals)
-  const getInstallmentsForUpdate = () => {
-    if (!regularInstallments) return [];
-    return regularInstallments.filter(inst => 
-      inst.type === 'MONTHLY' || inst.type === 'QUARTERLY' || inst.type === 'ANNUAL'
-    );
+  // Function to calculate total for regular installments
+  const calculateRegularInstallmentsTotal = () => {
+    return regularInstallments
+      .filter(inst => ['MONTHLY', 'QUARTERLY', 'ANNUAL'].includes(inst.type))
+      .reduce((sum, inst) => sum + parseFloat(inst.amount), 0);
+  };
+
+  // Function to calculate total for additional expenses
+  const calculateAdditionalExpensesTotal = () => {
+    return [...regularInstallments, ...additionalExpenses]
+      .filter(inst => ['حصة جراش + مرافق', 'وديعة صيانة'].includes(inst.type))
+      .reduce((sum, inst) => sum + parseFloat(inst.amount), 0);
+  };
+
+  // Function to calculate grand total
+  const calculateGrandTotal = () => {
+    return Math.round(calculateRegularInstallmentsTotal() + calculateAdditionalExpensesTotal());
   };
 
   // Update the save button click handler
@@ -210,79 +349,6 @@ const InstallmentsBreakdown = () => {
     }, 500);
   };
 
-  // Function to generate suggestions based on date order and pattern detection
-  /* const generateSuggestions = (type: 'installment' | 'expense', index: number) => {
-    const allItems = [...regularInstallments, ...additionalExpenses].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-
-    const currentItem = type === 'installment' ? regularInstallments[index] : additionalExpenses[index];
-    const currentDate = new Date(currentItem.date);
-
-    const previousChecks = allItems
-      .filter(item => new Date(item.date) < currentDate && item.cheque_number)
-      .map(item => item.cheque_number) as string[];
-
-    if (previousChecks.length === 0) {
-      setChequeSuggestions(['1', '2', '3', '4', '5']);
-      setShowSuggestions({ type, index });
-      return;
-    }
-
-    const lastCheck = previousChecks[previousChecks.length - 1];
-    if (!lastCheck) return;
-
-    // Pattern detection
-    const suggestions: string[] = [];
-
-    // Check if the last check number is alphanumeric
-    if (/^[a-zA-Z]+[0-9]+[a-zA-Z]*$/.test(lastCheck)) {
-      // Pattern like "kh239f"
-      const prefix = lastCheck.match(/^[a-zA-Z]+/)?.[0] || '';
-      const suffix = lastCheck.match(/[a-zA-Z]*$/)?.[0] || '';
-      const number = parseInt(lastCheck.match(/[0-9]+/)?.[0] || '0');
-
-      // Generate next 5 suggestions maintaining the pattern
-      for (let i = 1; i <= 5; i++) {
-        suggestions.push(`${prefix}${(number + i).toString()}${suffix}`);
-      }
-    } else if (/^[0-9]+$/.test(lastCheck)) {
-      // Pure numeric pattern
-      const number = parseInt(lastCheck);
-      const padding = lastCheck.length;
-
-      // Generate next 5 suggestions with same padding
-      for (let i = 1; i <= 5; i++) {
-        suggestions.push((number + i).toString().padStart(padding, '0'));
-      }
-    } else {
-      // For other patterns, just increment a number at the end
-      suggestions.push(
-        `${lastCheck}-1`,
-        `${lastCheck}-2`,
-        `${lastCheck}-3`,
-        `${lastCheck}-4`,
-        `${lastCheck}-5`
-      );
-    }
-
-    setChequeSuggestions(suggestions);
-    setShowSuggestions({ type, index });
-  }; */
-
-  // Add useEffect for handling click outside
-  /* useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest('.suggestions-dropdown') && !target.closest('.cheque-input')) {
-        setShowSuggestions(null);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []); */
-
   // Loading state
   if (loading) {
     return <div className="p-6 text-center">جاري التحميل...</div>;
@@ -302,6 +368,13 @@ const InstallmentsBreakdown = () => {
     <div className="p-6 bg-white rounded-lg shadow-md">
       {/* Export Buttons */}
       <div className="flex justify-end gap-4 mb-6">
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleExcelImport}
+          accept=".xlsx,.xls"
+          style={{ display: 'none' }}
+        />
         <button 
           onClick={() => navigate(`/reservations/${id}`)}
           className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
@@ -311,6 +384,16 @@ const InstallmentsBreakdown = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
           </svg>
           عرض التفاصيل
+        </button>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={importLoading || !hasPermission('update_reservation_installments_schedule')}
+          className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          {importLoading ? 'جاري الاستيراد...' : 'استيراد من Excel'}
         </button>
         <button 
           onClick={exportToExcel} 
@@ -381,15 +464,13 @@ const InstallmentsBreakdown = () => {
             {(() => {
               if (!regularInstallments) return null;
 
-              // Calculate totals
-              const installmentsTotal = Math.round(regularInstallments
-                .filter((inst:any) => inst.type !== 'مرافق' && inst.type !== 'صيانة')
-                .reduce((sum, inst) => sum + parseFloat(inst.amount), 0));
+              const installmentsTotal = Math.round(calculateRegularInstallmentsTotal());
               
               return (
                 <>
+                  {/* Regular Installments */}
                   {regularInstallments
-                    .filter((inst:any) => inst.type !== 'مرافق' && inst.type !== 'صيانة')
+                    .filter(inst => ['MONTHLY', 'QUARTERLY', 'ANNUAL'].includes(inst.type))
                     .map((installment, index) => (
                     <tr 
                       key={index}
@@ -426,44 +507,12 @@ const InstallmentsBreakdown = () => {
                             type="text"
                             value={installment.cheque_number || ''}
                             onChange={(e) => handleInstallmentChange(index, 'cheque_number', e.target.value)}
-                            // onFocus={() => generateSuggestions('installment', index)}
                             className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 cheque-input ${
                               !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
                             placeholder="أدخل رقم الشيك"
                             disabled={!hasPermission('update_reservation_installments_schedule')}
                           />
-                          {/* {showSuggestions?.type === 'installment' && showSuggestions.index === index && chequeSuggestions.length > 0 && (
-                            <div className="absolute top-full left-0 w-full bg-white border border-gray-300 rounded-lg shadow-xl mt-1 max-h-48 overflow-y-auto z-50 suggestions-dropdown">
-                              <div className="sticky top-0 bg-gray-50 border-b flex justify-between items-center px-2 py-1">
-                                <span className="text-xs text-gray-600">اقتراحات الأرقام</span>
-                                <button
-                                  onClick={() => setShowSuggestions(null)}
-                                  className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
-                                  title="إغلاق"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                                  </svg>
-                                </button>
-                              </div>
-                              <div className="py-1">
-                                {chequeSuggestions.map((suggestion, i) => (
-                                  <div
-                                    key={i}
-                                    className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-gray-700 hover:text-blue-600 transition-colors duration-150"
-                                    onClick={() => {
-                                      handleInstallmentChange(index, 'cheque_number', suggestion);
-                                      setShowSuggestions(null);
-                                    }}
-                                  >
-                                    {suggestion}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )} */}
                         </div>
                       </td>
                       <td className="py-3 px-4 border-b">
@@ -500,7 +549,7 @@ const InstallmentsBreakdown = () => {
 
                   {/* Total Installments Row */}
                   <tr className="bg-blue-50 font-bold">
-                    <td className="py-3 px-4 border-b text-right">الإجمالي</td>
+                    <td className="py-3 px-4 border-b text-right">إجمالي الأقساط</td>
                     <td className="py-3 px-4 border-b"></td>
                     <td className="py-3 px-4 border-b"></td>
                     <td className="py-3 px-4 border-b text-right">{installmentsTotal}</td>
@@ -509,6 +558,22 @@ const InstallmentsBreakdown = () => {
                     </td>
                     {hasPermission('update_reservation_installments_schedule') && <td></td>}
                   </tr>
+
+                  {/* Additional Prices Rows */}
+                  {regularInstallments
+                    .filter(inst => ['حصة جراش + مرافق', 'وديعة صيانة'].includes(inst.type))
+                    .map((inst, index) => (
+                      <tr key={`additional-${index}`} className="bg-gray-50">
+                        <td className="py-3 px-4 border-b text-right">{inst.date}</td>
+                        <td className="py-3 px-4 border-b text-right font-medium">{inst.type}</td>
+                        <td className="py-3 px-4 border-b text-right">{inst.cheque_number || '-'}</td>
+                        <td className="py-3 px-4 border-b text-right">{Math.round(parseFloat(inst.amount))}</td>
+                        <td className="py-3 px-4 border-b text-right">
+                          {convertToArabicWords(inst.amount)}
+                        </td>
+                        {hasPermission('update_reservation_installments_schedule') && <td></td>}
+                      </tr>
+                    ))}
 
                   {/* Additional Expenses Rows */}
                   {additionalExpenses.map((expense, expenseIndex) => (
@@ -543,44 +608,12 @@ const InstallmentsBreakdown = () => {
                             type="text"
                             value={expense.cheque_number || ''}
                             onChange={(e) => handleExpenseChange(expenseIndex, 'cheque_number', e.target.value)}
-                            // onFocus={() => generateSuggestions('expense', expenseIndex)}
                             className={`w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 cheque-input ${
                               !hasPermission('update_reservation_installments_schedule') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
                             placeholder="أدخل رقم الشيك"
                             disabled={!hasPermission('update_reservation_installments_schedule')}
                           />
-                          {/* {showSuggestions?.type === 'expense' && showSuggestions.index === expenseIndex && chequeSuggestions.length > 0 && (
-                            <div className="absolute top-full left-0 w-full bg-white border border-gray-300 rounded-lg shadow-xl mt-1 max-h-48 overflow-y-auto z-50 suggestions-dropdown">
-                              <div className="sticky top-0 bg-gray-50 border-b flex justify-between items-center px-2 py-1">
-                                <span className="text-xs text-gray-600">اقتراحات الأرقام</span>
-                                <button
-                                  onClick={() => setShowSuggestions(null)}
-                                  className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
-                                  title="إغلاق"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                                  </svg>
-                                </button>
-                              </div>
-                              <div className="py-1">
-                                {chequeSuggestions.map((suggestion, i) => (
-                                  <div
-                                    key={i}
-                                    className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-gray-700 hover:text-blue-600 transition-colors duration-150"
-                                    onClick={() => {
-                                      handleExpenseChange(expenseIndex, 'cheque_number', suggestion);
-                                      setShowSuggestions(null);
-                                    }}
-                                  >
-                                    {suggestion}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )} */}
                         </div>
                       </td>
                       <td className="py-3 px-4 border-b">
@@ -608,11 +641,9 @@ const InstallmentsBreakdown = () => {
                     <td className="py-3 px-4 border-b text-right">الإجمالي الكلي</td>
                     <td className="py-3 px-4 border-b"></td>
                     <td className="py-3 px-4 border-b"></td>
+                    <td className="py-3 px-4 border-b text-right">{calculateGrandTotal()}</td>
                     <td className="py-3 px-4 border-b text-right">
-                      {Math.round(installmentsTotal + additionalExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0))}
-                    </td>
-                    <td className="py-3 px-4 border-b text-right">
-                      {convertToArabicWords(Math.round(installmentsTotal + additionalExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0)).toString())}
+                      {convertToArabicWords(calculateGrandTotal().toString())}
                     </td>
                     {hasPermission('update_reservation_installments_schedule') && <td></td>}
                   </tr>

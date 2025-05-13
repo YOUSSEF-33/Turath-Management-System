@@ -151,6 +151,8 @@ const ReserveUnit = () => {
         contract_date: "",
     });
 
+    console.log(projects)
+
     // Attachments State with upload status tracking
     const [attachments, setAttachments] = useState<Attachments>({
         national_id_images: [],
