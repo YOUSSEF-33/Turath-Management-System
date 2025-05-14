@@ -371,3 +371,62 @@ input, select, textarea {
     page-break-after: auto;
   }
 }
+
+/* Enhanced Upload Dragger Styles */
+.upload-dragger-enhanced {
+  transition: all 0.3s ease;
+}
+
+.upload-dragger-enhanced:hover {
+  border-color: #1890ff !important;
+  background-color: #f0f7ff !important;
+}
+
+.upload-dragger-enhanced .ant-upload-drag-icon {
+  transition: transform 0.3s ease;
+}
+
+.upload-dragger-enhanced:hover .ant-upload-drag-icon {
+  transform: scale(1.1);
+}
+
+.upload-dragger-enhanced.ant-upload-drag-hover {
+  border-color: #1890ff !important;
+  background-color: #e6f4ff !important;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.upload-content {
+  transition: transform 0.2s ease;
+}
+
+.ant-upload-drag-hover .upload-content {
+  transform: scale(0.98);
+}
+
+/* File Preview Animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.upload-dragger-enhanced .mt-4 {
+  animation: fadeInUp 0.3s ease;
+}
+
+/* Loading States */
+.upload-dragger-enhanced.ant-upload-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Message Animations */
+.ant-message-notice-content {
+  animation: fadeInUp 0.2s ease;
+}

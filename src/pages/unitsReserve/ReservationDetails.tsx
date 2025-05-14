@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../axiosInstance';
-import { Modal, Input, Button, message, Spin, Card, Tag, Empty, Tabs, Typography, Statistic, Badge, List } from 'antd';
+import { Modal, Input, Button, message, Spin, Card, Tag, Empty, Tabs, Typography, Statistic, Badge, List, Upload } from 'antd';
+import { InboxOutlined } from '@ant-design/icons';
 import GenericTable from '../../components/GenericTable';
 import { usePermissionsContext } from '../../context/PermissionsContext';
-import { Check, X, Printer, RefreshCw, Download, FileText, Image as ImageIcon, File, ExternalLink, Calendar, CreditCard, Building, User, Phone, Mail, MapPin, Edit3, Home, Trash2 } from 'lucide-react';
+import { Check, X, Printer, RefreshCw, Download, FileText, Image as ImageIcon, File, ExternalLink, Calendar, CreditCard, Building, User, Phone, Mail, MapPin, Edit3, Home, Trash2, Upload as UploadIcon } from 'lucide-react';
 import { isImageFile } from '../../utils/mediaUtils';
 
 const { Title, Text } = Typography;
@@ -61,6 +62,14 @@ interface ReservationData {
   national_id_images: ImageData[];
   reservation_deposit_receipt: ImageData;
   attachments: ImageData[];
+  contracts: Array<{
+    id: number;
+    name: string;
+    url: string;
+    medium_url?: string;
+    small_url?: string;
+    disk: string;
+  }>;
   approvals: Array<{
     role: {
       readable_name: string;
@@ -137,6 +146,89 @@ const ReservationDetails = () => {
 
   const [isContractsModalVisible, setIsContractsModalVisible] = useState(false);
   const [contractLoading, setContractLoading] = useState<{ [key: number]: boolean }>({});
+
+  const [isUploadModalVisible, setIsUploadModalVisible] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [fileList, setFileList] = useState<any[]>([]);
+
+  const [markAsSoldLoading, setMarkAsSoldLoading] = useState(false);
+
+  const handleMarkAsSold = async () => {
+    setMarkAsSoldLoading(true);
+    try {
+      await axiosInstance.patch(`/reservations/${id}/mark-as-sold`);
+      message.success('تم تحديث حالة الحجز إلى مباعة بنجاح');
+      fetchData(); // Refresh the data
+    } catch (err) {
+      message.error('فشل في تحديث حالة الحجز');
+      console.error(err);
+    } finally {
+      setMarkAsSoldLoading(false);
+    }
+  };
+
+  const uploadProps = {
+    name: 'file',
+    multiple: false,
+    fileList,
+    beforeUpload: (file: File) => {
+      const isWordOrPdf = 
+        file.type === 'application/pdf' || 
+        file.type === 'application/msword' || 
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      
+      if (!isWordOrPdf) {
+        message.error('يمكنك رفع ملفات Word أو PDF فقط');
+        return false;
+      }
+      
+      const isLt10M = file.size / 1024 / 1024 < 10;
+      if (!isLt10M) {
+        message.error('حجم الملف كبير جداً. الحد الأقصى هو 10 ميجابايت');
+        return false;
+      }
+      return false; // Return false to prevent auto upload
+    },
+    onChange: (info: any) => {
+      setFileList(info.fileList.slice(-1)); // Keep only the latest file
+      
+      // Add status updates
+      const status = info.file.status;
+      if (status === 'uploading') {
+        message.loading({
+          content: 'جاري تحضير الملف...',
+          key: 'upload'
+        });
+      } else if (status === 'done') {
+        message.success({
+          content: 'تم إضافة الملف بنجاح',
+          key: 'upload',
+          duration: 2
+        });
+      } else if (status === 'error') {
+        message.error({
+          content: 'فشل في إضافة الملف',
+          key: 'upload',
+          duration: 2
+        });
+      } else if (status === 'removed') {
+        message.info({
+          content: 'تم إزالة الملف',
+          key: 'upload',
+          duration: 2
+        });
+      }
+    },
+    onDrop: (e: React.DragEvent) => {
+      console.log('Dropped files', e.dataTransfer.files);
+      // Prevent default to allow drop
+      e.preventDefault();
+    },
+    onRemove: () => {
+      setFileList([]);
+      return true;
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -418,6 +510,46 @@ const ReservationDetails = () => {
     }
   };
 
+  // Function to handle file upload
+  const handleFileUpload = async () => {
+    if (fileList.length === 0) {
+      message.error('الرجاء اختيار ملف');
+      return;
+    }
+
+    const file = fileList[0].originFileObj;
+    setUploadLoading(true);
+    try {
+      // First upload the file to /media
+      const formData = new FormData();
+      formData.append('files[]', file);
+      formData.append('collection_name', 'contracts'); // Add collection name
+
+      const uploadResponse = await axiosInstance.post('/media', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      const fileId = uploadResponse.data.data[0].id;
+
+      // Then send the file ID to the contract endpoint
+      await axiosInstance.post(`/reservations/${id}/upload-contract`, {
+        contract_id: fileId
+      });
+
+      message.success('تم رفع العقد بنجاح');
+      setIsUploadModalVisible(false);
+      setFileList([]);
+      fetchData(); // Refresh the data to show the new contract
+    } catch (error) {
+      console.error('Error uploading contract:', error);
+      message.error('فشل في رفع العقد');
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
   const renderUnitInformation = () => (
     <Card 
       size="small"
@@ -491,55 +623,110 @@ const ReservationDetails = () => {
       width={600}
       bodyStyle={{ padding: '16px' }}
     >
+      {/* Uploaded Contracts Section */}
+      {reservation?.contracts && reservation.contracts.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center mb-4 pb-2 border-b">
+            <FileText size={16} className="text-green-500/70 ml-2" />
+            <span className="font-medium text-gray-700">عقود تمت إضافتها</span>
+          </div>
+          <List
+            itemLayout="horizontal"
+            dataSource={reservation.contracts}
+            className="contracts-list space-y-2 mb-6"
+            renderItem={(contract: any) => (
+              <List.Item
+                key={contract.id}
+                className="rounded-lg border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all duration-300 hover:border-green-200 overflow-hidden group !p-0"
+              >
+                <div className="flex items-center w-full relative">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-green-500/30 group-hover:bg-green-500/70 transition-colors duration-300" />
+                  <div className="flex-shrink-0 p-3">
+                    <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center group-hover:bg-green-100 transition-colors duration-300">
+                      <FileText size={20} className="text-green-500/70 group-hover:text-green-600 transition-colors duration-300" />
+                    </div>
+                  </div>
+                  <div className="flex-grow py-3 px-2">
+                    <div className="flex items-center">
+                      <span className="text-gray-800 text-sm font-medium group-hover:text-green-600 transition-colors duration-300">
+                        {removeFileExtension(contract.name)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 p-2">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<ExternalLink size={16} />}
+                      onClick={() => window.open(contract.url, '_blank')}
+                      className="text-gray-500 hover:text-green-600 hover:bg-green-50 !px-2"
+                    >
+                      فتح
+                    </Button>
+                  </div>
+                </div>
+              </List.Item>
+            )}
+          />
+        </div>
+      )}
+
+      {/* Available Contract Templates Section */}
       {reservation?.unit?.building?.project?.contracts && 
        reservation.unit.building.project.contracts.length > 0 ? (
-        <List
-          itemLayout="horizontal"
-          dataSource={reservation.unit.building.project.contracts}
-          className="contracts-list space-y-2"
-          renderItem={(contract: ContractData) => (
-            <List.Item
-              key={contract.id}
-              className="rounded-lg border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all duration-300 hover:border-blue-200 overflow-hidden group !p-0"
-            >
-              <div className="flex items-center w-full relative">
-                <div className="absolute top-0 left-0 w-1 h-full bg-blue-500/30 group-hover:bg-blue-500/70 transition-colors duration-300" />
-                <div className="flex-shrink-0 p-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors duration-300">
-                    <FileText size={20} className="text-blue-500/70 group-hover:text-blue-600 transition-colors duration-300" />
+        <>
+          <div className="flex items-center mb-4 pb-2 border-b">
+            <FileText size={16} className="text-blue-500/70 ml-2" />
+            <span className="font-medium text-gray-700">نماذج العقود المتاحة</span>
+          </div>
+          <List
+            itemLayout="horizontal"
+            dataSource={reservation.unit.building.project.contracts}
+            className="contracts-list space-y-2"
+            renderItem={(contract: ContractData) => (
+              <List.Item
+                key={contract.id}
+                className="rounded-lg border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all duration-300 hover:border-blue-200 overflow-hidden group !p-0"
+              >
+                <div className="flex items-center w-full relative">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-blue-500/30 group-hover:bg-blue-500/70 transition-colors duration-300" />
+                  <div className="flex-shrink-0 p-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors duration-300">
+                      <FileText size={20} className="text-blue-500/70 group-hover:text-blue-600 transition-colors duration-300" />
+                    </div>
                   </div>
-                </div>
-                <div className="flex-grow py-3 px-2">
-                  <div className="flex items-center">
-                    <span className="text-gray-800 text-sm font-medium group-hover:text-blue-600 transition-colors duration-300">
-                      {removeFileExtension(contract.name)}
-                    </span>
-                    {contractLoading[contract.id] && (
-                      <Spin size="small" className="ml-2" />
+                  <div className="flex-grow py-3 px-2">
+                    <div className="flex items-center">
+                      <span className="text-gray-800 text-sm font-medium group-hover:text-blue-600 transition-colors duration-300">
+                        {removeFileExtension(contract.name)}
+                      </span>
+                      {contractLoading[contract.id] && (
+                        <Spin size="small" className="ml-2" />
+                      )}
+                    </div>
+                    {contract.created_at && (
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        تم الإضافة: {new Date(contract.created_at).toLocaleDateString('ar-EG')}
+                      </div>
                     )}
                   </div>
-                  {contract.created_at && (
-                    <div className="text-xs text-gray-500 mt-0.5">
-                      تم الإضافة: {new Date(contract.created_at).toLocaleDateString('ar-EG')}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1 p-2">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<Download size={16} />}
+                      onClick={() => handleContractDownload(contract.id, contract.name)}
+                      loading={contractLoading[contract.id]}
+                      className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 !px-2"
+                    >
+                      تحميل
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 p-2">
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<Download size={16} />}
-                    onClick={() => handleContractDownload(contract.id, contract.name)}
-                    loading={contractLoading[contract.id]}
-                    className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 !px-2"
-                  >
-                    تحميل
-                  </Button>
-                </div>
-              </div>
-            </List.Item>
-          )}
-        />
+              </List.Item>
+            )}
+          />
+        </>
       ) : (
         <Empty description="لا توجد عقود متاحة" />
       )}
@@ -1084,16 +1271,37 @@ const ReservationDetails = () => {
                       حذف الحجز
                     </Button>
                   )}
+                  {hasPermission('confirm_reservations') && (
+                    <Button
+                      type="primary"
+                      onClick={handleMarkAsSold}
+                      icon={<Check size={14} className="mr-3" />}
+                      size="middle"
+                      loading={markAsSoldLoading}
+                      className="mx-2 bg-purple-500 hover:bg-purple-600 border-purple-500"
+                    >
+                      تحديث إلى مباعة
+                    </Button>
+                  )}
                 </div>
                 <div className="flex justify-end border-t pt-3">
                   <Button
                     type="primary"
                     size="middle"
                     icon={<FileText size={18} className="mr-2" />}
-                    className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 border-none shadow-md hover:shadow-lg transition-all duration-300"
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 border-none shadow-md hover:shadow-lg transition-all duration-300 mx-2"
                     onClick={() => setIsContractsModalVisible(true)}
                   >
                     إنشاء عقد
+                  </Button>
+                  <Button
+                    type="primary"
+                    size="middle"
+                    icon={<UploadIcon size={18} className="mr-2" />}
+                    className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 border-none shadow-md hover:shadow-lg transition-all duration-300"
+                    onClick={() => setIsUploadModalVisible(true)}
+                  >
+                    رفع عقد
                   </Button>
                 </div>
               </div>
@@ -1236,6 +1444,76 @@ const ReservationDetails = () => {
           <div className="p-4">
             <p>هل أنت متأكد من حذف هذا الحجز؟</p>
             <p className="mt-2 text-red-600">هذا الإجراء لا يمكن التراجع عنه.</p>
+          </div>
+        </Modal>
+
+        {/* Upload Contract Modal */}
+        <Modal
+          title="رفع عقد"
+          visible={isUploadModalVisible}
+          onCancel={() => {
+            setIsUploadModalVisible(false);
+            setFileList([]);
+          }}
+          footer={[
+            <Button 
+              key="cancel" 
+              onClick={() => {
+                setIsUploadModalVisible(false);
+                setFileList([]);
+              }}
+            >
+              إلغاء
+            </Button>,
+            <Button
+              key="upload"
+              type="primary"
+              onClick={handleFileUpload}
+              loading={uploadLoading}
+              disabled={fileList.length === 0}
+              className="bg-green-500 hover:bg-green-600"
+            >
+              رفع العقد
+            </Button>
+          ]}
+          width="90%"
+          style={{ maxWidth: '500px' }}
+          className="responsive-modal"
+        >
+          <div className="p-4">
+            <Upload.Dragger 
+              {...uploadProps}
+              style={{
+                border: '2px dashed #d9d9d9',
+                borderRadius: '8px',
+                padding: '24px',
+                backgroundColor: '#fafafa',
+              }}
+              className="w-full upload-dragger-enhanced"
+            >
+              <div className="upload-content">
+                <p className="ant-upload-drag-icon">
+                  <InboxOutlined className="text-blue-500 text-3xl transition-all duration-300 transform group-hover:scale-110" />
+                </p>
+                <p className="ant-upload-text text-base">
+                  اضغط أو اسحب ملف العقد إلى هذه المنطقة للتحميل
+                </p>
+                <p className="ant-upload-hint text-xs text-gray-500 mt-2">
+                  <span className="block mb-1">الصيغ المدعومة: Word أو PDF</span>
+                  <span className="block">الحد الأقصى للحجم: 10 ميجابايت</span>
+                </p>
+                {fileList.length > 0 && (
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <div className="flex items-center">
+                      <FileText className="text-blue-500 mr-2" size={20} />
+                      <span className="text-sm text-blue-600">
+                        {fileList[0].name}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Upload.Dragger>
           </div>
         </Modal>
 

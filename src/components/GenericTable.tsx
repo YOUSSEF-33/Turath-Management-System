@@ -12,13 +12,13 @@ interface Action {
   icon: React.ReactNode;
   onClick: (id: number) => void;
   color?: string;
-  title?: string;  // Add title property to Action interface
+  title?: string;
 }
 
 interface GenericTableProps {
   data: Record<string, unknown>[];
   columns: Column[];
-  actions?: Action[];
+  actions?: Action[] | ((row: Record<string, unknown>) => Action[]);
   onCreate?: () => void;
   createButtonText?: string;
   noDataMessage?: string;
@@ -139,7 +139,7 @@ const GenericTable = ({
                     {actions && actions.length > 0 && (
                       <td className="pl-3 xs:pl-4 py-3 sm:py-4 text-sm whitespace-nowrap">
                         <div className="flex flex-col xs:flex-row gap-2 items-end xs:items-center justify-end">
-                          {actions.map((action) => (
+                          {(typeof actions === 'function' ? actions(item) : actions).map((action) => (
                             <button
                               key={action.key}
                               onClick={() => action.onClick(Number(item.id || 0))}

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Calendar } from 'lucide-react';
+import { Eye, Calendar, Edit } from 'lucide-react';
 import GenericTable from './GenericTable';
 import ReservationsFilter from './ReservationsFilter';
-import { useUserContext } from '../context/UserContext';
 import axiosInstance from '../axiosInstance';
 import { toast } from 'react-hot-toast';
+import ReservationEditButton from './ReservationEditButton';
 
 interface ReservationData {
   id: number;
@@ -48,7 +48,7 @@ interface Action {
 
 interface ReservationsTableProps {
   showUnitColumn?: boolean;
-  showClientColumn?: boolean;
+
   showActions?: boolean;
   extraColumns?: Column[];
   extraActions?: Action[];
@@ -63,7 +63,6 @@ interface PaginationInfo {
 
 const ReservationsTable: React.FC<ReservationsTableProps> = ({
   showUnitColumn = true,
-  showClientColumn = true,
   showActions = true,
   extraColumns = [],
   extraActions = [],
@@ -78,8 +77,7 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({
     pageSize: 10,
     total: 0
   });
-  const { userInfo } = useUserContext();
-  const isSalesAgent = userInfo?.role?.name === 'sales_agent';
+
 
   // Fetch reservations with filters and pagination
   const fetchReservations = async (filterParams: FilterValues, page: number = 1) => {
@@ -137,12 +135,16 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({
     navigate(`/reservations/${id}/installments-breakdown`);
   };
 
+  const handleEditReservation = (id: number) => {
+    navigate(`/reservations/${id}/edit`);
+  };
+
   // Base columns that will always be included
   const baseColumns: Column[] = [
     { 
       header: 'اسم المشروع', 
       key: 'project',
-      render: (value: unknown, row: Record<string, unknown>): React.ReactNode => {
+      render: (_value: unknown, row: Record<string, unknown>): React.ReactNode => {
         const unit = row.unit as { building: { project: { name: string } } } | undefined;
         return unit?.building?.project?.name || '-';
       }
@@ -150,7 +152,7 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({
     { 
       header: 'بيانات العميل', 
       key: 'client',
-      render: (value: unknown, row: Record<string, unknown>): React.ReactNode => {
+      render: (_value: unknown, row: Record<string, unknown>): React.ReactNode => {
         const client = row.client as { name: string; phone: string } | undefined;
         if (!client) return '-';
         return (
@@ -185,9 +187,9 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({
       render: (value: unknown): React.ReactNode => {
         if (!value) return '-';
         if (typeof value === 'string') {
-          return new Date(value as string).toLocaleDateString('ar-EG');
+          return new Date(value).toLocaleDateString('ar-EG');
         }
-        return value;
+        return String(value);
       } 
     },
     { 
@@ -204,7 +206,7 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({
     optionalColumns.push({ 
       header: 'رقم الوحدة', 
       key: 'unit_number',
-      render: (value: unknown, row: Record<string, unknown>): React.ReactNode => {
+      render: (_value: unknown, row: Record<string, unknown>): React.ReactNode => {
         const unit = row.unit as { unit_number: string } | undefined;
         return unit?.unit_number || '-';
       }
@@ -247,40 +249,55 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({
     ...extraColumns
   ];
 
-  // Default actions for reservations
-  const defaultActions: Action[] = showActions ? [
-    { 
-      key: 'view', 
-      icon: <Eye className="h-5 w-5" />, 
-      onClick: handleViewReservation, 
-      color: 'text-blue-600' 
-    },
-    { 
-      key: 'booking', 
-      icon: <Calendar className="h-5 w-5" />, 
-      onClick: handleReservationAddendum, 
-      color: 'text-green-600' 
-    },
-  ] : [];
+  // Add edit action using the new ReservationEditButton
+  const getActions = (row: ReservationData): Action[] => {
+    const baseActions: Action[] = [
+      {
+        key: 'view',
+        icon: <Eye className="h-5 w-5" />,
+        onClick: handleViewReservation,
+        color: 'text-gray-600 hover:text-gray-800'
+      },
+      {
+        key: 'addendum',
+        icon: <Calendar className="h-5 w-5" />,
+        onClick: handleReservationAddendum,
+        color: 'text-green-600 hover:text-green-800'
+      }
+    ];
 
-  // Combine default and extra actions
-  const allActions: Action[] = [...defaultActions, ...extraActions];
+    if (!showActions) return [];
+
+    return [
+      ...baseActions,
+      {
+        key: 'edit',
+        icon: <ReservationEditButton reservationId={row.id} />,
+        onClick: () => {}, // This won't be called since we're using ReservationEditButton
+        color: ''
+      },
+      ...extraActions
+    ];
+  };
 
   return (
     <div>
-      <ReservationsFilter 
+      <ReservationsFilter
         onFilterChange={handleFilterChange}
         onFilterSubmit={handleFilterSubmit}
       />
       <GenericTable
         columns={allColumns}
         data={reservations as unknown as Record<string, unknown>[]}
-        actions={allActions}
+        actions={getActions}
         loading={isLoading}
         noDataMessage={noDataMessage}
-        itemsPerPage={pagination.pageSize}
-        totalPages={Math.ceil(pagination.total / pagination.pageSize)}
-        onPageChange={handlePageChange}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+          onChange: handlePageChange
+        }}
       />
     </div>
   );
