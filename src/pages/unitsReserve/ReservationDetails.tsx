@@ -227,7 +227,8 @@ const ReservationDetails = () => {
     onRemove: () => {
       setFileList([]);
       return true;
-    }
+    },
+    accept: '.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   };
 
   const fetchData = async () => {
@@ -1233,7 +1234,7 @@ const ReservationDetails = () => {
         </Tabs>
 
         {/* Actions Section */}
-        {reservation.status !== 'مباعة' && (
+        {reservation.status !== 'مباعة' && reservation.status !== 'تم البيع' ? (
           <div className="mt-4 sm:mt-6 flex flex-col space-y-4">
             <div className="border-t pt-4">
               <div className="flex flex-col space-y-3">
@@ -1262,7 +1263,7 @@ const ReservationDetails = () => {
                   )}
                   {hasPermission('delete_reservations') && (
                     <Button
-                    color='geekblue'
+                      color='geekblue'
                       onClick={() => setIsDeleteModalVisible(true)}
                       icon={<Trash2 size={14} className="mr-3" />}
                       size="middle"
@@ -1304,6 +1305,38 @@ const ReservationDetails = () => {
                     رفع عقد
                   </Button>
                 </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 sm:mt-6 flex flex-col space-y-4">
+            <div className="border-t pt-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                <div className="flex items-center justify-center text-green-700 mb-2">
+                  <Check size={24} className="mr-2" />
+                  <span className="text-lg font-medium">تم بيع الوحدة</span>
+                </div>
+                <p className="text-green-600">تم إتمام عملية البيع بنجاح وإغلاق الحجز</p>
+              </div>
+              <div className="flex justify-end border-t pt-3 mt-4">
+                <Button
+                  type="primary"
+                  size="middle"
+                  icon={<FileText size={18} className="mr-2" />}
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 border-none shadow-md hover:shadow-lg transition-all duration-300 mx-2"
+                  onClick={() => setIsContractsModalVisible(true)}
+                >
+                  إنشاء عقد
+                </Button>
+                <Button
+                  type="primary"
+                  size="middle"
+                  icon={<UploadIcon size={18} className="mr-2" />}
+                  className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 border-none shadow-md hover:shadow-lg transition-all duration-300"
+                  onClick={() => setIsUploadModalVisible(true)}
+                >
+                  رفع عقد
+                </Button>
               </div>
             </div>
           </div>
