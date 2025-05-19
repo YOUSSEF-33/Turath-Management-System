@@ -876,7 +876,7 @@ const ReserveUnit = () => {
                                         filterOption={filterBuildings}
                                         notFoundContent={buildingsLoading ? "جاري التحميل..." : "لا توجد نتائج"}
                                     >
-                                        {buildings?.map((building) => (
+                                        {buildings?.map((building:any) => (
                                             <Select.Option key={building.id} value={building.id} label={building.name}>
                                                 {building.name}
                                             </Select.Option>

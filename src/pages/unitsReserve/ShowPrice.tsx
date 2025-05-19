@@ -259,6 +259,8 @@ const ShowPrice = () => {
     fetchUnits();
   }, [selectedBuilding]);
 
+
+
   // Update unit details when a unit is selected
   useEffect(() => {
     if (selectedUnit && units.length > 0) {
@@ -518,6 +520,7 @@ const ShowPrice = () => {
           (annualDetails.count * annualDetails.amount) +
           (quarterlyDetails.count * quarterlyDetails.amount) +
           (monthlyDetails.count * monthlyDetails.amount);
+          console.log("total:",(monthlyDetails.count * monthlyDetails.amount))
 
         // Update global config
         setInstallmentConfig({

@@ -2,7 +2,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 
 // API base URL - consider moving to environment variables
-const baseURL = 'https://knownstate.knownlege.com/api';
+const baseURL = process.env.BASE_URL;
 const refreshURL = `${baseURL}/refresh`;
 
 // Create an axios instance with default configurations
